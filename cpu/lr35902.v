@@ -52,6 +52,12 @@ module lr35902(
 	reg [7:0]  h,    new_h;
 	reg [7:0]  l,    new_l;
 
+	/* is CPU currently handling instruction or immediate value/address fetching? */
+	wire is_fetching = (state == `state_ifetch ||
+	                    state == `state_imml_fetch ||
+	                    state == `state_immh_fetch) &&
+	                   (cycle == 0 || cycle == 1);
+
 	assign dbg = op;
 
 	always @(*) begin
@@ -85,86 +91,79 @@ module lr35902(
 		if (dummy) begin /* finish current state with dummy cycles? */
 			if (cycle == 3)
 				new_dummy = 0;
-		end else case (state)
-		`state_ifetch:
-			case (cycle)
-			0: /* READ request from address in PC */
-				begin
-					new_adr   = pc;
-					new_read  = 1;
-					if (reset_op_bank) begin /* previous executed OP was a 0xcb OP -> reset OP bank */
-						new_reset_op_bank = 0;
-						new_op_bank       = 0;
-					end
-				end
-			1: /* fetch OPCODE from DATA bus */
-				begin
-					new_op   = data;
-					new_read = 0;
-					new_pc   = pc + 1;
-				end
-			2, 3: /* handle OP */
-				case (op_bank)
-				0: /* default OP bank */
-					case (op) /* OP (bytes,cycles): description */
-					'h 00: /* NOP (1,4) */
-						new_dummy = 1;
-					'h cb: /* PREFIX CB (1,4): switch OP bank - fetch second OPCODE */
-						begin
-							new_dummy   = 1;
-							new_op_bank = 1;
-							/* stay in ifetch state, we need to fetch a second one */
-						end
-					'h c3: /* JP a16 (3,16): jump immediate 16-bit address */
-						begin
-							new_dummy = 1;
-							new_state = `state_imml_fetch;
-						end
-					endcase
-				1: /* 0xcb OP bank */
+		end else begin
+			case (state)
+			`state_ifetch:
+				case (cycle)
+				0: /* READ request from address in PC */
 					begin
-						case (op)
-						
+						new_adr   = pc;
+						new_read  = 1;
+						if (reset_op_bank) begin /* previous executed OP was a 0xcb OP -> reset OP bank */
+							new_reset_op_bank = 0;
+							new_op_bank       = 0;
+						end
+					end
+				1: /* fetch OPCODE from DATA bus */
+					begin
+						new_op   = data;
+						new_read = 0;
+						new_pc   = pc + 1;
+					end
+				endcase
+			`state_imml_fetch,
+			`state_immh_fetch:
+				case (cycle)
+				0: /* READ request from address in PC */
+					begin
+						new_adr   = pc;
+						new_read  = 1;
+					end
+				1: /* fetch immediate low or high byte from DATA bus */
+					begin
+						case (state)
+						`state_imml_fetch:
+							new_imml = data;
+						`state_immh_fetch:
+							new_immh = data;
 						endcase
-						new_reset_op_bank = 1; /* reset OP bank when fetching next instruction */
+						new_read = 0;
+						new_pc   = pc + 1;
 					end
 				endcase
 			endcase
-		`state_imml_fetch,
-		`state_immh_fetch:
-			case (cycle)
-			0: /* READ request from address in PC */
-				begin
-					new_adr   = pc;
-					new_read  = 1;
-				end
-			1: /* fetch immediate low or high byte from DATA bus */
-				begin
-					case (state)
-					`state_imml_fetch:
-						new_imml = data;
-					`state_immh_fetch:
-						new_immh = data;
-					endcase
-					new_read = 0;
-					new_pc   = pc + 1;
-				end
-			2, 3: /* handle OP */
-				case (op) /* OP (bytes,cycles): description */
-				'h c3: /* JP a16 (3,16): jump immediate 16-bit address */
-					begin
-						new_dummy = 1;
-						new_state = (state == `state_imml_fetch) ? `state_immh_fetch : `state_jump_imm;
-					end
-				endcase
-			endcase
-		`state_jump_imm:
-			begin
-				new_pc    = { immh, imml };
+
+			if (!is_fetching) case ({ op_bank, op })
+			/*          OP (bytes,cycles): description */
+			'h 0_00: /* NOP (1,4) */
 				new_dummy = 1;
-				new_state = `state_ifetch;
-			end
-		endcase
+			'h 0_cb: /* PREFIX CB (1,4): switch OP bank - fetch second OPCODE */
+				begin
+					new_dummy   = 1;
+					new_op_bank = 1;
+				end
+			'h 0_c3: /* JP a16 (3,16): jump immediate 16-bit address */
+				begin
+					new_dummy = 1;
+					case (state)
+					`state_ifetch:
+						new_state = `state_imml_fetch;
+					`state_imml_fetch:
+						new_state = `state_immh_fetch;
+					`state_immh_fetch:
+						new_state = `state_jump_imm;
+					`state_jump_imm:
+						begin
+							new_pc    = { immh, imml };
+							new_state = `state_ifetch;
+						end
+					endcase
+				end
+			endcase
+
+			if (!is_fetching && op_bank)
+				new_reset_op_bank = 1; /* reset OP bank when fetching next instruction */
+		end
 
 		if (reset) begin
 			new_read    = 0;
