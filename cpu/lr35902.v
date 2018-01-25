@@ -142,7 +142,11 @@ module lr35902(
 					new_dummy   = 1;
 					new_op_bank = 1;
 				end
-			'h 0_c3: /* JP a16 (3,16): jump immediate 16-bit address */
+			'h 0_c3, /* JP a16 (3,16): jump immediate 16-bit address */
+			'h 0_c2, /* JP NZ,a16 (3,16/12): jump if not zero immediate 16-bit address */
+			'h 0_d2, /* JP NC,a16 (3,16/12): jump if not carry immediate 16-bit address */
+			'h 0_ca, /* JP Z,a16 (3,16/12): jump if zero immediate 16-bit address */
+			'h 0_da: /* JP C,a16 (3,16/12): jump if carry immediate 16-bit address */
 				begin
 					new_dummy = 1;
 					case (state)
@@ -151,7 +155,18 @@ module lr35902(
 					`state_imml_fetch:
 						new_state = `state_immh_fetch;
 					`state_immh_fetch:
-						new_state = `state_jump_imm;
+						case (op)
+						'h c3:
+							new_state = `state_jump_imm;
+						'h c2:
+							new_state = !f[`Z] ? `state_jump_imm : `state_ifetch;
+						'h d2:
+							new_state = !f[`C] ? `state_jump_imm : `state_ifetch;
+						'h ca:
+							new_state = f[`Z] ? `state_jump_imm : `state_ifetch;
+						'h da:
+							new_state = f[`C] ? `state_jump_imm : `state_ifetch;
+						endcase
 					`state_jump_imm:
 						begin
 							new_pc    = { immh, imml };
