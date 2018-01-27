@@ -102,13 +102,13 @@ module top(
 
 	gb_bootrom bootrom(
 		.clk(divclk),
-		.adr(adr16),
+		.adr(adr16[7:0]),
 		.data(dbootrom),
 	);
 
 	gb_vram vram(
 		.clk(clk),
-		.adr(adr16),
+		.adr(adr16[12:0]),
 		.dout(dvram),
 		.din(dout),
 		.write(write && vram_cs),
