@@ -1,21 +1,25 @@
 `default_nettype none
 
 module gb_vram(
-		input  wire        clk,
-
-		input  wire [12:0] adr,
-		input  wire [12:0] vadr,
 		output reg  [7:0]  dout,
 		input  wire [7:0]  din,
+
+		input  wire [12:0] adr,
+		input  wire        read,
 		input  wire        write,
-		input  wire        vid_read,
+
+		input  wire [12:0] vadr,
+		input  wire        ppu_active,
 	);
 
 	reg [7:0] ram[0:8191];
 
-	always @(posedge clk) begin
-		dout <= ram[vid_read ? vadr : adr];
-		if (write)
+	always @(posedge read) begin
+		dout <= ram[ppu_active ? vadr : adr];
+	end
+
+	always @(posedge write) begin
+		if (!ppu_active)
 			ram[adr] <= din;
 	end
 

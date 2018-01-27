@@ -10,7 +10,7 @@ module top(
 		output wire        n_ram_cs,  /* chip select for RAM */
 		output wire        n_cart_cs, /* chip select for cartridge */
 		output wire        n_crom_cs, /* chip select for cartridge ROM (only when emulating MBC chip) */
-		output wire        n_cram_cs, /* chip select for cartridge RAM (only when emulating MBC chip)*/
+		output wire        n_cram_cs, /* chip select for cartridge RAM (only when emulating MBC chip) */
 		input  wire        n_reset,
 		input  wire        rx,        /* UART RX for prog loader */
 		output wire [7:0]  led,
@@ -24,7 +24,6 @@ module top(
 
 	wire [15:0] adr16;
 	wire [20:0] adr21, adr21_prg;
-	wire cartadr_matched;
 
 	wire read, write, write_prg;
 	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs;
@@ -52,10 +51,10 @@ module top(
 	end
 
 	assign n_read    = !read;
-	assign n_write   = n_reset ? !write : !write_prg;
+	assign n_write   = n_reset ? (crom_cs || !write) : !write_prg; /* suppress outgoing n_write if rom is selected */
 	assign n_ram_cs  = !ram_cs;
 	assign n_cart_cs = !reset_done || !cart_cs;
-	assign n_crom_cs = !reset_done || (n_reset ? !crom_cs : !write_prg);
+	assign n_crom_cs = !reset_done || (n_reset ? !crom_cs : 0);
 	assign n_cram_cs = !reset_done || !cram_cs;
 
 	assign adr = n_reset ? adr21 : adr21_prg;
@@ -91,33 +90,31 @@ module top(
 		.clk(divclk),
 		.adr(adr16),
 		.write(write),
-		.read(read),
 		.reset(!reset_done || !n_reset),
 		.sel_bootrom(bootrom_cs),
 		.sel_vram(vram_cs),
 		.sel_ram(ram_cs),
 		.sel_cartridge(cart_cs),
-		.async_sel_cartridge(cartadr_matched),
 	);
 
 	gb_bootrom bootrom(
-		.clk(divclk),
+		.read(read),
 		.adr(adr16[7:0]),
 		.data(dbootrom),
 	);
 
 	gb_vram vram(
-		.clk(clk),
 		.adr(adr16[12:0]),
 		.dout(dvram),
 		.din(dout),
+		.read(read),
 		.write(write && vram_cs),
 	);
 
 	mbc_chip mbc(
 		.clk(divclk),
-		.read(read && cartadr_matched && !n_emu_mbc),
-		.write(write && cartadr_matched && !n_emu_mbc),
+		.read(read && cart_cs && !n_emu_mbc),
+		.write(write && cart_cs && !n_emu_mbc),
 		.data(dout),
 		.iadr(adr16),
 		.oadr(adr21),
