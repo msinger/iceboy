@@ -57,6 +57,11 @@ module lr35902(
 	wire [7:0] arg, result;
 	wire       fzero, fsub, fhalfcarry, fcarry;
 
+	/* for PC, SP or HL (arg16) incr/decr (arg8s) and for relative jumps: result16 = arg16 + arg8s */
+	wire        [15:0] arg16;
+	wire signed [7:0]  arg8s;
+	wire        [15:0] result16 = arg16 + arg8s;
+
 	assign dbg = op;
 
 	always @(*) begin
@@ -120,6 +125,19 @@ module lr35902(
 		endcase
 		fzero = result[7:0] == 0;
 
+		arg16 = 'bx;
+		arg8s = 'bx;
+		if (cycle == 1) begin
+			arg16 = pc; /* arg16 is used to increment PC in cycle 1 */
+			arg8s = 1;
+		end else case (op)
+		'h22, 'h32, 'h2a, 'h3a: /* post incr/decr load instructions */
+			begin
+				arg16 = { h, l };
+				arg8s = op[4] ? -1 : 1;
+			end
+		endcase
+
 		if (dummy) begin /* finish current state with dummy cycles? */
 			if (cycle == 3)
 				new_dummy = 0;
@@ -139,7 +157,7 @@ module lr35902(
 					begin
 						new_op   = data;
 						new_read = 0;
-						new_pc   = pc + 1;
+						new_pc   = result16;
 					end
 				endcase
 			`state_imml_fetch,
@@ -160,7 +178,7 @@ module lr35902(
 							new_immh = data;
 						endcase
 						new_read = 0;
-						new_pc   = pc + 1;
+						new_pc   = result16;
 					end
 				endcase
 			`state_indirect_fetch:
@@ -261,10 +279,7 @@ module lr35902(
 					if (state == `state_ifetch) begin
 						new_imml  = a;
 						new_state = `state_indirect_store;
-						if (op[4])
-							{ new_h, new_l } = { h, l } - 1;
-						else
-							{ new_h, new_l } = { h, l } + 1;
+						{ new_h, new_l } = result16;
 					end
 				'h 0_0a, /* LD A,(BC) (1,8): load indirect (BC) to A */
 				'h 0_1a: /* LD A,(DE) (1,8): load indirect (DE) to A */
@@ -277,10 +292,7 @@ module lr35902(
 				'h 0_3a: /* LD A,(HL-) (1,8): load indirect (HL) to A and post-decrement */
 					if (state == `state_ifetch) begin
 						new_state = `state_indirect_fetch;
-						if (op[4])
-							{ new_h, new_l } = { h, l } - 1;
-						else
-							{ new_h, new_l } = { h, l } + 1;
+						{ new_h, new_l } = result16;
 					end else
 						new_a = imml;
 				'h 0_8?, /* ADD/ADC A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): add reg or indirect (HL) to A */
