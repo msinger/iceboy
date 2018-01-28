@@ -56,10 +56,11 @@ module lr35902(
 	wire [7:0] arg, result;
 	wire       fzero, fsub, fhalfcarry, fcarry;
 
-	/* for PC, SP or HL (arg16) incr/decr (arg8s) and for relative jumps */
-	wire        [15:0] arg16;
-	wire signed [7:0]  arg8s;
-	wire        [15:0] result16 = $signed(arg16) + arg8s;
+	/* for PC, SP, relative jumps and other 16 bit ops */
+	wire [15:0] arg16a, arg16b, result16;
+	wire carry16;
+	assign { carry16, result16 } = arg16a + arg16b;
+	wire hcarry16 = (arg16a[8] == arg16b[8]) == result16[8];
 
 	assign dbg = op;
 
@@ -123,36 +124,41 @@ module lr35902(
 		endcase
 		fzero = result[7:0] == 0;
 
-		arg16 = 'bx;
-		arg8s = 'bx;
+		arg16a = 'bx;
+		arg16b = 'bx;
 		if (cycle == 1) begin
-			arg16 = pc; /* arg16 is used to increment PC in cycle 1 */
-			arg8s = 1;
+			arg16a = pc; /* used to increment PC in cycle 1 */
+			arg16b = 1;
 		end else case (op)
 		'h22, 'h32, 'h2a, 'h3a: /* post incr/decr load instructions */
 			begin
-				arg16 = { h, l };
-				arg8s = op[4] ? -1 : 1;
+				arg16a = { h, l };
+				arg16b = op[4] ? -1 : 1;
 			end
 		'h20, 'h30, 'h18, 'h28, 'h38: /* relative jumps */
 			begin
-				arg16 = pc;
-				arg8s = imml;
+				arg16a = pc;
+				arg16b = { {8{imml[7]}}, imml };
 			end
-		'hc1, 'hd1, 'he1, 'hf1: /* pops */
+		'hc1, 'hd1, 'he1, 'hf1, 'hc5, 'hd5, 'he5, 'hf5: /* push and pop */
 			begin
-				arg16 = sp;
-				arg8s = 1;
-			end
-		'hc5, 'hd5, 'he5, 'hf5: /* pushs */
-			begin
-				arg16 = sp;
-				arg8s = -1;
+				arg16a = sp;
+				arg16b = op[2] ? -1 : 1;
 			end
 		'he8, 'hf8: /* SP adding */
 			begin
-				arg16 = sp;
-				arg8s = imml;
+				arg16a = sp;
+				arg16b = { {8{imml[7]}}, imml };
+			end
+		'h03, 'h13, 'h23, 'h33, 'h08, 'h18, 'h28, 'h38: /* incr/decr instructions */
+			begin
+				arg16a = { immh, imml };
+				arg16b = op[4] ? -1 : 1;
+			end
+		'h09, 'h19, 'h29, 'h39: /* adds */
+			begin
+				arg16a = { immh, imml };
+				arg16b = op[4] ? -1 : 1;
 			end
 		endcase
 
