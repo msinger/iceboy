@@ -7,6 +7,8 @@
 `define state_indirect_fetch    4
 `define state_indirect_store    5
 `define state_jump_imm          6
+`define state_add16             6
+`define state_dummy             6
 
 /* flags */
 `define C 4 /* carry */
@@ -91,7 +93,7 @@ module lr35902(
 		new_l       = l;
 
 		/* select (source) argument for LD or ALU operation */
-		case (op[2:0])
+		case (op[7] ? op[2:0] : op[5:3])
 		0: arg = b; 1: arg = c; 2: arg = d;    3: arg = e;
 		4: arg = h; 5: arg = l; 6: arg = imml; 7: arg = a;
 		endcase
@@ -100,7 +102,7 @@ module lr35902(
 		fsub       = 0;
 		fhalfcarry = 0;
 		fcarry     = 0;
-		case (op[5:3])
+		if (op[7]) case (op[5:3])
 		0, 1: /* ADD, ADC */
 			begin
 				{ fcarry, result } = a + arg + (op[3] ? f[`C] : 0);
@@ -121,6 +123,18 @@ module lr35902(
 			result = a ^ arg;
 		6: /* OR */
 			result = a | arg;
+		endcase else case (op[0])
+		0: /* INC */
+			begin
+				{ fcarry, result } = arg + 1;
+				fhalfcarry = (arg[4] == 0) == result[4];
+			end
+		1: /* DEC */
+			begin
+				{ fcarry, result } = arg - 1;
+				fsub       = 1;
+				fhalfcarry = (result[4] == 0) == arg[4];
+			end
 		endcase
 		fzero = result[7:0] == 0;
 
@@ -152,13 +166,18 @@ module lr35902(
 			end
 		'h03, 'h13, 'h23, 'h33, 'h08, 'h18, 'h28, 'h38: /* incr/decr instructions */
 			begin
-				arg16a = { immh, imml };
-				arg16b = op[4] ? -1 : 1;
+				arg16a = op[4] ? -1 : 1;
+				arg16b = { immh, imml };
 			end
 		'h09, 'h19, 'h29, 'h39: /* adds */
 			begin
-				arg16a = { immh, imml };
-				arg16b = op[4] ? -1 : 1;
+				arg16a = { h, l };
+				arg16b = { immh, imml };
+			end
+		'h08: /* incr ADR for LD (a16),SP */
+			begin
+				arg16a = adr;
+				arg16b = 1;
 			end
 		endcase
 
@@ -221,7 +240,6 @@ module lr35902(
 
 		if (cycle == 3) begin
 			new_state = `state_ifetch;
-			new_adr   = { h, l };
 			casez ({ op_bank, op })
 			/*          OP (bytes,cycles): description */
 			'h 0_00: /* NOP (1,4) */
@@ -248,17 +266,55 @@ module lr35902(
 			'h 0_5?, /* LD {D,E},{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): load from/to reg or indirect (HL) */
 			'h 0_6?, /* LD {H,L},{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): load from/to reg or indirect (HL) */
 			'h 0_7?: /* LD {(HL),A},{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): load from/to reg or indirect (HL) */
-				if (state == `state_ifetch && op[2:0] == 6)
-					new_state = (op[6]) ? `state_indirect_fetch : `state_imml_fetch;
-				else case (op[5:3])
-				0: new_b = arg; 1: new_c = arg; 2: new_d = arg; 3: new_e = arg;
-				4: new_h = arg; 5: new_l = arg;                 7: new_a = arg;
-				6:
-					if (state != `state_indirect_store) begin
-						new_imml  = arg;
-						new_state = `state_indirect_store;
-					end
-				endcase
+				begin
+					new_adr = { h, l };
+					if (state == `state_ifetch && op[2:0] == 6) begin
+						new_state = (op[6]) ? `state_indirect_fetch : `state_imml_fetch;
+					end else case (op[5:3])
+					0: new_b = arg; 1: new_c = arg; 2: new_d = arg; 3: new_e = arg;
+					4: new_h = arg; 5: new_l = arg;                 7: new_a = arg;
+					6:
+						if (state != `state_indirect_store) begin
+							new_imml  = arg;
+							new_state = `state_indirect_store;
+						end
+					endcase
+				end
+			'h 0_e0, /* LD (a8),A (2,12): load A to indirect (0xff00+immediate) */
+			'h 0_ea: /* LD (a16),A (3,16): load A to indirect (immediate16) */
+				if (state == `state_ifetch)
+					new_state = `state_imml_fetch;
+				else if (state == `state_imml_fetch && op[3])
+					new_state = `state_immh_fetch;
+				else if (state != `state_indirect_store) begin
+					new_adr   = { op[3] ? immh : 'hff, imml };
+					new_imml  = a;
+					new_state = `state_indirect_store;
+				end
+			'h 0_f0, /* LD A,(a8) (2,12): load indirect (0xff00+immediate) to A */
+			'h 0_fa: /* LD A,(a16) (3,16): load indirect (immediate16) to A */
+				if (state == `state_ifetch)
+					new_state = `state_imml_fetch;
+				else if (state == `state_imml_fetch && op[3])
+					new_state = `state_immh_fetch;
+				else if (state == `state_indirect_fetch)
+					new_a = imml;
+				else begin
+					new_adr   = { op[3] ? immh : 'hff, imml };
+					new_state = `state_indirect_fetch;
+				end
+			'h 0_e2: /* LD (C),A (2,8): load A to indirect (0xff00+C) */
+				if (state == `state_ifetch) begin
+					new_adr   = { 'hff, c };
+					new_imml  = a;
+					new_state = `state_indirect_store;
+				end
+			'h 0_f2: /* LD A,(C) (2,8): load indirect (0xff00+C) to A */
+				if (state == `state_ifetch) begin
+					new_adr   = { 'hff, c };
+					new_state = `state_indirect_fetch;
+				end else
+					new_a = imml;
 			'h 0_01, /* LD BC,d16 (3,12): load to BC from immediate16 */
 			'h 0_11, /* LD DE,d16 (3,12): load to DE from immediate16 */
 			'h 0_21, /* LD HL,d16 (3,12): load to HL from immediate16 */
@@ -286,6 +342,7 @@ module lr35902(
 			'h 0_22, /* LD (HL+),A (1,8): load A to indirect (HL) and post-increment */
 			'h 0_32: /* LD (HL-),A (1,8): load A to indirect (HL) and post-decrement */
 				if (state == `state_ifetch) begin
+					new_adr   = { h, l };
 					new_imml  = a;
 					new_state = `state_indirect_store;
 					{ new_h, new_l } = result16;
@@ -300,10 +357,47 @@ module lr35902(
 			'h 0_2a, /* LD A,(HL+) (1,8): load indirect (HL) to A and post-increment */
 			'h 0_3a: /* LD A,(HL-) (1,8): load indirect (HL) to A and post-decrement */
 				if (state == `state_ifetch) begin
+					new_adr   = { h, l };
 					new_state = `state_indirect_fetch;
 					{ new_h, new_l } = result16;
 				end else
 					new_a = imml;
+			'h 0_e8: /* LD HL,SP+a8 (2,12): load sum of SP and immediate signed 8-bit to HL */
+				case (state)
+				`state_ifetch:
+					new_state = `state_imml_fetch;
+				`state_imml_fetch:
+					begin
+						{ new_h, new_l } = result16;
+						new_f[7:4] = { 0, 0, hcarry16, carry16 };
+					end
+				endcase
+			'h 0_f9: /* LD SP,HL (1,8): load HL to SP */
+				if (state == `state_ifetch) begin
+					new_sp    = { h, l };
+					new_state = `state_dummy;
+				end
+			'h 0_08: /* LD (a16),SP (3,20): load SP to indirect (immediate16) */
+				case (state)
+				`state_ifetch:
+					new_state = `state_imml_fetch;
+				`state_imml_fetch:
+					new_state = `state_immh_fetch;
+				`state_immh_fetch:
+					begin
+						new_adr     = { immh, imml };
+						new_imml    = sp[7:0];
+						new_immh[0] = 1;
+						new_state   = `state_indirect_store;
+					end
+				`state_indirect_store:
+					if (immh[0]) begin
+						new_adr     = result16;
+						new_imml    = sp[15:8];
+						new_immh[0] = 0;
+						new_state   = `state_indirect_store;
+					end
+				endcase
 			'h 0_8?, /* ADD/ADC A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): add reg or indirect (HL) to A */
 			'h 0_9?, /* SUB/SBC A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): subtract reg or indirect (HL) from A */
 			'h 0_a?, /* AND/XOR A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): "and"/"xor" reg or indirect (HL) to A */
@@ -316,13 +410,99 @@ module lr35902(
 			'h 0_ee, /* XOR A,d8 (2,8): "xor" immediate to A */
 			'h 0_f6, /* OR A,d8 (2,8): "or" immediate to A */
 			'h 0_fe: /* CP A,d8 (2,8): compare immediate to A */
-				if (state == `state_ifetch && op[2:0] == 6)
-					new_state = (op[6]) ? `state_imml_fetch : `state_indirect_fetch;
-				else begin
-					if (op[5:3] != 7) /* if not CP (compare) then store result in A */
-						new_a = result;
-					new_f[7:4] = { fzero, fsub, fhalfcarry, fcarry };
+				begin
+					new_adr = { h, l };
+					if (state == `state_ifetch && op[2:0] == 6)
+						new_state = (op[6]) ? `state_imml_fetch : `state_indirect_fetch;
+					else begin
+						if (op[5:3] != 7) /* if not CP (compare) then store result in A */
+							new_a = result;
+						new_f[7:4] = { fzero, fsub, fhalfcarry, fcarry };
+					end
 				end
+			'h 0_09, /* ADD HL,BC (1,8): add BC to HL */
+			'h 0_19, /* ADD HL,DE (1,8): add DE to HL */
+			'h 0_29, /* ADD HL,HL (1,8): add HL to HL */
+			'h 0_39: /* ADD HL,SP (1,8): add SP to HL */
+				if (state == `state_ifetch) begin
+					new_state = `state_add16;
+					case (op[5:4])
+					0: { new_immh, new_imml } = { b, c };
+					1: { new_immh, new_imml } = { d, e };
+					2: { new_immh, new_imml } = { h, l };
+					3: { new_immh, new_imml } = sp;
+					endcase
+				end else begin
+					{ new_h, new_l } = result16;
+					new_f[6:4] = { 0, hcarry16, carry16 };
+				end
+			'h 0_e8: /* ADD SP,a8 (2,16): add immediate signed 8-bit to SP */
+				case (state)
+				`state_ifetch:
+					new_state = `state_imml_fetch;
+				`state_imml_fetch:
+					new_state = `state_add16;
+				`state_add16:
+					begin
+						new_sp = result16;
+						new_f[7:4] = { 0, 0, hcarry16, carry16 };
+					end
+				endcase
+			'h 0_04, /* INC B (1,4): increment B */
+			'h 0_05, /* DEC B (1,4): decrement B */
+			'h 0_14, /* INC D (1,4): increment D */
+			'h 0_15, /* DEC D (1,4): decrement D */
+			'h 0_24, /* INC H (1,4): increment H */
+			'h 0_25, /* DEC H (1,4): decrement H */
+			'h 0_34, /* INC (HL) (1,12): increment indirect (HL) */
+			'h 0_35, /* DEC (HL) (1,12): decrement indirect (HL) */
+			'h 0_0c, /* INC C (1,4): increment C */
+			'h 0_0d, /* DEC C (1,4): decrement C */
+			'h 0_1c, /* INC E (1,4): increment E */
+			'h 0_1d, /* DEC E (1,4): decrement E */
+			'h 0_2c, /* INC L (1,4): increment L */
+			'h 0_2d, /* DEC L (1,4): decrement L */
+			'h 0_3c, /* INC A (1,4): increment A */
+			'h 0_3d: /* DEC A (1,4): decrement A */
+				begin
+					new_adr = { h, l };
+					case (op[5:3])
+					0: new_b = result; 1: new_c = result; 2: new_d = result; 3: new_e = result;
+					4: new_h = result; 5: new_l = result;                    7: new_a = result;
+					6:
+						if (state == `state_ifetch)
+							new_state = `state_indirect_fetch;
+						else if (state != `state_indirect_store) begin
+							new_imml  = result;
+							new_f[7:5] = { fzero, fsub, fhalfcarry };
+							new_state = `state_indirect_store;
+						end
+					endcase
+					if (op[5:3] != 6)
+						new_f[7:5] = { fzero, fsub, fhalfcarry };
+				end
+			'h 0_03, /* INC BC (1,8): increment BC */
+			'h 0_0b, /* DEC BC (1,8): decrement BC */
+			'h 0_13, /* INC DE (1,8): increment DE */
+			'h 0_1b, /* DEC DE (1,8): decrement DE */
+			'h 0_23, /* INC HL (1,8): increment HL */
+			'h 0_2b, /* DEC HL (1,8): decrement HL */
+			'h 0_33, /* INC SP (1,8): increment SP */
+			'h 0_3b: /* DEC SP (1,8): decrement SP */
+				if (state == `state_ifetch) begin
+					new_state = `state_add16;
+					case (op[5:4])
+					0: { new_immh, new_imml } = { b, c };
+					1: { new_immh, new_imml } = { d, e };
+					2: { new_immh, new_imml } = { h, l };
+					3: { new_immh, new_imml } = sp;
+					endcase
+				end else case (op[5:4])
+				0: { new_b, new_c } = result16;
+				1: { new_d, new_e } = result16;
+				2: { new_h, new_l } = result16;
+				3: new_sp           = result16;
+				endcase
 			'h 0_c3, /* JP a16 (3,16): jump immediate 16-bit address */
 			'h 0_c2, /* JP NZ,a16 (3,16/12): jump if not zero immediate 16-bit address */
 			'h 0_d2, /* JP NC,a16 (3,16/12): jump if not carry immediate 16-bit address */
@@ -357,9 +537,10 @@ module lr35902(
 			'h 1_5?, /* BIT 2/3,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 2/3 in reg or indirect (HL) */
 			'h 1_6?, /* BIT 4/5,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 4/5 in reg or indirect (HL) */
 			'h 1_7?: /* BIT 6/7,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 6/7 in reg or indirect (HL) */
-				if (state == `state_cb_ifetch && op[2:0] == 6)
+				if (state == `state_cb_ifetch && op[2:0] == 6) begin
+					new_adr   = { h, l };
 					new_state = `state_indirect_fetch;
-				else begin
+				end else begin
 					new_f[`Z] = !arg[op[5:3]];
 					new_f[`N] = 0;
 					new_f[`H] = 1;
@@ -381,6 +562,7 @@ module lr35902(
 				                           7: new_a[op[5:3]] = op[6];
 				6:
 					if (state != `state_indirect_store) begin
+						new_adr           = { h, l };
 						new_imml[op[5:3]] = op[6];
 						new_state         = `state_indirect_store;
 					end
