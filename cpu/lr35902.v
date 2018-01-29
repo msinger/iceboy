@@ -398,6 +398,65 @@ module lr35902(
 						new_state   = `state_indirect_store;
 					end
 				endcase
+			'h 0_c1, /* POP BC (1,12): load indirect (SP) to BC and post-increment SP by 2 */
+			'h 0_d1, /* POP DE (1,12): load indirect (SP) to DE and post-increment SP by 2 */
+			'h 0_e1, /* POP HL (1,12): load indirect (SP) to HL and post-increment SP by 2 */
+			'h 0_f1: /* POP AF (1,12): load indirect (SP) to AF and post-increment SP by 2 */
+				case (state)
+				`state_ifetch:
+					begin
+						new_adr     = sp;
+						new_immh[0] = 1;
+						new_state   = `state_indirect_fetch;
+						new_sp      = result16;
+					end
+				`state_indirect_fetch:
+					if (immh[0]) begin
+						new_adr     = sp;
+						new_immh[0] = 0;
+						new_state   = `state_indirect_fetch;
+						new_sp      = result16;
+						case (op[5:4])
+						0: new_c = imml; 1: new_e = imml;
+						2: new_l = imml; 3: new_f = imml;
+						endcase
+					end else case (op[5:4])
+					0: new_b = imml; 1: new_d = imml;
+					2: new_h = imml; 3: new_a = imml;
+					endcase
+				endcase
+			'h 0_c5, /* PUSH BC (1,16): pre-decrement SP by 2 and load BC to indirect (SP) */
+			'h 0_d5, /* PUSH DE (1,16): pre-decrement SP by 2 and load DE to indirect (SP) */
+			'h 0_e5, /* PUSH HL (1,16): pre-decrement SP by 2 and load HL to indirect (SP) */
+			'h 0_f5: /* PUSH AF (1,16): pre-decrement SP by 2 and load AF to indirect (SP) */
+				case (state)
+				`state_ifetch:
+					begin
+						new_sp    = result16;
+						new_state = `state_dummy;
+					end
+				`state_dummy:
+					begin
+						new_adr     = sp;
+						case (op[5:4])
+						0: new_imml = b; 1: new_imml = d;
+						2: new_imml = h; 3: new_imml = a;
+						endcase
+						new_immh[0] = 1;
+						new_state   = `state_indirect_store;
+						new_sp      = result16;
+					end
+				`state_indirect_store:
+					if (immh[0]) begin
+						new_adr     = sp;
+						case (op[5:4])
+						0: new_imml = c; 1: new_imml = e;
+						2: new_imml = l; 3: new_imml = f;
+						endcase
+						new_immh[0] = 0;
+						new_state   = `state_indirect_store;
+					end
+				endcase
 			'h 0_8?, /* ADD/ADC A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): add reg or indirect (HL) to A */
 			'h 0_9?, /* SUB/SBC A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): subtract reg or indirect (HL) from A */
 			'h 0_a?, /* AND/XOR A,{B,C,D,E,H,L,(HL),A} (1,4[(HL)=8]): "and"/"xor" reg or indirect (HL) to A */
@@ -533,6 +592,8 @@ module lr35902(
 				`state_jump_imm:
 					new_pc = result16;
 				endcase
+			'h 0_e9: /* JP (HL): jump to indirect (HL) */
+				new_pc = { h, l };
 			'h 1_4?, /* BIT 0/1,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 0/1 in reg or indirect (HL) */
 			'h 1_5?, /* BIT 2/3,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 2/3 in reg or indirect (HL) */
 			'h 1_6?, /* BIT 4/5,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 4/5 in reg or indirect (HL) */
