@@ -10,7 +10,7 @@
 `define state_indirecth_store   7
 `define state_jump_imm          8
 `define state_add16             8
-`define state_dummy             8
+`define state_dummy             9
 
 /* flags */
 `define C 4 /* carry */
@@ -66,7 +66,27 @@ module lr35902(
 	assign { carry16, result16 } = arg16a + arg16b;
 	wire hcarry16 = (arg16a[8] == arg16b[8]) == result16[8];
 
+	wire [8:0] daa_result;
+
 	assign dbg = op;
+
+	always @(*) begin
+		daa_result = a;
+		if (!f[`N]) begin
+			if (f[`H] || daa_result[3:0] > 9)
+				daa_result = daa_result + 6;
+			if (f[`C] || daa_result[7:0] > 'h9f)
+				daa_result = daa_result + 'h60;
+		end else begin
+			if (f[`H]) begin
+				daa_result = daa_result - 6;
+				if (!f[`C])
+					daa_result[8] = 0;
+			end
+			if (f[`C])
+				daa_result = daa_result - 'h60;
+		end
+	end
 
 	always @(*) begin
 		new_adr     = adr;
@@ -378,7 +398,7 @@ module lr35902(
 				`state_imml_fetch:
 					begin
 						{ new_h, new_l } = result16;
-						new_f[7:4] = { 0, 0, hcarry16, carry16 };
+						new_f[7:4] = { hcarry16, carry16 };
 					end
 				endcase
 			'h 0_f9: /* LD SP,HL (1,8): load HL to SP */
@@ -498,7 +518,7 @@ module lr35902(
 					endcase
 				end else begin
 					{ new_h, new_l } = result16;
-					new_f[6:4] = { 0, hcarry16, carry16 };
+					new_f[6:4] = { hcarry16, carry16 };
 				end
 			'h 0_e8: /* ADD SP,a8 (2,16): add immediate signed 8-bit to SP */
 				case (state)
@@ -509,7 +529,7 @@ module lr35902(
 				`state_add16:
 					begin
 						new_sp = result16;
-						new_f[7:4] = { 0, 0, hcarry16, carry16 };
+						new_f[7:4] = { hcarry16, carry16 };
 					end
 				endcase
 			'h 0_04, /* INC B (1,4): increment B */
@@ -567,6 +587,23 @@ module lr35902(
 				2: { new_h, new_l } = result16;
 				3: new_sp           = result16;
 				endcase
+			'h 0_2f: /* CPL (1,4): complement A */
+				begin
+					new_a     = ~a;
+					new_f[`H] = 1;
+					new_f[`N] = 1;
+				end
+			'h 0_27: /* DAA (1,4): decimal adjust accumulator */
+				begin
+					new_a     = daa_result;
+					new_f[`C] = daa_result[8];
+					new_f[`H] = 0;
+					new_f[`Z] = daa_result[7:0] == 0;
+				end
+			'h 0_37: /* SCF (1,4): set carry flag */
+				new_f[6:4] = 1;
+			'h 0_3f: /* CCF (1,4): complement carry flag */
+				new_f[6:4] = !f[`C];
 			'h 0_c3, /* JP a16 (3,16): jump immediate 16-bit address */
 			'h 0_c2, /* JP NZ,a16 (3,16/12): jump if not zero immediate 16-bit address */
 			'h 0_d2, /* JP NC,a16 (3,16/12): jump if not carry immediate 16-bit address */
@@ -609,6 +646,36 @@ module lr35902(
 					new_state = `state_imml_fetch;
 				`state_imml_fetch:
 					new_state = `state_immh_fetch;
+				endcase
+			'h 0_c9, /* RET a16 (1,16): pop PC */
+			'h 0_c0, /* RET NZ,a16 (1,20/8): pop PC if not zero */
+			'h 0_d0, /* RET NC,a16 (1,20/8): pop PC if not carry */
+			'h 0_c8, /* RET Z,a16 (1,20/8): pop PC if zero */
+			'h 0_d8: /* RET C,a16 (1,20/8): pop PC if carry */
+				case (state)
+				`state_ifetch:
+					begin
+						new_adr = sp;
+						if (op[0] || (f[op[4] ? `C : `Z] == op[3])) begin /* are we about to jump? */
+							new_sp = result16; /* increment SP after fetching PC[7:0] */
+							new_state = `state_indirect_fetch; /* fetch PC [7:0] */
+						end else
+							new_state = `state_dummy;
+					end
+				`state_indirect_fetch:
+					begin
+						new_adr = sp;
+						new_sp = result16; /* increment SP after fetching PC [15:8] */
+						new_state = `state_indirecth_fetch; /* fetch PC[15:8] */
+					end
+				`state_indirecth_fetch:
+					new_state = `state_jump_imm;
+				`state_jump_imm:
+					begin
+						new_pc = { immh, imml };
+						if (!op[0]) /* conditional RET? */
+							new_state = `state_dummy;
+					end
 				endcase
 			'h 0_18, /* JR a8 (2,12): jump immediate 8-bit relative address */
 			'h 0_20, /* JR NZ,a8 (2,12/8): jump if not zero immediate 8-bit relative address */
