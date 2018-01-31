@@ -57,6 +57,9 @@ module lr35902(
 	reg [7:0]  h,    new_h;
 	reg [7:0]  l,    new_l;
 
+	wire [7:0] rot_result;
+	wire       rot_carry;
+
 	wire [7:0] arg, result;
 	wire       fzero, fsub, fhalfcarry, fcarry;
 
@@ -70,7 +73,7 @@ module lr35902(
 
 	assign dbg = op;
 
-	always @(*) begin
+	always @* begin
 		daa_result = a;
 		if (!f[`N]) begin
 			if (f[`H] || daa_result[3:0] > 9)
@@ -88,7 +91,31 @@ module lr35902(
 		end
 	end
 
-	always @(*) begin
+	always @* begin
+		rot_result = 'bx;
+		rot_carry  = 'bx;
+
+		case (op[5:3])
+		0: /* RLC/RLCA */
+			{ rot_carry, rot_result } = { arg, arg[7] };
+		1: /* RRC/RRCA */
+			{ rot_result, rot_carry } = { arg[0], arg };
+		2: /* RL/RLA */
+			{ rot_carry, rot_result } = { arg, f[`C] };
+		3: /* RR/RRA */
+			{ rot_result, rot_carry } = { f[`C], arg };
+		4: /* SLA */
+			{ rot_carry, rot_result } = { arg, 0 };
+		5: /* SRA */
+			{ rot_result, rot_carry } = { arg[7], arg };
+		6: /* SWAP */
+			{ rot_carry, rot_result } = { 0, arg[3:0], arg[7:4] };
+		7: /* SRL */
+			{ rot_result, rot_carry } = { 0, arg };
+		endcase
+	end
+
+	always @* begin
 		new_adr     = adr;
 		new_read    = read;
 		new_write   = write;
@@ -442,8 +469,8 @@ module lr35902(
 						new_state = `state_indirecth_fetch;
 						new_sp    = result16;
 						case (op[5:4])
-						0: new_c = imml; 1: new_e = imml;
-						2: new_l = imml; 3: new_f = imml;
+						0: new_c = imml; 1: new_e      = imml;
+						2: new_l = imml; 3: new_f[7:4] = imml[7:4];
 						endcase
 					end
 				`state_indirecth_fetch:
@@ -476,7 +503,7 @@ module lr35902(
 					begin
 						case (op[5:4])
 						0: new_dout = c; 1: new_dout = e;
-						2: new_dout = l; 3: new_dout = f;
+						2: new_dout = l; 3: new_dout = { f[7:4], 4'b0 };
 						endcase
 						new_adr   = sp;
 						new_state = `state_indirect_store;
@@ -693,6 +720,68 @@ module lr35902(
 				endcase
 			'h 0_e9: /* JP (HL): jump to indirect (HL) */
 				new_pc = { h, l };
+			'h 0_c7, /* RST 00H (1,16): push PC and jump to 0x0000 */
+			'h 0_cf, /* RST 08H (1,16): push PC and jump to 0x0008 */
+			'h 0_d7, /* RST 10H (1,16): push PC and jump to 0x0010 */
+			'h 0_df, /* RST 18H (1,16): push PC and jump to 0x0018 */
+			'h 0_e7, /* RST 20H (1,16): push PC and jump to 0x0020 */
+			'h 0_ef, /* RST 28H (1,16): push PC and jump to 0x0028 */
+			'h 0_f7, /* RST 30H (1,16): push PC and jump to 0x0030 */
+			'h 0_ff: /* RST 38H (1/16): push PC and jump to 0x0038 */
+				case (state)
+				`state_ifetch:
+					begin
+						new_sp    = result16; /* decrement SP for upcoming store of PC[15:8] */
+						new_state = `state_add16;
+					end
+				`state_add16:
+					begin
+						new_adr   = sp;
+						new_dout  = pc[15:8];
+						new_sp    = result16; /* decrement SP for upcoming store of PC[7:0] */
+						new_state = `state_indirecth_store;
+					end
+				`state_indirecth_store:
+					begin
+						new_adr   = sp;
+						new_dout  = pc[7:0];
+						new_state = `state_indirect_store;
+					end
+				`state_indirect_store:
+					new_pc = { 10'b0, op[5:3], 3'b0 };
+				endcase
+			'h 0_07, /* RLCA (1,4) */
+			'h 0_0f, /* RRCA (1,4) */
+			'h 0_17, /* RLA (1,4) */
+			'h 0_1f, /* RRA (1,4) */
+			'h 1_0?, /* RLC/RRC {B,C,D,E,H,L,(HL),A} (2,8) */
+			'h 1_1?, /* RL/RR {B,C,D,E,H,L,(HL),A} (2,8) */
+			'h 1_2?, /* SLA/SRA {B,C,D,E,H,L,(HL),A} (2,8) */
+			'h 1_3?: /* SWAP/SRL {B,C,D,E,H,L,(HL),A} (2,8) */
+				case (state)
+				`state_ifetch,
+				`state_cb_ifetch,
+				`state_indirect_fetch:
+					begin
+						new_adr    = { h, l };
+						new_f[7:4] = { op_bank && !rot_result, 2'b0, rot_carry };
+						if (state != `state_indirect_fetch && op[0:2] == 6)
+							new_state = `state_indirect_fetch;
+						else begin
+							case (op[2:0])
+							0: new_b = rot_result; 1: new_c = rot_result;
+							2: new_d = rot_result; 3: new_e = rot_result;
+							4: new_h = rot_result; 5: new_l = rot_result;
+							                       7: new_a = rot_result;
+							6:
+								begin
+									new_dout  = rot_result;
+									new_state = `state_indirect_store;
+								end
+							endcase
+						end
+					end
+				endcase
 			'h 1_4?, /* BIT 0/1,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 0/1 in reg or indirect (HL) */
 			'h 1_5?, /* BIT 2/3,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 2/3 in reg or indirect (HL) */
 			'h 1_6?, /* BIT 4/5,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 4/5 in reg or indirect (HL) */
