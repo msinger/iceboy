@@ -14,6 +14,12 @@ module top(
 		input  wire        n_reset,
 		input  wire        rx,        /* UART RX for prog loader */
 		output wire [7:0]  led,
+		output wire [7:0]  lcd_data,
+		output wire        lcd_adr,
+		output wire        lcdn_read,
+		output wire        lcdn_write,
+		output wire        lcdn_cs,
+		output wire        lcdn_reset,
 	);
 
 	reg [1:0] reset_ticks = 0;
@@ -28,9 +34,15 @@ module top(
 	wire read, write, write_prg;
 	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs;
 
+	wire lcd_read, lcd_write, lcd_cs, lcd_reset;
+
 	wire [7:0] din, dmerge, dbootrom, dvram;
 	wire [7:0] dout, dout_prg;
 	wire       ddrv;
+
+	wire [12:0] vadr;
+	wire        vread;
+	wire        ppu_active;
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -57,6 +69,11 @@ module top(
 	assign n_crom_cs = !reset_done || (n_reset ? !crom_cs : 0);
 	assign n_cram_cs = !reset_done || !cram_cs;
 
+	assign lcdn_read  = lcd_read;
+	assign lcdn_write = lcd_write;
+	assign lcdn_cs    = lcd_cs;
+	assign lcdn_reset = lcd_reset;
+
 	assign adr = n_reset ? adr21 : adr21_prg;
 
 	assign reset_done = &reset_ticks;
@@ -67,7 +84,7 @@ module top(
 	end
 
 	always @(posedge clk) begin
-		if (count == 1000000) begin
+		if (count == 100) begin
 			count <= 0;
 			divclk <= !divclk;
 		end else
@@ -103,12 +120,29 @@ module top(
 		.data(dbootrom),
 	);
 
-	gb_vram vram(
+	lr35902_vram vram(
 		.adr(adr16[12:0]),
 		.dout(dvram),
 		.din(dout),
-		.read(read),
+		.read(read || vread),
 		.write(write && vram_cs),
+		.vadr(vadr),
+		.ppu_active(ppu_active),
+	);
+
+	s1d13305_disp lcd(
+		.clk(divclk),
+		.vadr(vadr),
+		.vdata(dvram),
+		.vread(vread),
+		.ppu_active(ppu_active),
+		.reset(!reset_done || !n_reset),
+		.data(lcd_data),
+		.adr(lcd_adr),
+		.read(lcd_read),
+		.write(lcd_write),
+		.disp_cs(lcd_cs),
+		.disp_reset(lcd_reset),
 	);
 
 	mbc_chip mbc(

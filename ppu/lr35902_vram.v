@@ -1,6 +1,6 @@
 `default_nettype none
 
-module gb_vram(
+module lr35902_vram(
 		output reg  [7:0]  dout,
 		input  wire [7:0]  din,
 

@@ -71,7 +71,7 @@ module lr35902(
 
 	wire [8:0] daa_result;
 
-	assign dbg = op;
+	assign dbg = pc;
 
 	always @* begin
 		daa_result = a;
