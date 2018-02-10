@@ -5,7 +5,6 @@ mbc.v \
 cpu/lr35902.v \
 bootrom.v \
 ppu/lr35902_vram.v \
-ppu/s1d13305_disp.v \
 prog_loader.v
 
 all: gameboy.bin
