@@ -31,6 +31,8 @@ module lr35902(
 		input  wire        reset,
 
 		output wire [7:0]  dbg,
+		input  wire        halt,
+		input  wire        no_inc,
 	);
 
 	reg [15:0] new_adr;
@@ -71,7 +73,7 @@ module lr35902(
 
 	wire [8:0] daa_result;
 
-	assign dbg = pc;
+	assign dbg = arg;
 
 	always @* begin
 		daa_result = a;
@@ -123,7 +125,7 @@ module lr35902(
 		new_dout    = dout;
 
 		new_state   = state;
-		new_cycle   = cycle + 1;
+		new_cycle   = cycle;
 
 		new_op      = op;
 		new_op_bank = op_bank;
@@ -140,6 +142,9 @@ module lr35902(
 		new_e       = e;
 		new_h       = h;
 		new_l       = l;
+
+		if (!halt || state != `state_ifetch || cycle)
+			new_cycle = cycle + 1;
 
 		/* select (source) argument for LD or ALU operation */
 		case (op[7] ? op[2:0] : op[5:3])
@@ -245,7 +250,8 @@ module lr35902(
 			1: /* request READ and increment PC */
 				begin
 					new_read = 1;
-					new_pc   = result16;
+					if (!no_inc)
+						new_pc = result16;
 				end
 			2: /* fetch OPCODE or immediate from DATA bus */
 				begin

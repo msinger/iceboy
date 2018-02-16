@@ -60,3 +60,6 @@ set_io n_emu_mbc A11
 
 # Prog Loader
 set_io rx        B10
+set_io tx        B12
+set_io cts       A15
+

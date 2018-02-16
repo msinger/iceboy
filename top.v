@@ -12,7 +12,9 @@ module top(
 		output wire        n_crom_cs, /* chip select for cartridge ROM (only when emulating MBC chip) */
 		output wire        n_cram_cs, /* chip select for cartridge RAM (only when emulating MBC chip) */
 		input  wire        n_reset,
-		input  wire        rx,        /* UART RX for prog loader */
+		input  wire        rx,        /* UART RX for prog loader and debugger */
+		output wire        tx,        /* UART TX for debugger */
+		output wire        cts,       /* UART CTS for debugger */
 		output wire [7:0]  led,
 	);
 
@@ -28,13 +30,18 @@ module top(
 	wire read, write, write_prg;
 	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs;
 
-	wire [7:0] din, dmerge, dbootrom, dvram;
+	wire [7:0] din, dmerge, dbootrom, dvram, ddbg;
 	wire [7:0] dout, dout_prg;
 	wire       ddrv;
+
+	wire [7:0] dbg_probe;
+	wire       dbgdrv, halt, no_inc;
 
 	wire [12:0] vadr;
 	wire        vread;
 	wire        ppu_active;
+
+	assign led = adr16;
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -52,6 +59,8 @@ module top(
 			dmerge = dbootrom;
 		if (vram_cs)
 			dmerge = dvram;
+		if (dbgdrv)
+			dmerge = ddbg;
 	end
 
 	assign n_read    = !read;
@@ -87,7 +96,23 @@ module top(
 		.write(write),
 		.read(read),
 		.reset(!reset_done || !n_reset),
-		.dbg(led),
+		.dbg(dbg_probe),
+		.halt(halt),
+		.no_inc(no_inc),
+	);
+
+	lr35902_dbg_uart debugger(
+		.cpu_clk(divclk),
+		.reset(!reset_done || !n_reset),
+		.probe(dbg_probe),
+		.data(ddbg),
+		.drv(dbgdrv),
+		.halt(halt),
+		.no_inc(no_inc),
+		.uart_clk(clk),
+		.rx(rx),
+		.tx(tx),
+		.cts(cts),
 	);
 
 	gb_memmap map(
