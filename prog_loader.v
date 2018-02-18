@@ -121,7 +121,6 @@ module prog_loader(
 
 		if (reset) begin
 			rx_state <= `RX_IDLE;
-			data_in_seq <= data_out_seq;
 		end
 	end
 
