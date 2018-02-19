@@ -1,4 +1,5 @@
 /bootrom.vh
+/pll.v
 /*.asc
 /*.bin
 /*.blif

@@ -65,6 +65,9 @@ module lr35902(
 	wire [7:0] arg, result;
 	wire       fzero, fsub, fhalfcarry, fcarry;
 
+	wire [7:0] argi, resulti;
+	wire       fzeroi, fsubi, fhalfcarryi, fcarryi;
+
 	/* for PC, SP, relative jumps and other 16 bit ops */
 	wire [15:0] arg16a, arg16b, result16;
 	wire carry16;
@@ -147,16 +150,22 @@ module lr35902(
 			new_cycle = cycle + 1;
 
 		/* select (source) argument for LD or ALU operation */
-		case (op[7] ? op[2:0] : op[5:3])
+		case (op[2:0])
 		0: arg = b; 1: arg = c; 2: arg = d;    3: arg = e;
 		4: arg = h; 5: arg = l; 6: arg = imml; 7: arg = a;
+		endcase
+
+		/* select argument for INC/DEC operation */
+		case (op[5:3])
+		0: argi = b; 1: argi = c; 2: argi = d;    3: argi = e;
+		4: argi = h; 5: argi = l; 6: argi = imml; 7: argi = a;
 		endcase
 
 		/* select result for ALU operation */
 		fsub       = 0;
 		fhalfcarry = 0;
 		fcarry     = 0;
-		if (op[7]) case (op[5:3])
+		case (op[5:3])
 		0, 1: /* ADD, ADC */
 			begin
 				{ fcarry, result } = a + arg + (op[3] ? f[`C] : 0);
@@ -177,20 +186,27 @@ module lr35902(
 			result = a ^ arg;
 		6: /* OR */
 			result = a | arg;
-		endcase else case (op[0])
+		endcase
+		fzero = result[7:0] == 0;
+
+		/* select result for INC/DEC operation */
+		fsubi       = 0;
+		fhalfcarryi = 0;
+		fcarryi     = 0;
+		case (op[0])
 		0: /* INC */
 			begin
-				{ fcarry, result } = arg + 1;
-				fhalfcarry = (arg[4] == 0) == result[4];
+				{ fcarryi, resulti } = argi + 1;
+				fhalfcarryi = (argi[4] == 0) == resulti[4];
 			end
 		1: /* DEC */
 			begin
-				{ fcarry, result } = arg - 1;
-				fsub       = 1;
-				fhalfcarry = (result[4] == 0) == arg[4];
+				{ fcarryi, resulti } = argi - 1;
+				fsubi       = 1;
+				fhalfcarryi = (resulti[4] == 0) == argi[4];
 			end
 		endcase
-		fzero = result[7:0] == 0;
+		fzeroi = resulti[7:0] == 0;
 
 		arg16a = 'bx;
 		arg16b = 'bx;
@@ -584,19 +600,19 @@ module lr35902(
 				begin
 					new_adr = { h, l };
 					case (op[5:3])
-					0: new_b = result; 1: new_c = result; 2: new_d = result; 3: new_e = result;
-					4: new_h = result; 5: new_l = result;                    7: new_a = result;
+					0: new_b = resulti; 1: new_c = resulti; 2: new_d = resulti; 3: new_e = resulti;
+					4: new_h = resulti; 5: new_l = resulti;                     7: new_a = resulti;
 					6:
 						if (state == `state_ifetch)
 							new_state = `state_indirect_fetch;
 						else if (state != `state_indirect_store) begin
-							new_dout   = result;
-							new_f[7:5] = { fzero, fsub, fhalfcarry };
+							new_dout   = resulti;
+							new_f[7:5] = { fzeroi, fsubi, fhalfcarryi };
 							new_state  = `state_indirect_store;
 						end
 					endcase
 					if (op[5:3] != 6)
-						new_f[7:5] = { fzero, fsub, fhalfcarry };
+						new_f[7:5] = { fzeroi, fsubi, fhalfcarryi };
 				end
 			'h 0_03, /* INC BC (1,8): increment BC */
 			'h 0_0b, /* DEC BC (1,8): decrement BC */

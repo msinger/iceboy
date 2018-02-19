@@ -18,11 +18,14 @@ module top(
 		output wire [7:0]  led,
 	);
 
-	reg [1:0] reset_ticks = 0;
+	reg [3:0] reset_ticks = 0;
 	wire      reset_done;
 
 	reg [20:0] count;
 	reg divclk;
+
+	wire gbclk;
+	wire gbclk_stable;
 
 	wire [15:0] adr16;
 	wire [20:0] adr21, adr21_prg;
@@ -74,8 +77,8 @@ module top(
 
 	assign reset_done = &reset_ticks;
 
-	always @(posedge divclk) begin
-		if (!reset_done)
+	always @(posedge gbclk) begin
+		if (!reset_done && gbclk_stable)
 			reset_ticks <= reset_ticks + 1;
 	end
 
@@ -86,6 +89,12 @@ module top(
 		end else
 			count <= count + 1;
 	end
+
+	pll gbpll(
+		.clock_in(clk),
+		.clock_out(gbclk),
+		.locked(gbclk_stable),
+	);
 
 	lr35902 cpu(
 		.clk(divclk),

@@ -1,0 +1,20 @@
+c - continue:
+  * halt=0
+
+s - step:
+  * let go of halt for one tick
+  * drive data according to command d (see below)
+  * sample probe for 24 ticks and shift it out on uart
+
+d - drive data:
+  * receive 3+24 bytes from uart
+  * 3 bytes (24 bit) for selecting on which tick data gets driven by the debugger
+  * 24 bytes for the data being driven by the debugger on each tick of a step
+
+i/I - increment PC:
+  * lower case i disables PC increment
+  * upper case I enables PC increment
+
+A BREAK signal halts the CPU; this way it can be haltet directly out of RESET.
+BREAK can also be used to bring the receiver of the debugger in a known idle state.
+

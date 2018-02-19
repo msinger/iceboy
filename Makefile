@@ -6,7 +6,8 @@ cpu/lr35902.v \
 cpu/lr35902_dbg_uart.v \
 bootrom.v \
 ppu/lr35902_vram.v \
-prog_loader.v
+prog_loader.v \
+pll.v
 
 all: gameboy.bin
 
@@ -19,13 +20,13 @@ run: gameboy.bin
 json: gameboy.post.json
 
 clean:
-	rm -f gameboy.blif gameboy.asc gameboy.bin gameboy.post.blif gameboy.post.json bootrom.vh
+	rm -f gameboy.blif gameboy.asc gameboy.bin gameboy.post.blif gameboy.post.json bootrom.vh pll.v
 
 gameboy.blif: $(SOURCES) bootrom.vh
-	yosys -q -p "synth_ice40 -blif $@" $(SOURCES)
+	yosys -q -p "synth_ice40 -abc2 -blif $@" $(SOURCES)
 
 gameboy.asc gameboy.post.blif: gameboy.blif gameboy.pcf
-	arachne-pnr -m 400 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif
+	arachne-pnr -s 3309022684 -m 800 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif
 
 gameboy.bin: gameboy.asc
 	icepack $< $@
@@ -35,5 +36,8 @@ gameboy.post.json: gameboy.post.blif
 
 bootrom.vh: bootrom.bin
 	od -Ad -v -tx1 -w1 $< | sed -e '1,256!d' -e 's/^\([0-9]\+\) \+\([0-9a-f]\+\)$$/\tinitial rom[\1] <= '\''h\2;/' >$@
+
+pll.v:
+	icepll -q -i 12 -o 20.97152 -mf $@
 
 .PHONY: all prog run clean

@@ -160,6 +160,12 @@ module lr35902_dbg_uart(
 	end
 
 	always @(posedge cpu_clk) begin
+		if (dbg_state == `DBG_STEP) begin
+			{ drv, data }   <= mem[cycle];
+			mem[cycle + 32] <= { 1'bx, probe };
+		end else
+			drv <= 0;
+
 		halt      <= new_halt;
 		no_inc    <= new_no_inc;
 		mtmp      <= new_mtmp;
@@ -168,10 +174,9 @@ module lr35902_dbg_uart(
 		tx_seq    <= new_tx_seq;
 		dbg_state <= new_dbg_state;
 
-		if (new_dbg_state == `DBG_STEP) begin
-			{ drv, data }   <= mem[cycle];
-			mem[cycle + 32] <= { 1'bx, probe };
-		end else
+		if (new_dbg_state == `DBG_STEP)
+			{ drv, data } <= mem[new_cycle];
+		else
 			drv <= 0;
 	end
 
