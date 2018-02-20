@@ -2,8 +2,9 @@
 
 `define DBG_IDLE      0
 `define DBG_WAIT_HALT 1
-`define DBG_STEP      2
-`define DBG_SEND      3
+`define DBG_RXDRV     2
+`define DBG_STEP      3
+`define DBG_SEND      4
 
 `define RX_IDLE     0
 `define RX_STARTBIT 1
@@ -34,7 +35,7 @@ module lr35902_dbg_uart(
 
 	reg new_halt, new_no_inc;
 
-	reg [7:0] mtmp, new_mtmp;
+	reg [8:0] mtmp, new_mtmp;
 	reg [8:0] mem[0:63];
 	initial mem[0]  <= 'h0xx;
 	initial mem[1]  <= 'h0xx;
@@ -82,8 +83,8 @@ module lr35902_dbg_uart(
 	always @* begin
 		new_halt      = halt;
 		new_no_inc    = no_inc;
-		new_mtmp      = 'bx;
-		new_cycle     = cycle + 1;
+		new_mtmp      = mtmp;
+		new_cycle     = cycle;
 		new_rx_ack    = rx_ack;
 		new_tx_seq    = tx_seq;
 		new_dbg_state = dbg_state;
@@ -96,55 +97,111 @@ module lr35902_dbg_uart(
 					new_halt      = 1;
 					new_dbg_state = `DBG_WAIT_HALT;
 					new_cycle     = 0;
+					new_mtmp      = 'bx;
 				end
 			'h163: /* c - continue */
 				begin
 					new_halt   = 0;
 					new_no_inc = 0;
 					new_rx_ack = rx_seq;
+					new_cycle  = 'bx;
+					new_mtmp   = 'bx;
 				end
 			'h169: /* i - disallow PC increment */
 				begin
 					if (halt)
 						new_no_inc = 1;
 					new_rx_ack = rx_seq;
+					new_cycle  = 'bx;
+					new_mtmp   = 'bx;
 				end
 			'h149: /* I - allow PC increment */
 				begin
 					new_no_inc = 0;
 					new_rx_ack = rx_seq;
+					new_cycle  = 'bx;
+					new_mtmp   = 'bx;
 				end
 			'h164: /* d - set drive data */
 				begin
-					new_rx_ack = rx_seq;
+					new_cycle     = 0;
+					new_mtmp      = 'h0xx;
+					new_dbg_state = `DBG_RXDRV;
 				end
 			'h173: /* s - step */
 				if (halt) begin
 					new_halt      = 0;
 					new_cycle     = 0;
 					new_dbg_state = `DBG_STEP;
-				end else
+					new_mtmp      = 'bx;
+				end else begin
 					new_rx_ack = rx_seq;
+					new_cycle  = 'bx;
+					new_mtmp   = 'bx;
+				end
 			default:
-				new_rx_ack = rx_seq;
+				begin
+					new_rx_ack = rx_seq;
+					new_cycle  = 'bx;
+					new_mtmp   = 'bx;
+				end
 			endcase
 		`DBG_WAIT_HALT:
 			if (cycle == 23) begin
 				new_rx_ack    = rx_seq;
 				new_dbg_state = `DBG_IDLE;
+				new_cycle     = 'bx;
+				new_mtmp      = 'bx;
+			end else begin
+				new_cycle     = cycle + 1;
+				new_mtmp      = 'bx;
 			end
+		`DBG_RXDRV:
+			if (rx_seq != rx_ack) case (rx_shift)
+			0: /* BREAK - cancel */
+				begin
+					new_rx_ack    = rx_seq;
+					new_dbg_state = `DBG_IDLE;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
+				end
+			default:
+				if (mtmp[8]) begin
+					new_rx_ack    = rx_seq;
+					new_cycle     = cycle + 1;
+					new_mtmp[6:0] = mtmp[7:1];
+					if (&cycle[2:0]) begin
+						if (cycle == 23) begin
+							new_dbg_state = `DBG_IDLE;
+							new_cycle     = 'bx;
+							new_mtmp      = 'bx;
+						end else
+							new_mtmp      = 'h0xx;
+					end
+				end else begin
+					new_rx_ack = rx_seq;
+					new_mtmp = { 1'b1, rx_shift };
+				end
+			endcase
 		`DBG_STEP:
 			begin
 				new_halt = 1;
 				if (cycle == 23) begin
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-				end
+					new_cycle     = 'bx;
+				end else
+					new_cycle     = cycle + 1;
+				new_mtmp = 'bx;
 			end
 		`DBG_SEND:
-			if (tx_seq == tx_ack) begin
-				new_rx_ack    = rx_seq;
-				new_dbg_state = `DBG_IDLE;
+			begin
+				if (tx_seq == tx_ack) begin
+					new_rx_ack    = rx_seq;
+					new_dbg_state = `DBG_IDLE;
+				end
+				new_cycle = 'bx;
+				new_mtmp  = 'bx;
 			end
 		endcase
 
@@ -160,11 +217,13 @@ module lr35902_dbg_uart(
 	end
 
 	always @(posedge cpu_clk) begin
-		if (dbg_state == `DBG_STEP) begin
-			{ drv, data }   <= mem[cycle];
+		if (dbg_state == `DBG_STEP)
 			mem[cycle + 32] <= { 1'bx, probe };
-		end else
+		else
 			drv <= 0;
+
+		if (dbg_state == `DBG_RXDRV && mtmp[8])
+			mem[cycle] <= { mtmp[0], rx_shift };
 
 		halt      <= new_halt;
 		no_inc    <= new_no_inc;
