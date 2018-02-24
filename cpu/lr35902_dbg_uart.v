@@ -5,6 +5,8 @@
 `define DBG_RXDRV     2
 `define DBG_STEP      3
 `define DBG_SEND      4
+`define DBG_BP_LOW    5
+`define DBG_BP_HIGH   6
 
 `define RX_IDLE     0
 `define RX_STARTBIT 1
@@ -18,25 +20,35 @@
 `define TX_DATABIT  2
 `define TX_STOPBIT  3
 
-module lr35902_dbg_uart(
-		input  wire       cpu_clk,
-		input  wire       reset,
-		input  wire [7:0] probe,  /* content of the currently selected register */
-		output reg  [7:0] data,   /* data driven on the bus when drv is set */
-		output reg        drv,    /* drive debug data on the bus instead of the requested */
-		output reg        halt,   /* halts CPU in instruction fetch state */
-		output reg        no_inc, /* prevent PC from getting incremented */
+`define NUM_BP 4
 
-		input  wire       uart_clk,
-		input  wire       rx,
-		output reg        tx,
-		output reg        cts,
+(* nolatches *)
+module lr35902_dbg_uart(
+		input  wire        cpu_clk,
+		input  wire        reset,
+		input  wire [7:0]  probe,  /* content of the currently selected register */
+		input  wire [15:0] pc,
+		input  wire [15:0] sp,
+		input  wire [7:4]  f,
+		output reg  [7:0]  data,   /* data driven on the bus when drv is set */
+		output reg         drv,    /* drive debug data on the bus instead of the requested */
+		output reg         halt,   /* halts CPU in instruction fetch state */
+		output reg         no_inc, /* prevent PC from getting incremented */
+
+		input  wire        uart_clk,
+		input  wire        rx,
+		output reg         tx,
+		output reg         cts,
 	);
 
 	reg new_halt, new_no_inc;
 
+	(* mem2reg *)
+	reg [15:0] bp[0:`NUM_BP-1], new_bp[0:`NUM_BP-1];
+	reg [1:0] bpsel, new_bpsel;
+
 	reg [8:0] mtmp, new_mtmp;
-	reg [8:0] mem[0:63];
+	reg [8:0] mem[0:23];
 	initial mem[0]  <= 'h0xx;
 	initial mem[1]  <= 'h0xx;
 	initial mem[2]  <= 'h0xx;
@@ -80,6 +92,10 @@ module lr35902_dbg_uart(
 	reg rx_seq, rx_ack, new_rx_ack;
 	reg tx_seq, new_tx_seq, tx_ack;
 
+	integer i;
+
+	wire stepping, conting;
+
 	always @* begin
 		new_halt      = halt;
 		new_no_inc    = no_inc;
@@ -88,62 +104,87 @@ module lr35902_dbg_uart(
 		new_rx_ack    = rx_ack;
 		new_tx_seq    = tx_seq;
 		new_dbg_state = dbg_state;
+		new_bpsel     = bpsel;
+
+		stepping = 0;
+		conting  = 0;
+
+		for (i = 0; i < `NUM_BP; i = i + 1)
+			new_bp[i] = bp[i];
 
 		case (dbg_state)
 		`DBG_IDLE:
 			if (rx_seq != rx_ack) case (rx_shift)
-			0: /* BREAK - halt */
+			'h?00: /* BREAK, NUL: halt */
 				begin
 					new_halt      = 1;
 					new_dbg_state = `DBG_WAIT_HALT;
 					new_cycle     = 0;
 					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
 				end
-			'h163: /* c - continue */
+			'h11?: /* continue */
 				begin
 					new_halt   = 0;
 					new_no_inc = 0;
 					new_rx_ack = rx_seq;
 					new_cycle  = 'bx;
 					new_mtmp   = 'bx;
+					new_bpsel  = 'bx;
 				end
-			'h169: /* i - disallow PC increment */
+			'h12?: /* set control bits */
 				begin
 					if (halt)
-						new_no_inc = 1;
+						new_no_inc = rx_shift[1];
 					new_rx_ack = rx_seq;
 					new_cycle  = 'bx;
 					new_mtmp   = 'bx;
+					new_bpsel  = 'bx;
 				end
-			'h149: /* I - allow PC increment */
-				begin
-					new_no_inc = 0;
-					new_rx_ack = rx_seq;
-					new_cycle  = 'bx;
-					new_mtmp   = 'bx;
-				end
-			'h164: /* d - set drive data */
+			'h13?: /* set drive data */
 				begin
 					new_cycle     = 0;
 					new_mtmp      = 'h0xx;
 					new_dbg_state = `DBG_RXDRV;
+					new_rx_ack    = rx_seq;
+					new_bpsel     = 'bx;
 				end
-			'h173: /* s - step */
+			'h14?: /* step */
 				if (halt) begin
+					stepping      = 1;
 					new_halt      = 0;
 					new_cycle     = 0;
 					new_dbg_state = `DBG_STEP;
 					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
 				end else begin
 					new_rx_ack = rx_seq;
 					new_cycle  = 'bx;
 					new_mtmp   = 'bx;
+					new_bpsel  = 'bx;
+				end
+			'h15?: /* read regs */
+				begin
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
+				end
+			'b11???????: /* set breakpoint */
+				begin
+					new_bpsel     = rx_shift;
+					new_dbg_state = `DBG_BP_LOW;
+					new_rx_ack    = rx_seq;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
 				end
 			default:
 				begin
 					new_rx_ack = rx_seq;
 					new_cycle  = 'bx;
 					new_mtmp   = 'bx;
+					new_bpsel  = 'bx;
 				end
 			endcase
 		`DBG_WAIT_HALT:
@@ -152,9 +193,11 @@ module lr35902_dbg_uart(
 				new_dbg_state = `DBG_IDLE;
 				new_cycle     = 'bx;
 				new_mtmp      = 'bx;
+				new_bpsel     = 'bx;
 			end else begin
 				new_cycle     = cycle + 1;
 				new_mtmp      = 'bx;
+				new_bpsel     = 'bx;
 			end
 		`DBG_RXDRV:
 			if (rx_seq != rx_ack) case (rx_shift)
@@ -164,6 +207,7 @@ module lr35902_dbg_uart(
 					new_dbg_state = `DBG_IDLE;
 					new_cycle     = 'bx;
 					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
 				end
 			default:
 				if (mtmp[8]) begin
@@ -178,21 +222,24 @@ module lr35902_dbg_uart(
 						end else
 							new_mtmp      = 'h0xx;
 					end
+					new_bpsel  = 'bx;
 				end else begin
 					new_rx_ack = rx_seq;
-					new_mtmp = { 1'b1, rx_shift };
+					new_mtmp = { 1'b1, rx_shift[7:0] };
+					new_bpsel  = 'bx;
 				end
 			endcase
 		`DBG_STEP:
 			begin
 				new_halt = 1;
 				if (cycle == 23) begin
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+					new_rx_ack    = rx_seq;
+					new_dbg_state = `DBG_IDLE;
 					new_cycle     = 'bx;
 				end else
 					new_cycle     = cycle + 1;
 				new_mtmp = 'bx;
+				new_bpsel = 'bx;
 			end
 		`DBG_SEND:
 			begin
@@ -202,28 +249,72 @@ module lr35902_dbg_uart(
 				end
 				new_cycle = 'bx;
 				new_mtmp  = 'bx;
+				new_bpsel = 'bx;
 			end
+		`DBG_BP_LOW:
+			if (rx_seq != rx_ack) case (rx_shift)
+			0: /* BREAK - cancel */
+				begin
+					new_rx_ack    = rx_seq;
+					new_dbg_state = `DBG_IDLE;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
+				end
+			default:
+				begin
+					new_rx_ack    = rx_seq;
+					new_bp[bpsel] = { 8'hff, rx_shift[7:0] };
+					new_dbg_state = `DBG_BP_HIGH;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
+				end
+			endcase
+		`DBG_BP_HIGH:
+			if (rx_seq != rx_ack) case (rx_shift)
+			0: /* BREAK - cancel */
+				begin
+					new_rx_ack    = rx_seq;
+					new_dbg_state = `DBG_IDLE;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
+				end
+			default:
+				begin
+					new_rx_ack    = rx_seq;
+					new_bp[bpsel][15:8] = rx_shift[7:0];
+					new_dbg_state = `DBG_IDLE;
+					new_cycle     = 'bx;
+					new_mtmp      = 'bx;
+					new_bpsel     = 'bx;
+				end
+			endcase
 		endcase
 
+		if (!stepping)
+			for (i = 0; i < `NUM_BP; i = i + 1)
+				if (pc == bp[i])
+					new_halt = 1;
+
 		if (reset) begin
-			new_halt      = !rx;
+			new_halt      = 0;
 			new_no_inc    = 0;
 			new_mtmp      = 'bx;
 			new_cycle     = 'bx;
 			new_rx_ack    = rx_seq;
 			new_tx_seq    = tx_ack;
 			new_dbg_state = `DBG_IDLE;
+			new_bpsel     = 'bx;
+
+			for (i = 0; i < `NUM_BP; i = i + 1)
+				new_bp[i] = 'hffff;
 		end
 	end
 
 	always @(posedge cpu_clk) begin
-		if (dbg_state == `DBG_STEP)
-			mem[cycle + 32] <= { 1'bx, probe };
-		else
-			drv <= 0;
-
 		if (dbg_state == `DBG_RXDRV && mtmp[8])
-			mem[cycle] <= { mtmp[0], rx_shift };
+			mem[cycle] <= { mtmp[0], rx_shift[7:0] };
 
 		halt      <= new_halt;
 		no_inc    <= new_no_inc;
@@ -232,6 +323,10 @@ module lr35902_dbg_uart(
 		rx_ack    <= new_rx_ack;
 		tx_seq    <= new_tx_seq;
 		dbg_state <= new_dbg_state;
+		bpsel     <= new_bpsel;
+
+		for (i = 0; i < `NUM_BP; i = i + 1)
+			bp[i] <= new_bp[i];
 
 		if (new_dbg_state == `DBG_STEP)
 			{ drv, data } <= mem[new_cycle];
@@ -295,7 +390,7 @@ module lr35902_dbg_uart(
 				tx_sub_count <= 0;
 				tx_cur_byte  <= 0;
 				tx           <= 0;
-				tx_shift     <= mem[32];
+				tx_shift     <= { f[7:4], 2'b00, no_inc, halt };
 			end
 		`TX_STARTBIT:
 			if (tx_sub_count == 11) begin
@@ -321,7 +416,7 @@ module lr35902_dbg_uart(
 				tx_sub_count <= tx_sub_count + 1;
 		`TX_STOPBIT:
 			if (tx_sub_count == 11) begin
-				if (tx_cur_byte == 23) begin
+				if (tx_cur_byte == 5) begin
 					tx_state     <= `TX_IDLE;
 					tx_ack       <= tx_seq;
 				end else begin
@@ -329,7 +424,13 @@ module lr35902_dbg_uart(
 					tx_sub_count <= 0;
 					tx_cur_byte  <= tx_cur_byte + 1;
 					tx           <= 0;
-					tx_shift     <= mem[tx_cur_byte + 33];
+					case (tx_cur_byte)
+					0: tx_shift <= probe;
+					1: tx_shift <= pc[7:0];
+					2: tx_shift <= pc[15:8];
+					3: tx_shift <= sp[7:0];
+					4: tx_shift <= sp[15:8];
+					endcase
 				end
 			end else
 				tx_sub_count <= tx_sub_count + 1;

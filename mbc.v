@@ -1,5 +1,6 @@
 `default_nettype none
 
+(* nolatches *)
 module mbc_chip(
 		input  wire        clk,
 		input  wire [15:0] iadr,

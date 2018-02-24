@@ -20,9 +20,9 @@ run: gameboy.bin
 json: gameboy.post.json
 
 clean:
-	rm -f gameboy.blif gameboy.asc gameboy.bin gameboy.post.blif gameboy.post.json bootrom.vh pll.v
+	rm -f gameboy.blif gameboy.asc gameboy.bin gameboy.post.blif gameboy.post.json bootrom.vh bootrom.hex pll.v
 
-gameboy.blif: $(SOURCES) bootrom.vh
+gameboy.blif: $(SOURCES) bootrom.hex
 	yosys -q -p "synth_ice40 -abc2 -blif $@" $(SOURCES)
 
 gameboy.asc gameboy.post.blif: gameboy.blif gameboy.pcf
@@ -36,6 +36,9 @@ gameboy.post.json: gameboy.post.blif
 
 bootrom.vh: bootrom.bin
 	od -Ad -v -tx1 -w1 $< | sed -e '1,256!d' -e 's/^\([0-9]\+\) \+\([0-9a-f]\+\)$$/\tinitial rom[\1] <= '\''h\2;/' >$@
+
+bootrom.hex: bootrom.bin
+	od -An -v -tx1 -w16 $< >$@
 
 pll.v:
 	icepll -q -i 12 -o 20.97152 -mf $@

@@ -1,5 +1,6 @@
 `default_nettype none
 
+(* nolatches *)
 module gb_memmap(
 		input  wire [15:0] adr,
 		input  wire        clk,

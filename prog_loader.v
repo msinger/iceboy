@@ -10,6 +10,7 @@
 `define WR_WRITE    2
 `define WR_INC      3
 
+(* nolatches *)
 module prog_loader(
 		input  wire        clk,
 		output reg  [20:0] adr,

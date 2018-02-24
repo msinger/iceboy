@@ -1,5 +1,7 @@
 `default_nettype none
 
+(* nolatches *)
+(* top *)
 module top(
 		input  wire        clk,
 		output wire [20:0] adr,
@@ -37,14 +39,12 @@ module top(
 	wire [7:0] dout, dout_prg;
 	wire       ddrv;
 
-	wire [7:0] dbg_probe;
-	wire       dbgdrv, halt, no_inc;
+	wire [15:0] pc, sp;
+	wire [7:4]  flags;
+	wire [7:0]  dbg_probe;
+	wire        dbgdrv, halt, no_inc;
 
-	wire [12:0] vadr;
-	wire        vread;
-	wire        ppu_active;
-
-	assign led = adr16;
+	assign led = { |pc[15:7], pc[6:0] };
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -77,7 +77,7 @@ module top(
 
 	assign reset_done = &reset_ticks;
 
-	always @(posedge gbclk) begin
+	always @(posedge divclk) begin
 		if (!reset_done && gbclk_stable)
 			reset_ticks <= reset_ticks + 1;
 	end
@@ -105,6 +105,9 @@ module top(
 		.write(write),
 		.read(read),
 		.reset(!reset_done || !n_reset),
+		.pc(pc),
+		.sp(sp),
+		.f(flags[7:4]),
 		.dbg(dbg_probe),
 		.halt(halt),
 		.no_inc(no_inc),
@@ -112,7 +115,10 @@ module top(
 
 	lr35902_dbg_uart debugger(
 		.cpu_clk(divclk),
-		.reset(!reset_done || !n_reset),
+		.reset(!reset_done),
+		.pc(pc),
+		.sp(sp),
+		.f(flags[7:4]),
 		.probe(dbg_probe),
 		.data(ddbg),
 		.drv(dbgdrv),
@@ -145,10 +151,10 @@ module top(
 		.adr(adr16[12:0]),
 		.dout(dvram),
 		.din(dout),
-		.read(read || vread),
+		.read(read || 0),
 		.write(write && vram_cs),
-		.vadr(vadr),
-		.ppu_active(ppu_active),
+		.vadr(0),
+		.ppu_active(0),
 	);
 
 	mbc_chip mbc(
@@ -161,6 +167,7 @@ module top(
 		.reset(!reset_done || !n_reset),
 		.sel_rom(crom_cs),
 		.sel_ram(cram_cs),
+		.default_mode(0),
 	);
 
 	prog_loader loader(

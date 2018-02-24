@@ -18,6 +18,7 @@
 `define N 6 /* subtraction */
 `define Z 7 /* zero */
 
+(* nolatches *)
 module lr35902(
 		input  wire        clk,
 		output reg  [15:0] adr,
@@ -30,6 +31,9 @@ module lr35902(
 
 		input  wire        reset,
 
+		output reg  [15:0] pc,
+		output reg  [15:0] sp,
+		output reg  [7:4]  f,
 		output wire [7:0]  dbg,
 		input  wire        halt,
 		input  wire        no_inc,
@@ -40,7 +44,9 @@ module lr35902(
 	reg        new_ddrv;
 	reg        new_read, new_write;
 
-	reg [3:0]  state, new_state;
+	(* onehot *)
+	reg [3:0]  state;
+	reg [3:0]  new_state;
 	reg [1:0]  cycle, new_cycle;
 
 	reg [7:0]  op, new_op;
@@ -48,10 +54,10 @@ module lr35902(
 	reg [7:0]  imml, new_imml;
 	reg [7:0]  immh, new_immh;
 
-	reg [15:0] pc,   new_pc;
-	reg [15:0] sp,   new_sp;
+	reg [15:0]       new_pc;
+	reg [15:0]       new_sp;
 	reg [7:0]  a,    new_a;
-	reg [7:4]  f,    new_f;
+	reg [7:4]        new_f;
 	reg [7:0]  b,    new_b;
 	reg [7:0]  c,    new_c;
 	reg [7:0]  d,    new_d;
