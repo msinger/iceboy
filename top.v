@@ -44,7 +44,9 @@ module top(
 	wire [7:0]  dbg_probe;
 	wire        dbgdrv, halt, no_inc;
 
-	assign led = { |pc[15:7], pc[6:0] };
+//	assign led = { |pc[15:7], pc[6:0] };
+	wire [7:0] dbgdbg;
+	assign led = dbgdbg;
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -128,6 +130,7 @@ module top(
 		.rx(rx),
 		.tx(tx),
 		.cts(cts),
+		.dbg(dbgdbg),
 	);
 
 	gb_memmap map(

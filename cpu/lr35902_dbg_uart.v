@@ -1,12 +1,9 @@
 `default_nettype none
 
-`define DBG_IDLE      0
-`define DBG_WAIT_HALT 1
-`define DBG_RXDRV     2
-`define DBG_STEP      3
-`define DBG_SEND      4
-`define DBG_BP_LOW    5
-`define DBG_BP_HIGH   6
+`define DBG_IDLE 0
+`define DBG_HALT 1
+`define DBG_STEP 2
+`define DBG_SEND 3
 
 `define RX_IDLE     0
 `define RX_STARTBIT 1
@@ -19,6 +16,8 @@
 `define TX_STARTBIT 1
 `define TX_DATABIT  2
 `define TX_STOPBIT  3
+
+`define BAUD_DIV 12
 
 `define NUM_BP 4
 
@@ -39,15 +38,16 @@ module lr35902_dbg_uart(
 		input  wire        rx,
 		output reg         tx,
 		output reg         cts,
+
+output wire [7:0] dbg,
 	);
 
 	reg new_halt, new_no_inc;
 
 	(* mem2reg *)
 	reg [15:0] bp[0:`NUM_BP-1], new_bp[0:`NUM_BP-1];
-	reg [1:0] bpsel, new_bpsel;
 
-	reg [8:0] mtmp, new_mtmp;
+	reg [7:0] drvdata, new_drvdata;
 	reg [8:0] mem[0:23];
 	initial mem[0]  <= 'h0xx;
 	initial mem[1]  <= 'h0xx;
@@ -75,15 +75,17 @@ module lr35902_dbg_uart(
 	initial mem[23] <= 'h0xx;
 
 	reg [4:0] cycle, new_cycle;
+	reg [3:0] ret, new_ret;
+	wire [3:0] tx_prep;
 
-	reg [2:0] dbg_state, new_dbg_state;
+	reg [1:0] dbg_state, new_dbg_state;
 
 	reg [2:0] rx_state;
 	reg [2:0] rx_cur_bit;
 	reg [3:0] rx_sub_count;
 	reg [8:0] rx_shift;
 
-	reg [2:0] tx_state;
+	reg [1:0] tx_state;
 	reg [2:0] tx_cur_bit;
 	reg [3:0] tx_sub_count;
 	reg [4:0] tx_cur_byte;
@@ -97,14 +99,37 @@ module lr35902_dbg_uart(
 	wire stepping, conting;
 
 	always @* begin
+		case (ret)
+		0:  tx_prep = { 2'b00, no_inc, halt };
+		1:  tx_prep = f[7:4];
+		2:  tx_prep = probe[3:0];
+		3:  tx_prep = probe[7:4];
+		4:  tx_prep = pc[3:0];
+		5:  tx_prep = pc[7:4];
+		6:  tx_prep = pc[11:8];
+		7:  tx_prep = pc[15:12];
+		8:  tx_prep = sp[3:0];
+		9:  tx_prep = sp[7:4];
+		10: tx_prep = sp[11:8];
+		11: tx_prep = sp[15:12];
+		12: tx_prep = 'ha;
+		13: tx_prep = 'ha;
+		14: tx_prep = 'ha;
+		15: tx_prep = 'ha;
+		endcase
+	end
+
+	assign dbg = { halt, rx_seq, rx_ack, cts, rx, tx, tx_seq, tx_ack };
+
+	always @* begin
 		new_halt      = halt;
 		new_no_inc    = no_inc;
-		new_mtmp      = mtmp;
 		new_cycle     = cycle;
 		new_rx_ack    = rx_ack;
 		new_tx_seq    = tx_seq;
 		new_dbg_state = dbg_state;
-		new_bpsel     = bpsel;
+		new_ret       = ret;
+		new_drvdata   = drvdata;
 
 		stepping = 0;
 		conting  = 0;
@@ -114,182 +139,97 @@ module lr35902_dbg_uart(
 
 		case (dbg_state)
 		`DBG_IDLE:
-			if (rx_seq != rx_ack) case (rx_shift)
-			'h?00: /* BREAK, NUL: halt */
+			if (rx_seq != rx_ack) casez (rx_shift)
+			'b?00000000: /* halt */
 				begin
 					new_halt      = 1;
-					new_dbg_state = `DBG_WAIT_HALT;
+					new_dbg_state = `DBG_HALT;
 					new_cycle     = 0;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
 				end
-			'h11?: /* continue */
+			'b10000??0?: /* NOP */
 				begin
-					new_halt   = 0;
-					new_no_inc = 0;
-					new_rx_ack = rx_seq;
-					new_cycle  = 'bx;
-					new_mtmp   = 'bx;
-					new_bpsel  = 'bx;
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
+					new_cycle     = 'bx;
 				end
-			'h12?: /* set control bits */
+			'b10000??11: /* continue */
 				begin
-					if (halt)
-						new_no_inc = rx_shift[1];
-					new_rx_ack = rx_seq;
-					new_cycle  = 'bx;
-					new_mtmp   = 'bx;
-					new_bpsel  = 'bx;
+					new_halt      = 0;
+					new_no_inc    = 0;
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
+					new_cycle     = 'bx;
 				end
-			'h13?: /* set drive data */
-				begin
-					new_cycle     = 0;
-					new_mtmp      = 'h0xx;
-					new_dbg_state = `DBG_RXDRV;
-					new_rx_ack    = rx_seq;
-					new_bpsel     = 'bx;
-				end
-			'h14?: /* step */
+			'b10000??10: /* step */
 				if (halt) begin
 					stepping      = 1;
 					new_halt      = 0;
 					new_cycle     = 0;
 					new_dbg_state = `DBG_STEP;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
 				end else begin
 					new_rx_ack = rx_seq;
 					new_cycle  = 'bx;
-					new_mtmp   = 'bx;
-					new_bpsel  = 'bx;
 				end
-			'h15?: /* read regs */
+			'b10001????: /* prep drvdata */
+				begin
+					new_drvdata   = { rx_shift[3:0], drvdata[7:4] };
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
+					new_cycle     = 'bx;
+				end
+			'b1001?????: /* set control bits */
+				begin
+					if (halt)
+						new_no_inc = rx_shift[1];
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
+					new_cycle     = 'bx;
+				end
+			'b101??????: /* set drvdata */
 				begin
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
 					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
 				end
 			'b11???????: /* set breakpoint */
 				begin
-					new_bpsel     = rx_shift;
-					new_dbg_state = `DBG_BP_LOW;
-					new_rx_ack    = rx_seq;
+					new_bp[rx_shift[6:4]] = { rx_shift[3:0], bp[rx_shift[6:4]][15:4] };
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
 					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
 				end
 			default:
 				begin
 					new_rx_ack = rx_seq;
 					new_cycle  = 'bx;
-					new_mtmp   = 'bx;
-					new_bpsel  = 'bx;
 				end
 			endcase
-		`DBG_WAIT_HALT:
+		`DBG_HALT:
 			if (cycle == 23) begin
-				new_rx_ack    = rx_seq;
-				new_dbg_state = `DBG_IDLE;
+				new_dbg_state = `DBG_SEND;
+				new_tx_seq    = !tx_seq;
 				new_cycle     = 'bx;
-				new_mtmp      = 'bx;
-				new_bpsel     = 'bx;
-			end else begin
+			end else
 				new_cycle     = cycle + 1;
-				new_mtmp      = 'bx;
-				new_bpsel     = 'bx;
-			end
-		`DBG_RXDRV:
-			if (rx_seq != rx_ack) case (rx_shift)
-			0: /* BREAK - cancel */
-				begin
-					new_rx_ack    = rx_seq;
-					new_dbg_state = `DBG_IDLE;
-					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
-				end
-			default:
-				if (mtmp[8]) begin
-					new_rx_ack    = rx_seq;
-					new_cycle     = cycle + 1;
-					new_mtmp[6:0] = mtmp[7:1];
-					if (&cycle[2:0]) begin
-						if (cycle == 23) begin
-							new_dbg_state = `DBG_IDLE;
-							new_cycle     = 'bx;
-							new_mtmp      = 'bx;
-						end else
-							new_mtmp      = 'h0xx;
-					end
-					new_bpsel  = 'bx;
-				end else begin
-					new_rx_ack = rx_seq;
-					new_mtmp = { 1'b1, rx_shift[7:0] };
-					new_bpsel  = 'bx;
-				end
-			endcase
 		`DBG_STEP:
 			begin
 				new_halt = 1;
 				if (cycle == 23) begin
-					new_rx_ack    = rx_seq;
-					new_dbg_state = `DBG_IDLE;
+					new_dbg_state = `DBG_SEND;
+					new_tx_seq    = !tx_seq;
 					new_cycle     = 'bx;
 				end else
 					new_cycle     = cycle + 1;
-				new_mtmp = 'bx;
-				new_bpsel = 'bx;
 			end
 		`DBG_SEND:
 			begin
 				if (tx_seq == tx_ack) begin
 					new_rx_ack    = rx_seq;
 					new_dbg_state = `DBG_IDLE;
+					new_ret       = ret + 1;
 				end
 				new_cycle = 'bx;
-				new_mtmp  = 'bx;
-				new_bpsel = 'bx;
 			end
-		`DBG_BP_LOW:
-			if (rx_seq != rx_ack) case (rx_shift)
-			0: /* BREAK - cancel */
-				begin
-					new_rx_ack    = rx_seq;
-					new_dbg_state = `DBG_IDLE;
-					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
-				end
-			default:
-				begin
-					new_rx_ack    = rx_seq;
-					new_bp[bpsel] = { 8'hff, rx_shift[7:0] };
-					new_dbg_state = `DBG_BP_HIGH;
-					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
-				end
-			endcase
-		`DBG_BP_HIGH:
-			if (rx_seq != rx_ack) case (rx_shift)
-			0: /* BREAK - cancel */
-				begin
-					new_rx_ack    = rx_seq;
-					new_dbg_state = `DBG_IDLE;
-					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
-				end
-			default:
-				begin
-					new_rx_ack    = rx_seq;
-					new_bp[bpsel][15:8] = rx_shift[7:0];
-					new_dbg_state = `DBG_IDLE;
-					new_cycle     = 'bx;
-					new_mtmp      = 'bx;
-					new_bpsel     = 'bx;
-				end
-			endcase
 		endcase
 
 		if (!stepping)
@@ -300,12 +240,12 @@ module lr35902_dbg_uart(
 		if (reset) begin
 			new_halt      = 0;
 			new_no_inc    = 0;
-			new_mtmp      = 'bx;
 			new_cycle     = 'bx;
 			new_rx_ack    = rx_seq;
 			new_tx_seq    = tx_ack;
 			new_dbg_state = `DBG_IDLE;
-			new_bpsel     = 'bx;
+			new_ret       = 'bx;
+			new_drvdata   = 'bx;
 
 			for (i = 0; i < `NUM_BP; i = i + 1)
 				new_bp[i] = 'hffff;
@@ -313,17 +253,17 @@ module lr35902_dbg_uart(
 	end
 
 	always @(posedge cpu_clk) begin
-		if (dbg_state == `DBG_RXDRV && mtmp[8])
-			mem[cycle] <= { mtmp[0], rx_shift[7:0] };
+		if (dbg_state == `DBG_IDLE && rx_shift[8:6] == 'b101 && rx_seq != rx_ack)
+			mem[rx_shift[4:0]] <= { rx_shift[5], drvdata };
 
 		halt      <= new_halt;
 		no_inc    <= new_no_inc;
-		mtmp      <= new_mtmp;
 		cycle     <= new_cycle;
 		rx_ack    <= new_rx_ack;
 		tx_seq    <= new_tx_seq;
 		dbg_state <= new_dbg_state;
-		bpsel     <= new_bpsel;
+		ret       <= new_ret;
+		drvdata   <= new_drvdata;
 
 		for (i = 0; i < `NUM_BP; i = i + 1)
 			bp[i] <= new_bp[i];
@@ -339,18 +279,18 @@ module lr35902_dbg_uart(
 		`RX_IDLE:
 			if (!rx) begin
 				rx_state     <= `RX_STARTBIT;
-				rx_sub_count <= 6;
+				rx_sub_count <= `BAUD_DIV / 2;
 				rx_cur_bit   <= 0;
 			end
 		`RX_STARTBIT:
-			if (rx_sub_count == 11) begin
+			if (rx_sub_count == `BAUD_DIV - 1) begin
 				rx_state     <= !rx ? `RX_DATABIT : `RX_IDLE;
 				rx_sub_count <= 0;
 				cts          <= !rx;
 			end else
 				rx_sub_count <= rx_sub_count + 1;
 		`RX_DATABIT:
-			if (rx_sub_count == 11) begin
+			if (rx_sub_count == `BAUD_DIV - 1) begin
 				rx_shift <= { rx, rx_shift[8:1] };
 				if (rx_cur_bit == 7)
 					rx_state <= `RX_STOPBIT;
@@ -360,10 +300,11 @@ module lr35902_dbg_uart(
 			end else
 				rx_sub_count <= rx_sub_count + 1;
 		`RX_STOPBIT:
-			if (rx_sub_count == 11) begin
-				rx_shift <= { rx, rx_shift[8:1] };
-				rx_state <= `RX_WAIT_ACK;
-				rx_seq   <= !rx_seq;
+			if (rx_sub_count == `BAUD_DIV - 1) begin
+				rx_shift     <= { rx, rx_shift[8:1] };
+				rx_state     <= `RX_WAIT_ACK;
+				rx_seq       <= !rx_seq;
+				rx_sub_count <= 'bx;
 			end else
 				rx_sub_count <= rx_sub_count + 1;
 		`RX_WAIT_ACK:
@@ -388,12 +329,11 @@ module lr35902_dbg_uart(
 			if (tx_seq != tx_ack) begin
 				tx_state     <= `TX_STARTBIT;
 				tx_sub_count <= 0;
-				tx_cur_byte  <= 0;
 				tx           <= 0;
-				tx_shift     <= { f[7:4], 2'b00, no_inc, halt };
+				tx_shift     <= { ret, tx_prep };
 			end
 		`TX_STARTBIT:
-			if (tx_sub_count == 11) begin
+			if (tx_sub_count == `BAUD_DIV - 1) begin
 				tx_state     <= `TX_DATABIT;
 				tx_sub_count <= 0;
 				tx_cur_bit   <= 0;
@@ -402,7 +342,7 @@ module lr35902_dbg_uart(
 			end else
 				tx_sub_count <= tx_sub_count + 1;
 		`TX_DATABIT:
-			if (tx_sub_count == 11) begin
+			if (tx_sub_count == `BAUD_DIV - 1) begin
 				tx_sub_count <= 0;
 				if (tx_cur_bit == 7) begin
 					tx_state     <= `TX_STOPBIT;
@@ -415,23 +355,10 @@ module lr35902_dbg_uart(
 			end else
 				tx_sub_count <= tx_sub_count + 1;
 		`TX_STOPBIT:
-			if (tx_sub_count == 11) begin
-				if (tx_cur_byte == 5) begin
-					tx_state     <= `TX_IDLE;
-					tx_ack       <= tx_seq;
-				end else begin
-					tx_state     <= `TX_STARTBIT;
-					tx_sub_count <= 0;
-					tx_cur_byte  <= tx_cur_byte + 1;
-					tx           <= 0;
-					case (tx_cur_byte)
-					0: tx_shift <= probe;
-					1: tx_shift <= pc[7:0];
-					2: tx_shift <= pc[15:8];
-					3: tx_shift <= sp[7:0];
-					4: tx_shift <= sp[15:8];
-					endcase
-				end
+			if (tx_sub_count == `BAUD_DIV - 1) begin
+				tx_state     <= `TX_IDLE;
+				tx_ack       <= tx_seq;
+				tx_sub_count <= 'bx;
 			end else
 				tx_sub_count <= tx_sub_count + 1;
 		endcase

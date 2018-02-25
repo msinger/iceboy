@@ -26,7 +26,7 @@ gameboy.blif: $(SOURCES) bootrom.hex
 	yosys -q -p "synth_ice40 -abc2 -blif $@" $(SOURCES)
 
 gameboy.asc gameboy.post.blif: gameboy.blif gameboy.pcf
-	arachne-pnr -s 3309022684 -m 800 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif
+	arachne-pnr -m 800 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif
 
 gameboy.bin: gameboy.asc
 	icepack $< $@
