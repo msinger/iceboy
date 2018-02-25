@@ -23,9 +23,6 @@ module top(
 	reg [3:0] reset_ticks = 0;
 	wire      reset_done;
 
-	reg [20:0] count;
-	reg divclk;
-
 	wire gbclk;
 	wire gbclk_stable;
 
@@ -79,17 +76,9 @@ module top(
 
 	assign reset_done = &reset_ticks;
 
-	always @(posedge divclk) begin
+	always @(posedge gbclk) begin
 		if (!reset_done && gbclk_stable)
 			reset_ticks <= reset_ticks + 1;
-	end
-
-	always @(posedge clk) begin
-		if (count == 100) begin
-			count <= 0;
-			divclk <= !divclk;
-		end else
-			count <= count + 1;
 	end
 
 	pll gbpll(
@@ -99,7 +88,7 @@ module top(
 	);
 
 	lr35902 cpu(
-		.clk(divclk),
+		.clk(gbclk),
 		.adr(adr16),
 		.data(dmerge),
 		.dout(dout),
@@ -116,7 +105,7 @@ module top(
 	);
 
 	lr35902_dbg_uart debugger(
-		.cpu_clk(divclk),
+		.cpu_clk(gbclk),
 		.reset(!reset_done),
 		.pc(pc),
 		.sp(sp),
@@ -134,7 +123,7 @@ module top(
 	);
 
 	gb_memmap map(
-		.clk(divclk),
+		.clk(gbclk),
 		.adr(adr16),
 		.write(write),
 		.reset(!reset_done || !n_reset),
@@ -161,7 +150,7 @@ module top(
 	);
 
 	mbc_chip mbc(
-		.clk(divclk),
+		.clk(gbclk),
 		.read(read && cart_cs && !n_emu_mbc),
 		.write(write && cart_cs && !n_emu_mbc),
 		.data(dout),
