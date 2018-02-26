@@ -192,11 +192,14 @@ output wire [7:0] dbg,
 					new_cycle     = 'bx;
 				end
 			'b11???????: /* set breakpoint */
-				begin
+				if (halt) begin
 					new_bp[rx_shift[6:4]] = { rx_shift[3:0], bp[rx_shift[6:4]][15:4] };
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
 					new_cycle     = 'bx;
+				end else begin
+					new_rx_ack = rx_seq;
+					new_cycle  = 'bx;
 				end
 			default:
 				begin
