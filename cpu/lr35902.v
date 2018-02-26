@@ -741,7 +741,7 @@ module lr35902(
 				`state_ifetch:
 					new_state = `state_imml_fetch;
 				`state_imml_fetch:
-					if (!op[0] || (f[op[4] ? `C : `Z] == op[3]))
+					if (!op[5] || (f[op[4] ? `C : `Z] == op[3]))
 						new_state = `state_jump_imm;
 				`state_jump_imm:
 					new_pc = result16;
