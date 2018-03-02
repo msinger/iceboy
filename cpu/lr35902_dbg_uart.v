@@ -119,7 +119,8 @@ output wire [7:0] dbg,
 		endcase
 	end
 
-	assign dbg = { halt, rx_seq, rx_ack, cts, rx, tx, tx_seq, tx_ack };
+//	assign dbg = { halt, rx_seq, rx_ack, cts, rx, tx, tx_seq, tx_ack };
+	assign dbg = { halt, rx_seq, rx_ack, cts, f[7:4] };
 
 	always @* begin
 		new_halt      = halt;

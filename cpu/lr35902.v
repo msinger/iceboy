@@ -387,13 +387,13 @@ module lr35902(
 					new_adr   = { immh, imml };
 					new_state = `state_indirect_fetch;
 				end
-			'h 0_e2: /* LD (C),A (2,8): load A to indirect (0xff00+C) */
+			'h 0_e2: /* LD (C),A (1,8): load A to indirect (0xff00+C) */
 				if (state == `state_ifetch) begin
 					new_adr   = { 'hff, c };
 					new_dout  = a;
 					new_state = `state_indirect_store;
 				end
-			'h 0_f2: /* LD A,(C) (2,8): load indirect (0xff00+C) to A */
+			'h 0_f2: /* LD A,(C) (1,8): load indirect (0xff00+C) to A */
 				if (state == `state_ifetch) begin
 					new_adr   = { 'hff, c };
 					new_state = `state_indirect_fetch;
