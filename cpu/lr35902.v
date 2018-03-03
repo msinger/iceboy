@@ -793,7 +793,7 @@ module lr35902(
 					begin
 						new_adr    = { h, l };
 						new_f[7:4] = { op_bank && !rot_result, 2'b0, rot_carry };
-						if (state != `state_indirect_fetch && op[0:2] == 6)
+						if (state != `state_indirect_fetch && op[2:0] == 6)
 							new_state = `state_indirect_fetch;
 						else begin
 							case (op[2:0])
