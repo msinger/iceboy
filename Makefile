@@ -6,6 +6,7 @@ cpu/lr35902.v \
 cpu/lr35902_dbg_uart.v \
 bootrom.v \
 ppu/lr35902_vram.v \
+ppu/lr35902_oam.v \
 prog_loader.v \
 pll.v
 

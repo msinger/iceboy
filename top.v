@@ -30,9 +30,9 @@ module top(
 	wire [20:0] adr21, adr21_prg;
 
 	wire read, write, write_prg;
-	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs;
+	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs, oam_cs;
 
-	wire [7:0] din, dmerge, dbootrom, dvram, ddbg;
+	wire [7:0] din, dmerge, dbootrom, dvram, doam, ddbg;
 	wire [7:0] dout, dout_prg;
 	wire       ddrv;
 
@@ -61,6 +61,8 @@ module top(
 			dmerge = dbootrom;
 		if (vram_cs)
 			dmerge = dvram;
+		if (oam_cs)
+			dmerge = doam;
 		if (dbgdrv)
 			dmerge = ddbg;
 	end
@@ -129,6 +131,7 @@ module top(
 		.reset(!reset_done || !n_reset),
 		.sel_bootrom(bootrom_cs),
 		.sel_vram(vram_cs),
+		.sel_oam(oam_cs),
 		.sel_ram(ram_cs),
 		.sel_cartridge(cart_cs),
 	);
@@ -145,6 +148,16 @@ module top(
 		.din(dout),
 		.read(read || 0),
 		.write(write && vram_cs),
+		.vadr(0),
+		.ppu_active(0),
+	);
+
+	lr35902_oam oam(
+		.adr(adr16[7:0]),
+		.dout(doam),
+		.din(dout),
+		.read(read || 0),
+		.write(write && oam_cs),
 		.vadr(0),
 		.ppu_active(0),
 	);
