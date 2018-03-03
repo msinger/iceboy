@@ -99,6 +99,7 @@ output wire [7:0] dbg,
 	wire stepping, conting;
 
 	always @* begin
+		(* fullcase *)
 		case (ret)
 		0:  tx_prep = { 2'b00, no_inc, halt };
 		1:  tx_prep = f[7:4];
@@ -112,10 +113,10 @@ output wire [7:0] dbg,
 		9:  tx_prep = sp[7:4];
 		10: tx_prep = sp[11:8];
 		11: tx_prep = sp[15:12];
-		12: tx_prep = 'ha;
-		13: tx_prep = 'ha;
-		14: tx_prep = 'ha;
-		15: tx_prep = 'ha;
+	//	12: tx_prep = sp[3:0];
+	//	13: tx_prep = sp[7:4];
+	//	14: tx_prep = sp[11:8];
+	//	15: tx_prep = sp[15:12];
 		endcase
 	end
 
@@ -125,7 +126,7 @@ output wire [7:0] dbg,
 	always @* begin
 		new_halt      = halt;
 		new_no_inc    = no_inc;
-		new_cycle     = cycle;
+		new_cycle     = 'bx;
 		new_rx_ack    = rx_ack;
 		new_tx_seq    = tx_seq;
 		new_dbg_state = dbg_state;
@@ -151,7 +152,6 @@ output wire [7:0] dbg,
 				begin
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
 				end
 			'b10000??11: /* continue */
 				begin
@@ -159,7 +159,6 @@ output wire [7:0] dbg,
 					new_no_inc    = 0;
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
 				end
 			'b10000??10: /* step */
 				if (halt) begin
@@ -167,16 +166,13 @@ output wire [7:0] dbg,
 					new_halt      = 0;
 					new_cycle     = 0;
 					new_dbg_state = `DBG_STEP;
-				end else begin
-					new_rx_ack = rx_seq;
-					new_cycle  = 'bx;
-				end
+				end else
+					new_rx_ack    = rx_seq;
 			'b10001????: /* prep drvdata */
 				begin
 					new_drvdata   = { rx_shift[3:0], drvdata[7:4] };
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
 				end
 			'b1001?????: /* set control bits */
 				begin
@@ -184,35 +180,26 @@ output wire [7:0] dbg,
 						new_no_inc = rx_shift[1];
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
 				end
 			'b101??????: /* set drvdata */
 				begin
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
 				end
 			'b11???????: /* set breakpoint */
 				if (halt) begin
 					new_bp[rx_shift[6:4]] = { rx_shift[3:0], bp[rx_shift[6:4]][15:4] };
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
-				end else begin
-					new_rx_ack = rx_seq;
-					new_cycle  = 'bx;
-				end
+				end else
+					new_rx_ack    = rx_seq;
 			default:
-				begin
-					new_rx_ack = rx_seq;
-					new_cycle  = 'bx;
-				end
+				new_rx_ack = rx_seq;
 			endcase
 		`DBG_HALT:
 			if (cycle == 23) begin
 				new_dbg_state = `DBG_SEND;
 				new_tx_seq    = !tx_seq;
-				new_cycle     = 'bx;
 			end else
 				new_cycle     = cycle + 1;
 		`DBG_STEP:
@@ -221,18 +208,14 @@ output wire [7:0] dbg,
 				if (cycle == 23) begin
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
-					new_cycle     = 'bx;
 				end else
 					new_cycle     = cycle + 1;
 			end
 		`DBG_SEND:
-			begin
-				if (tx_seq == tx_ack) begin
-					new_rx_ack    = rx_seq;
-					new_dbg_state = `DBG_IDLE;
-					new_ret       = ret + 1;
-				end
-				new_cycle = 'bx;
+			if (tx_seq == tx_ack) begin
+				new_rx_ack    = rx_seq;
+				new_dbg_state = `DBG_IDLE;
+				new_ret       = ret + 1;
 			end
 		endcase
 
