@@ -56,13 +56,20 @@ module top(
 		);
 
 	always @* begin
-		dmerge = din;
-		if (bootrom_cs)
+		dmerge = 'hff;
+
+		(* parallelcase *)
+		case (1)
+		bootrom_cs:
 			dmerge = dbootrom;
-		if (vram_cs)
+		vram_cs:
 			dmerge = dvram;
-		if (oam_cs)
+		oam_cs:
 			dmerge = doam;
+		ram_cs || cart_cs:
+			dmerge = din;
+		endcase
+
 		if (dbgdrv)
 			dmerge = ddbg;
 	end
