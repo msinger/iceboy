@@ -99,7 +99,7 @@ module top(
 	lr35902 cpu(
 		.clk(gbclk),
 		.adr(adr16),
-		.data(dmerge),
+		.din(dmerge),
 		.dout(dout),
 		.ddrv(ddrv),
 		.write(write),

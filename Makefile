@@ -3,6 +3,7 @@ top.v \
 map.v \
 mbc.v \
 cpu/lr35902.v \
+cpu/lr35902_hram.v \
 cpu/lr35902_dbg_uart.v \
 bootrom.v \
 ppu/lr35902_vram.v \

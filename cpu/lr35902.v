@@ -22,7 +22,7 @@
 module lr35902(
 		input  wire        clk,
 		output reg  [15:0] adr,
-		input  wire [7:0]  data,
+		input  wire [7:0]  din,
 		output reg  [7:0]  dout,
 		output reg         ddrv,
 
@@ -43,6 +43,9 @@ module lr35902(
 	reg [7:0]  new_dout;
 	reg        new_ddrv;
 	reg        new_read, new_write;
+
+	wire [7:0] data, dvram;
+	wire       hram_sel;
 
 	(* onehot *)
 	reg [3:0]  state;
@@ -81,6 +84,9 @@ module lr35902(
 	wire hcarry16 = (arg16a[8] == arg16b[8]) == result16[8];
 
 	wire [8:0] daa_result;
+
+	assign hram_sel = &adr[15:7] && !&adr[6:0]; /* >=ff80 but not ffff */
+	assign data = hram_sel ? dvram : din;
 
 	assign dbg = arg;
 
@@ -902,6 +908,14 @@ module lr35902(
 		h       <= new_h;
 		l       <= new_l;
 	end
+
+	lr35902_hram hram(
+		.adr(adr[6:0]),
+		.din(dout),
+		.dout(dvram),
+		.read(read && hram_sel),
+		.write(write && hram_sel),
+	);
 
 endmodule
 
