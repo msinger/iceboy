@@ -30,7 +30,7 @@ module top(
 	wire [20:0] adr21, adr21_prg;
 
 	wire read, write, write_prg;
-	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs, oam_cs;
+	wire ram_cs, cart_cs, crom_cs, cram_cs, bootrom_cs, vram_cs, oam_cs, io_cs;
 
 	wire [7:0] din, dmerge, dbootrom, dvram, doam, ddbg;
 	wire [7:0] dout, dout_prg;
@@ -40,6 +40,8 @@ module top(
 	wire [7:4]  flags;
 	wire [7:0]  dbg_probe;
 	wire        dbgdrv, halt, no_inc;
+
+	wire hide_bootrom;
 
 //	assign led = { |pc[15:7], pc[6:0] };
 	wire [7:0] dbgdbg;
@@ -131,22 +133,30 @@ module top(
 		.dbg(dbgdbg),
 	);
 
-	gb_memmap map(
-		.clk(gbclk),
+	gb_memmap cpu_map(
 		.adr(adr16),
-		.write(write),
-		.reset(!reset_done || !n_reset),
+		.enable_bootrom(!hide_bootrom),
 		.sel_bootrom(bootrom_cs),
 		.sel_vram(vram_cs),
 		.sel_oam(oam_cs),
 		.sel_ram(ram_cs),
 		.sel_cartridge(cart_cs),
+		.sel_io(io_cs),
+	);
+
+	gb_memmap dma_map(
+		.adr(0),
+		.enable_bootrom(0),
 	);
 
 	gb_bootrom bootrom(
-		.read(read),
 		.adr(adr16[7:0]),
-		.data(dbootrom),
+		.dout(dbootrom),
+		.din(dout),
+		.read(read),
+		.write_reg(write && io_cs && adr16[7:0] == 'h50),
+		.reset(!reset_done || !n_reset),
+		.hide(hide_bootrom),
 	);
 
 	lr35902_vram vram(

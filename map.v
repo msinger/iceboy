@@ -3,9 +3,8 @@
 (* nolatches *)
 module gb_memmap(
 		input  wire [15:0] adr,
-		input  wire        clk,
-		input  wire        write,
-		input  wire        reset,
+
+		input  wire        enable_bootrom,
 
 		output wire        sel_bootrom,
 		output wire        sel_cartridge,
@@ -15,8 +14,6 @@ module gb_memmap(
 		output wire        sel_io,
 	);
 
-	reg hide_bootrom = 0;
-
 	always @(*) begin
 		sel_bootrom   = 0;
 		sel_cartridge = 0;
@@ -25,9 +22,9 @@ module gb_memmap(
 		sel_oam       = 0;
 		sel_io        = 0;
 
-		casez ({ hide_bootrom, adr })
-		/* H RW A15....A8 A7.....A0 */
-		'b_0_0000_0000_????_????: /* 0x0000-0x00ff: 256 byte BOOT ROM (if not hidden) */
+		casez ({ enable_bootrom, adr })
+		/* B RW A15....A8 A7.....A0 */
+		'b_1_0000_0000_????_????: /* 0x0000-0x00ff: 256 byte BOOT ROM (if enabled) */
 			sel_bootrom = 1;
 		'b_?_00??_????_????_????, /* 0x0000-0x3fff: 16k cartridge ROM bank #0 */
 		'b_?_01??_????_????_????, /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
@@ -43,22 +40,6 @@ module gb_memmap(
 		'b_?_111?_????_????_????: /* 0xe000-0xfdff: 8k RAM (repeated; partially shadowed by I/O registers) */
 			sel_ram = 1;
 		endcase
-
-		if (reset) begin
-			sel_bootrom   = 0;
-			sel_cartridge = 0;
-			sel_vram      = 0;
-			sel_ram       = 0;
-			sel_oam       = 0;
-			sel_io        = 0;
-		end
-	end
-
-	always @(posedge write || reset) begin
-		if (reset)
-			hide_bootrom <= 0;
-		else if (adr == 'hff50)
-			hide_bootrom <= 1;
 	end
 
 endmodule
