@@ -675,38 +675,32 @@ module lr35902(
 			'h 0_d4, /* CALL NC,a16 (3,24/12): push PC and jump if not carry immediate 16-bit address */
 			'h 0_cc, /* CALL Z,a16 (3,24/12): push PC and jump if zero immediate 16-bit address */
 			'h 0_dc: /* CALL C,a16 (3,24/12): push PC and jump if carry immediate 16-bit address */
-				if (op[0] || (f[op[4] ? `C : `Z] == op[3])) case (state) /* are we about to jump? */
-				`state_ifetch:
-					new_state = `state_imml_fetch;
-				`state_imml_fetch:
-					begin
-						if (!op[1]) /* is CALL? */
-							new_sp = result16; /* decrement SP for upcoming store of PC[15:8] */
-						new_state = `state_immh_fetch;
-					end
-				`state_immh_fetch:
-					if (!op[1]) begin /* is CALL? */
-						new_adr   = sp;
-						new_dout  = pc[15:8];
-						new_sp    = result16; /* decrement SP for upcoming store of PC[7:0] */
-						new_state = `state_indirecth_store;
-					end else
-						new_state = `state_jump_imm;
-				`state_indirecth_store:
-					begin
-						new_adr   = sp;
-						new_dout  = pc[7:0];
-						new_state = `state_indirect_store;
-					end
-				`state_indirect_store:
-					new_state = `state_jump_imm;
-				`state_jump_imm:
-					new_pc = { immh, imml };
-				endcase else case (state) /* no jump? just fetch */
+				case (state)
 				`state_ifetch:
 					new_state = `state_imml_fetch;
 				`state_imml_fetch:
 					new_state = `state_immh_fetch;
+				`state_immh_fetch:
+					if (op[0] || (f[op[4] ? `C : `Z] == op[3])) /* are we about to jump? */
+						new_state = `state_jump_imm;
+				`state_jump_imm:
+					begin
+						if (!op[1]) begin /* is CALL? */
+							new_adr   = result16;
+							new_sp    = result16; /* decrement SP for upcoming store of PC[15:8] */
+							new_dout  = pc[15:8];
+							new_state = `state_indirecth_store;
+						end else
+							new_pc    = { immh, imml };
+					end
+				`state_indirecth_store:
+					begin
+						new_adr   = result16;
+						new_sp    = result16; /* decrement SP for upcoming store of PC[7:0] */
+						new_dout  = pc[7:0];
+						new_state = `state_indirect_store;
+						new_pc    = { immh, imml };
+					end
 				endcase
 			'h 0_c9, /* RET a16 (1,16): pop PC */
 			'h 0_c0, /* RET NZ,a16 (1,20/8): pop PC if not zero */
