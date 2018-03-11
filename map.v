@@ -4,6 +4,7 @@
 module gb_memmap(
 		input  wire [15:0] adr,
 
+		input  wire        reset,
 		input  wire        enable_bootrom,
 
 		output wire        sel_bootrom,
@@ -14,7 +15,7 @@ module gb_memmap(
 		output wire        sel_io,
 	);
 
-	always @(*) begin
+	always @* begin
 		sel_bootrom   = 0;
 		sel_cartridge = 0;
 		sel_vram      = 0;
@@ -22,7 +23,7 @@ module gb_memmap(
 		sel_oam       = 0;
 		sel_io        = 0;
 
-		casez ({ enable_bootrom, adr })
+		if (!reset) casez ({ enable_bootrom, adr })
 		/* B RW A15....A8 A7.....A0 */
 		'b_1_0000_0000_????_????: /* 0x0000-0x00ff: 256 byte BOOT ROM (if enabled) */
 			sel_bootrom = 1;

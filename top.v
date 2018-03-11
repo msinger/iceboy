@@ -26,20 +26,27 @@ module top(
 	wire gbclk;
 	wire gbclk_stable;
 
-	wire [15:0] adr_ext, adr_cpu;
+	wire [15:0] adr_cpu;
+	wire [15:0] adr_dma_rd;
+	wire [7:0]  adr_dma_wr;
+	wire [15:0] adr_ext;
 	wire [12:0] adr_vram;
 	wire [7:0]  adr_oam;
 	wire [20:0] adr21, adr21_prog;
 
 	wire rd_cpu, wr_cpu;
+	wire rd_dma, wr_dma;
 	wire rd_vram, wr_vram;
 	wire rd_oam, wr_oam;
 	wire rd_ext, wr_ext;
 	wire wr_prog;
-	wire cs_ram, cs_cart, cs_crom, cs_cram, cs_brom, cs_vram, cs_oam, cs_io;
+	wire cs_ext, cs_ram, cs_cart, cs_crom, cs_cram, cs_vram, cs_oam;
+	wire cscpu_ext, cscpu_ram, cscpu_cart, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
+	wire csdma_ext, csdma_ram, csdma_cart, csdma_vram;
 
-	wire [7:0] data_ext_out, data_ext_in;
 	wire [7:0] data_cpu_out, data_cpu_in;
+	wire [7:0] data_dma_out, data_dma_in;
+	wire [7:0] data_ext_in;
 	wire [7:0] data_vram_out, data_vram_in;
 	wire [7:0] data_oam_out, data_oam_in;
 	wire [7:0] data_brom_out;
@@ -53,6 +60,8 @@ module top(
 	wire [7:0]  dbg_probe;
 	wire        ddrv_dbg, halt, no_inc;
 
+	wire dma_active;
+	assign dma_active = 0;
 	wire hide_bootrom;
 
 //	assign led = { |pc[15:7], pc[6:0] };
@@ -74,13 +83,13 @@ module top(
 
 		(* parallelcase *)
 		case (1)
-		cs_brom:
+		cscpu_brom:
 			data_cpu_in = data_brom_out;
-		cs_vram:
+		cscpu_vram && !csdma_vram:
 			data_cpu_in = data_vram_out;
-		cs_oam:
+		cscpu_oam && !dma_active:
 			data_cpu_in = data_oam_out;
-		cs_ram || cs_cart:
+		cscpu_ext && !csdma_ext:
 			data_cpu_in = data_ext_in;
 		endcase
 
@@ -90,17 +99,54 @@ module top(
 	end
 
 	always @* begin
-		adr_vram = adr_cpu;
-		rd_vram = rd_cpu;
-		wr_vram = wr_cpu && cs_vram;
+		data_dma_in = 'hff;
+
+		(* parallelcase *)
+		case (1)
+		csdma_vram:
+			data_dma_in = data_vram_out;
+		csdma_ext:
+			data_dma_in = data_ext_in;
+		endcase
+	end
+
+	always @* begin
+		if (csdma_ext) begin
+			adr_ext = adr_dma_rd;
+			rd_ext = rd_dma;
+			wr_ext = 0;
+		end else begin
+			adr_ext = adr_cpu;
+			rd_ext = rd_cpu;
+			wr_ext = wr_cpu && cs_ext;
+		end
+	end
+
+	always @* begin
+		if (csdma_vram) begin
+			adr_vram = adr_dma_rd;
+			rd_vram = rd_dma;
+			wr_vram = 0;
+		end else begin
+			adr_vram = adr_cpu;
+			rd_vram = rd_cpu;
+			wr_vram = wr_cpu && cs_vram;
+		end
 		data_vram_in = data_cpu_out;
 	end
 
 	always @* begin
-		adr_oam = adr_cpu;
-		rd_oam = rd_cpu;
-		wr_oam = wr_cpu && cs_oam;
-		data_oam_in = data_cpu_out;
+		if (dma_active) begin
+			adr_oam = adr_dma_wr;
+			rd_oam = 0;
+			wr_oam = wr_dma;
+			data_oam_in = data_dma_out;
+		end else begin
+			adr_oam = adr_cpu;
+			rd_oam = rd_cpu;
+			wr_oam = wr_cpu && cs_oam;
+			data_oam_in = data_cpu_out;
+		end
 	end
 
 	assign n_read    = !rd_ext;
@@ -112,9 +158,14 @@ module top(
 
 	assign adr = n_reset ? adr21 : adr21_prog;
 
-	assign adr_ext = adr_cpu;
-	assign rd_ext = rd_cpu;
-	assign wr_ext = wr_cpu;
+	assign cs_ext = cs_ram || cs_cart;
+	assign cscpu_ext = cscpu_ram || cscpu_cart;
+	assign csdma_ext = csdma_ram || csdma_cart;
+
+	assign cs_ram = cscpu_ram || csdma_ram;
+	assign cs_cart = cscpu_cart || csdma_cart;
+	assign cs_vram = cscpu_vram || csdma_vram;
+	assign cs_oam = cscpu_oam || dma_active;
 
 	assign reset_done = &reset_ticks;
 
@@ -166,18 +217,23 @@ module top(
 
 	gb_memmap cpu_map(
 		.adr(adr_cpu),
+		.reset(0),
 		.enable_bootrom(!hide_bootrom),
-		.sel_bootrom(cs_brom),
-		.sel_vram(cs_vram),
-		.sel_oam(cs_oam),
-		.sel_ram(cs_ram),
-		.sel_cartridge(cs_cart),
-		.sel_io(cs_io),
+		.sel_bootrom(cscpu_brom),
+		.sel_vram(cscpu_vram),
+		.sel_oam(cscpu_oam),
+		.sel_ram(cscpu_ram),
+		.sel_cartridge(cscpu_cart),
+		.sel_io(cscpu_io),
 	);
 
 	gb_memmap dma_map(
-		.adr(0),
+		.adr(adr_dma_rd),
+		.reset(!dma_active),
 		.enable_bootrom(0),
+		.sel_vram(csdma_vram),
+		.sel_ram(csdma_ram),
+		.sel_cartridge(csdma_cart),
 	);
 
 	gb_bootrom bootrom(
@@ -185,7 +241,7 @@ module top(
 		.dout(data_brom_out),
 		.din(data_cpu_out),
 		.read(rd_cpu),
-		.write_reg(wr_cpu && cs_io && adr_cpu[7:0] == 'h50),
+		.write_reg(wr_cpu && cscpu_io && adr_cpu[7:0] == 'h50),
 		.reset(!reset_done || !n_reset),
 		.hide(hide_bootrom),
 	);
@@ -208,8 +264,7 @@ module top(
 
 	mbc_chip mbc(
 		.clk(gbclk),
-		.read(rd_ext && cs_cart && !n_emu_mbc),
-		.write(wr_ext && cs_cart && !n_emu_mbc),
+		.write(wr_ext && !n_emu_mbc),
 		.data(data_cpu_out),
 		.iadr(adr_ext),
 		.oadr(adr21),

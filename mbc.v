@@ -6,7 +6,6 @@ module mbc_chip(
 		input  wire [15:0] iadr,
 		output wire [20:0] oadr,
 		input  wire [7:0]  data,
-		input  wire        read,
 		input  wire        write,
 		input  wire        reset,
 		input  wire        default_mode,
