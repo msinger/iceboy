@@ -4,34 +4,25 @@
 module lr35902_oam(
 		output reg  [7:0] dout,
 		input  wire [7:0] din,
-
 		input  wire [7:0] adr,
 		input  wire       read,
 		input  wire       write,
-
-		input  wire [7:0] vadr,
-		input  wire       ppu_active,
 	);
 
-	reg [7:0] ram[0:159];
+	reg [7:0] ram[0:255];
 
-	wire [7:0] eadr;
-	wire valid;
+	integer i;
 
-	assign eadr = ppu_active ? vadr : adr;
-	assign valid = eadr < 0;
+	initial
+		for (i = 0; i < 256; i = i + 1)
+			ram[i] <= 0;
 
-	always @(posedge read) begin
-		if (valid)
-			dout <= ram[eadr];
-		else
-			dout <= 0;
-	end
+	always @(posedge read)
+		dout <= ram[adr];
 
-	always @(posedge write) begin
-		if (!ppu_active && valid)
-			ram[eadr] <= din;
-	end
+	always @(posedge write)
+		if (adr < 160)
+			ram[adr] <= din;
 
 endmodule
 

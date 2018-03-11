@@ -8,21 +8,15 @@ module lr35902_vram(
 		input  wire [12:0] adr,
 		input  wire        read,
 		input  wire        write,
-
-		input  wire [12:0] vadr,
-		input  wire        ppu_active,
 	);
 
 	reg [7:0] ram[0:8191];
 
-	always @(posedge read) begin
-		dout <= ram[ppu_active ? vadr : adr];
-	end
+	always @(posedge read)
+		dout <= ram[adr];
 
-	always @(posedge write) begin
-		if (!ppu_active)
-			ram[adr] <= din;
-	end
+	always @(posedge write)
+		ram[adr] <= din;
 
 endmodule
 
