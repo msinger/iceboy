@@ -42,37 +42,16 @@ module lr35902_dbg_uart(
 output wire [7:0] dbg,
 	);
 
-	reg new_halt, new_no_inc;
+	reg new_halt, new_no_inc, new_drv;
+	reg [7:0] new_data;
 
 	(* mem2reg *)
 	reg [15:0] bp[0:`NUM_BP-1], new_bp[0:`NUM_BP-1];
 
 	reg [7:0] drvdata, new_drvdata;
-	reg [8:0] mem[0:23];
-	initial mem[0]  <= 'h0xx;
-	initial mem[1]  <= 'h0xx;
-	initial mem[2]  <= 'h0xx;
-	initial mem[3]  <= 'h0xx;
-	initial mem[4]  <= 'h0xx;
-	initial mem[5]  <= 'h0xx;
-	initial mem[6]  <= 'h0xx;
-	initial mem[7]  <= 'h0xx;
-	initial mem[8]  <= 'h0xx;
-	initial mem[9]  <= 'h0xx;
-	initial mem[10] <= 'h0xx;
-	initial mem[11] <= 'h0xx;
-	initial mem[12] <= 'h0xx;
-	initial mem[13] <= 'h0xx;
-	initial mem[14] <= 'h0xx;
-	initial mem[15] <= 'h0xx;
-	initial mem[16] <= 'h0xx;
-	initial mem[17] <= 'h0xx;
-	initial mem[18] <= 'h0xx;
-	initial mem[19] <= 'h0xx;
-	initial mem[20] <= 'h0xx;
-	initial mem[21] <= 'h0xx;
-	initial mem[22] <= 'h0xx;
-	initial mem[23] <= 'h0xx;
+
+	(* mem2reg *)
+	reg [8:0] drvarr[0:3], new_drvarr[0:3];
 
 	reg [4:0] cycle, new_cycle;
 	reg [3:0] ret, new_ret;
@@ -126,6 +105,8 @@ output wire [7:0] dbg,
 	always @* begin
 		new_halt      = halt;
 		new_no_inc    = no_inc;
+		new_drv       = drv;
+		new_data      = data;
 		new_cycle     = 'bx;
 		new_rx_ack    = rx_ack;
 		new_tx_seq    = tx_seq;
@@ -138,6 +119,9 @@ output wire [7:0] dbg,
 
 		for (i = 0; i < `NUM_BP; i = i + 1)
 			new_bp[i] = bp[i];
+
+		for (i = 0; i < 4; i = i + 1)
+			new_drvarr[i] = drvarr[i];
 
 		case (dbg_state)
 		`DBG_IDLE:
@@ -165,6 +149,7 @@ output wire [7:0] dbg,
 					stepping      = 1;
 					new_halt      = 0;
 					new_cycle     = 0;
+					{ new_drv, new_data } = drvarr[0];
 					new_dbg_state = `DBG_STEP;
 				end else
 					new_rx_ack    = rx_seq;
@@ -183,6 +168,7 @@ output wire [7:0] dbg,
 				end
 			'b101??????: /* set drvdata */
 				begin
+					new_drvarr[rx_shift[1:0]] = { rx_shift[5], drvdata };
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
 				end
@@ -210,6 +196,7 @@ output wire [7:0] dbg,
 					new_tx_seq    = !tx_seq;
 				end else
 					new_cycle     = cycle + 1;
+				{ new_drv, new_data } = new_cycle[4] ? 'h0xx : drvarr[new_cycle[3:2]];
 			end
 		`DBG_SEND:
 			if (tx_seq == tx_ack) begin
@@ -227,6 +214,8 @@ output wire [7:0] dbg,
 		if (reset) begin
 			new_halt      = 0;
 			new_no_inc    = 0;
+			new_drv       = 0;
+			new_data      = 'bx;
 			new_cycle     = 'bx;
 			new_rx_ack    = rx_seq;
 			new_tx_seq    = tx_ack;
@@ -236,15 +225,17 @@ output wire [7:0] dbg,
 
 			for (i = 0; i < `NUM_BP; i = i + 1)
 				new_bp[i] = 'hffff;
+
+			for (i = 0; i < 4; i = i + 1)
+				new_drvarr[i] = 'h0xx;
 		end
 	end
 
 	always @(posedge cpu_clk) begin
-		if (dbg_state == `DBG_IDLE && rx_shift[8:6] == 'b101 && rx_seq != rx_ack)
-			mem[rx_shift[4:0]] <= { rx_shift[5], drvdata };
-
 		halt      <= new_halt;
 		no_inc    <= new_no_inc;
+		drv       <= new_drv;
+		data      <= new_data;
 		cycle     <= new_cycle;
 		rx_ack    <= new_rx_ack;
 		tx_seq    <= new_tx_seq;
@@ -255,10 +246,8 @@ output wire [7:0] dbg,
 		for (i = 0; i < `NUM_BP; i = i + 1)
 			bp[i] <= new_bp[i];
 
-		if (new_dbg_state == `DBG_STEP)
-			{ drv, data } <= mem[new_cycle];
-		else
-			drv <= 0;
+		for (i = 0; i < 4; i = i + 1)
+			drvarr[i] <= new_drvarr[i];
 	end
 
 	always @(posedge uart_clk) begin
