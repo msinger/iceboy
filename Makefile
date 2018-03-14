@@ -1,6 +1,7 @@
 SOURCES = \
 top.v \
 map.v \
+iomap.v \
 mbc.v \
 cpu/lr35902.v \
 cpu/lr35902_hram.v \

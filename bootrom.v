@@ -7,6 +7,7 @@ module gb_bootrom(
 		input  wire [7:0] din,
 		input  wire       read,
 		input  wire       write_reg,
+		input  wire       clk,
 		input  wire       reset,
 		output reg        hide,
 	);
@@ -18,7 +19,7 @@ module gb_bootrom(
 		dout <= rom[adr];
 	end
 
-	always @(posedge write_reg || reset) begin
+	always @(posedge clk) begin
 		if (reset)
 			hide <= 0;
 		else if (write_reg)

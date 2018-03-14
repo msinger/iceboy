@@ -43,6 +43,8 @@ module top(
 	wire cs_ext, cs_ram, cs_cart, cs_crom, cs_cram, cs_vram, cs_oam;
 	wire cscpu_ext, cscpu_ram, cscpu_cart, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
 	wire csdma_ext, csdma_ram, csdma_cart, csdma_vram;
+	wire cs_io_joypad, cs_io_serial, cs_io_divider, cs_io_timer, cs_io_int_flag;
+	wire cs_io_sound, cs_io_ppu, cs_io_dma, cs_io_brom, cs_io_hram, cs_io_int_ena;
 
 	wire [7:0] data_cpu_out, data_cpu_in;
 	wire [7:0] data_dma_out, data_dma_in;
@@ -50,6 +52,7 @@ module top(
 	wire [7:0] data_vram_out, data_vram_in;
 	wire [7:0] data_oam_out, data_oam_in;
 	wire [7:0] data_brom_out;
+	wire [7:0] data_hram_out;
 	wire [7:0] data_dbg_out;
 	wire [7:0] data_prog_out;
 
@@ -66,7 +69,8 @@ module top(
 
 //	assign led = { |pc[15:7], pc[6:0] };
 	wire [7:0] dbgdbg;
-	assign led = dbgdbg;
+//	assign led = dbgdbg;
+	assign led = { hide_bootrom, cs_io_brom };
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -83,6 +87,8 @@ module top(
 
 		(* parallelcase *)
 		case (1)
+		cs_io_hram:
+			data_cpu_in = data_hram_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
 		cscpu_vram && !csdma_vram:
@@ -93,6 +99,7 @@ module top(
 			data_cpu_in = data_ext_in;
 		endcase
 
+if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 
 		if (ddrv_dbg)
 			data_cpu_in = data_dbg_out;
@@ -236,14 +243,39 @@ module top(
 		.sel_cartridge(csdma_cart),
 	);
 
+	gb_iomap io_map(
+		.adr(adr_cpu[7:0]),
+		.reset(!cscpu_io),
+		.sel_p1(cs_io_joypad),
+		.sel_ser(cs_io_serial),
+		.sel_div(cs_io_divider),
+		.sel_tim(cs_io_timer),
+		.sel_if(cs_io_int_flag),
+		.sel_snd(cs_io_sound),
+		.sel_ppu(cs_io_ppu),
+		.sel_dma(cs_io_dma),
+		.sel_brom(cs_io_brom),
+		.sel_hram(cs_io_hram),
+		.sel_ie(cs_io_int_ena),
+	);
+
 	gb_bootrom bootrom(
 		.adr(adr_cpu[7:0]),
 		.dout(data_brom_out),
 		.din(data_cpu_out),
 		.read(rd_cpu),
-		.write_reg(wr_cpu && cscpu_io && adr_cpu[7:0] == 'h50),
+		.write_reg(wr_cpu && cs_io_brom),
+		.clk(gbclk),
 		.reset(!reset_done || !n_reset),
 		.hide(hide_bootrom),
+	);
+
+	lr35902_hram hram(
+		.adr(adr_cpu[6:0]),
+		.dout(data_hram_out),
+		.din(data_cpu_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_hram),
 	);
 
 	lr35902_vram vram(

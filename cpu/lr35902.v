@@ -44,9 +44,6 @@ module lr35902(
 	reg        new_ddrv;
 	reg        new_read, new_write;
 
-	wire [7:0] data, dvram;
-	wire       hram_sel;
-
 	(* onehot *)
 	reg [3:0]  state;
 	reg [3:0]  new_state;
@@ -84,9 +81,6 @@ module lr35902(
 	wire hcarry16 = (arg16a[8] == arg16b[8]) == result16[8];
 
 	wire [8:0] daa_result;
-
-	assign hram_sel = &adr[15:7] && !&adr[6:0]; /* >=ff80 but not ffff */
-	assign data = hram_sel ? dvram : din;
 
 	assign dbg = arg;
 
@@ -286,11 +280,11 @@ module lr35902(
 					case (state)
 					`state_ifetch,
 					`state_cb_ifetch:
-						new_op   = data;
+						new_op   = din;
 					`state_imml_fetch:
-						new_imml = data;
+						new_imml = din;
 					`state_immh_fetch:
-						new_immh = data;
+						new_immh = din;
 					endcase
 					new_op_bank = state == `state_cb_ifetch;
 				end
@@ -307,9 +301,9 @@ module lr35902(
 			2: /* fetch byte from DATA bus */
 				case (state)
 				`state_indirect_fetch:
-					new_imml = data;
+					new_imml = din;
 				`state_indirecth_fetch:
-					new_immh = data;
+					new_immh = din;
 				endcase
 			3: /* deassert READ */
 				new_read = 0;
@@ -902,14 +896,6 @@ module lr35902(
 		h       <= new_h;
 		l       <= new_l;
 	end
-
-	lr35902_hram hram(
-		.adr(adr[6:0]),
-		.din(dout),
-		.dout(dvram),
-		.read(read && hram_sel),
-		.write(write && hram_sel),
-	);
 
 endmodule
 
