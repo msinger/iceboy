@@ -216,6 +216,7 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.halt(halt),
 		.no_inc(no_inc),
 		.uart_clk(clk),
+		.uart_reset(!n_reset),
 		.rx(rx),
 		.tx(tx),
 		.cts(cts),

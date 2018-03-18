@@ -35,6 +35,7 @@ module lr35902_dbg_uart(
 		output reg         no_inc, /* prevent PC from getting incremented */
 
 		input  wire        uart_clk,
+		input  wire        uart_reset,
 		input  wire        rx,
 		output reg         tx,
 		output reg         cts,
@@ -293,7 +294,7 @@ output wire [7:0] dbg,
 			end
 		endcase
 
-		if (reset) begin
+		if (reset || (uart_reset && rx_state != `RX_WAIT_ACK)) begin
 			cts      <= 0;
 			rx_state <= `RX_WAIT_IDL;
 		end
