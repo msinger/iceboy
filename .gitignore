@@ -1,4 +1,5 @@
 /bootrom.vh
+/bootrom.bin
 /bootrom.hex
 /pll.v
 /*.asc
