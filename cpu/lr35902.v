@@ -243,7 +243,7 @@ module lr35902(
 			end
 		'h03, 'h13, 'h23, 'h33, 'h08, 'h18, 'h28, 'h38: /* incr/decr instructions */
 			begin
-				arg16a = op[4] ? -1 : 1;
+				arg16a = op[3] ? -1 : 1;
 				arg16b = { immh, imml };
 			end
 		'h09, 'h19, 'h29, 'h39: /* adds */
