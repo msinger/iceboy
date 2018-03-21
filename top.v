@@ -51,6 +51,7 @@ module top(
 	wire [7:0] data_ext_in;
 	wire [7:0] data_vram_out, data_vram_in;
 	wire [7:0] data_oam_out, data_oam_in;
+	wire [7:0] data_div_out;
 	wire [7:0] data_brom_out;
 	wire [7:0] data_hram_out;
 	wire [7:0] data_dbg_out;
@@ -89,6 +90,8 @@ module top(
 		case (1)
 		cs_io_hram:
 			data_cpu_in = data_hram_out;
+		cs_io_divider:
+			data_cpu_in = data_div_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
 		cscpu_vram && !csdma_vram:
@@ -258,6 +261,14 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.sel_brom(cs_io_brom),
 		.sel_hram(cs_io_hram),
 		.sel_ie(cs_io_int_ena),
+	);
+
+	lr35902_div div(
+		.reset(!reset_done || !n_reset),
+		.dout(data_div_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_divider),
+		.clk(gbclk),
 	);
 
 	gb_bootrom bootrom(
