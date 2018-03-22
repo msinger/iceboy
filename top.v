@@ -54,6 +54,7 @@ module top(
 	wire [7:0] data_div_out;
 	wire [7:0] data_brom_out;
 	wire [7:0] data_hram_out;
+	wire [7:0] data_cpureg_out;
 	wire [7:0] data_dbg_out;
 	wire [7:0] data_prog_out;
 
@@ -92,6 +93,8 @@ module top(
 			data_cpu_in = data_hram_out;
 		cs_io_divider:
 			data_cpu_in = data_div_out;
+		cs_io_int_flag || cs_io_int_ena:
+			data_cpu_in = data_cpureg_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
 		cscpu_vram && !csdma_vram:
@@ -205,6 +208,12 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.dbg(dbg_probe),
 		.halt(halt),
 		.no_inc(no_inc),
+		.cs_iflag(cs_io_int_flag),
+		.cs_iena(cs_io_int_ena),
+		.din_reg(data_cpu_out),
+		.dout_reg(data_cpureg_out),
+		.write_reg(wr_cpu),
+		.read_reg(rd_cpu),
 	);
 
 	lr35902_dbg_uart debugger(

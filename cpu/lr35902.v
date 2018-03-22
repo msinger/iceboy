@@ -37,6 +37,13 @@ module lr35902(
 		output wire [7:0]  dbg,
 		input  wire        halt,
 		input  wire        no_inc,
+
+		input  wire        cs_iflag,
+		input  wire        cs_iena,
+		input  wire [7:0]  din_reg,
+		output wire [7:0]  dout_reg,
+		input  wire        write_reg,
+		input  wire        read_reg,
 	);
 
 	reg [15:0] new_adr;
@@ -81,6 +88,9 @@ module lr35902(
 	wire hcarry16 = (arg16a[8] == arg16b[8]) == result16[8];
 
 	wire [8:0] daa_result;
+
+	reg [4:0] iflag;
+	reg [7:0] iena;
 
 	assign dbg = arg;
 
@@ -896,6 +906,22 @@ module lr35902(
 		h       <= new_h;
 		l       <= new_l;
 	end
+
+	assign dout_reg = cs_iena ? iena : { 3'b111, iflag[4:0] };
+
+	always @(posedge clk) begin
+		if (cs_iflag && write_reg)
+			iflag <= din_reg;
+
+		if (reset)
+			iflag <= 0;
+	end
+
+	always @(posedge clk)
+		if (reset)
+			iena <= 0;
+		else if (cs_iena && write_reg)
+			iena <= din_reg;
 
 endmodule
 
