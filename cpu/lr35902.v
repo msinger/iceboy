@@ -251,7 +251,7 @@ module lr35902(
 				arg16a = sp;
 				arg16b = { {8{imml[7]}}, imml };
 			end
-		'h03, 'h13, 'h23, 'h33, 'h08, 'h18, 'h28, 'h38: /* incr/decr instructions */
+		'h03, 'h13, 'h23, 'h33, 'h0b, 'h1b, 'h2b, 'h3b: /* incr/decr instructions */
 			begin
 				arg16a = op[3] ? -1 : 1;
 				arg16b = { immh, imml };
@@ -344,7 +344,7 @@ module lr35902(
 				new_state = `state_cb_ifetch;
 			'h 0_f3: /* DI (1,4) */
 				/* TODO: implement */;
-			'h 0_f8: /* EI (1,4) */
+			'h 0_fb: /* EI (1,4) */
 				/* TODO: implement */;
 			'h 0_06, /* LD B,d8 (2,8): load to reg from immediate */
 			'h 0_16, /* LD D,d8 (2,8): load to reg from immediate */
@@ -456,7 +456,7 @@ module lr35902(
 					{ new_h, new_l } = result16;
 				end else
 					new_a = imml;
-			'h 0_e8: /* LD HL,SP+a8 (2,12): load sum of SP and immediate signed 8-bit to HL */
+			'h 0_f8: /* LD HL,SP+a8 (2,12): load sum of SP and immediate signed 8-bit to HL */
 				case (state)
 				`state_ifetch:
 					new_state = `state_imml_fetch;
@@ -706,11 +706,12 @@ module lr35902(
 						new_pc    = { immh, imml };
 					end
 				endcase
-			'h 0_c9, /* RET a16 (1,16): pop PC */
-			'h 0_c0, /* RET NZ,a16 (1,20/8): pop PC if not zero */
-			'h 0_d0, /* RET NC,a16 (1,20/8): pop PC if not carry */
-			'h 0_c8, /* RET Z,a16 (1,20/8): pop PC if zero */
-			'h 0_d8: /* RET C,a16 (1,20/8): pop PC if carry */
+			'h 0_c9, /* RET (1,16): pop PC */
+			'h 0_d9, /* RETI (1,16): pop PC and enable interrupts */
+			'h 0_c0, /* RET NZ (1,20/8): pop PC if not zero */
+			'h 0_d0, /* RET NC (1,20/8): pop PC if not carry */
+			'h 0_c8, /* RET Z (1,20/8): pop PC if zero */
+			'h 0_d8: /* RET C (1,20/8): pop PC if carry */
 				case (state)
 				`state_ifetch:
 					begin
