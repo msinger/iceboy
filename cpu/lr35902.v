@@ -34,6 +34,7 @@ module lr35902(
 		output reg  [15:0] pc,
 		output reg  [15:0] sp,
 		output reg  [7:4]  f,
+		output reg         ime,
 		output wire [7:0]  dbg,
 		input  wire        halt,
 		input  wire        no_inc,
@@ -89,8 +90,12 @@ module lr35902(
 
 	wire [8:0] daa_result;
 
-	reg [4:0] iflag;
-	reg [7:0] iena;
+	reg        delay_ime, new_ime, new_delay_ime, int_entry;
+	reg  [2:0] int_state, new_int_state;
+	reg  [4:0] iflag;
+	reg  [7:0] iena;
+	wire       do_int_entry;
+	wire [7:0] int_vector;
 
 	assign dbg = arg;
 
@@ -162,8 +167,12 @@ module lr35902(
 		new_h       = h;
 		new_l       = l;
 
-		if (!halt || state != `state_ifetch || cycle)
+		if (!halt || state != `state_ifetch || cycle || do_int_entry)
 			new_cycle = cycle + 1;
+
+		new_int_state = do_int_entry ? int_state : 0;
+		new_ime       = ime || (new_cycle == 3 && delay_ime);
+		new_delay_ime = delay_ime && new_cycle != 3;
 
 		/* select (source) argument for LD or ALU operation */
 		case (op[2:0])
@@ -226,7 +235,10 @@ module lr35902(
 
 		arg16a = 'bx;
 		arg16b = 'bx;
-		if (cycle == 1) begin
+		if (do_int_entry) begin
+			arg16a = sp; /* used to push PC on interrupt entry */
+			arg16b = -1;
+		end else if (cycle == 1) begin
 			arg16a = pc; /* used to increment PC in cycle 1 */
 			arg16b = 1;
 		end else case (op)
@@ -268,7 +280,46 @@ module lr35902(
 			end
 		endcase
 
-		case (state)
+		if (do_int_entry) case(int_state)
+		0:
+			if (cycle == 3)
+				new_int_state = 1;
+		1:
+			if (cycle == 3)
+				new_int_state = 2;
+		2:
+			if (cycle == 3) begin
+				new_adr       = result16;
+				new_sp        = result16; /* decrement SP for upcoming store of PC[15:8] */
+				new_dout      = pc[15:8];
+				new_int_state = 3;
+			end
+		3, 4:
+			case (cycle)
+			0: /* ADR and DOUT already latched by previous state; drive DATA */
+				begin
+					new_ddrv = 1;
+					if (int_state == 4)
+						new_pc = int_vector; /* interrupt dispatch must not cancel during low byte push */
+				end
+			1: /* request WRITE */
+				new_write = 1;
+			2: /* deassert WRITE */
+				new_write = 0;
+			3:
+				if (int_state == 3) begin
+					new_adr       = result16;
+					new_sp        = result16; /* decrement SP for upcoming store of PC[7:0] */
+					new_dout      = pc[7:0];
+					new_int_state = 4;
+					new_pc        = 0; /* when interrupt dispatch cancels during high byte push, then PC and IME are always 0 */
+					new_ime       = 0;
+					new_delay_ime = 0;
+				end
+			endcase
+		endcase
+
+		if (!do_int_entry) case (state)
 		`state_ifetch,
 		`state_cb_ifetch,
 		`state_imml_fetch,
@@ -330,7 +381,7 @@ module lr35902(
 			endcase
 		endcase
 
-		if (cycle == 3) begin
+		if (!do_int_entry && cycle == 3) begin
 			new_state = `state_ifetch;
 			casez ({ op_bank, op })
 			/*          OP (bytes,cycles): description */
@@ -343,9 +394,9 @@ module lr35902(
 			'h 0_cb: /* PREFIX CB (1,4): switch OP bank - fetch second OPCODE */
 				new_state = `state_cb_ifetch;
 			'h 0_f3: /* DI (1,4) */
-				/* TODO: implement */;
+				new_ime = 0;
 			'h 0_fb: /* EI (1,4) */
-				/* TODO: implement */;
+				new_delay_ime = 1;
 			'h 0_06, /* LD B,d8 (2,8): load to reg from immediate */
 			'h 0_16, /* LD D,d8 (2,8): load to reg from immediate */
 			'h 0_26, /* LD H,d8 (2,8): load to reg from immediate */
@@ -721,6 +772,8 @@ module lr35902(
 							new_state = `state_indirect_fetch; /* fetch PC [7:0] */
 						end else
 							new_state = `state_dummy;
+						if (op[0] && op[4]) /* RETI? */
+							new_ime = 1;
 					end
 				`state_indirect_fetch:
 					begin
@@ -878,6 +931,10 @@ module lr35902(
 			new_e       = 'bx;
 			new_h       = 'bx;
 			new_l       = 'bx;
+
+			new_int_state = 0;
+			new_ime       = 0;
+			new_delay_ime = 0;
 		end
 	end
 
@@ -906,6 +963,10 @@ module lr35902(
 		e       <= new_e;
 		h       <= new_h;
 		l       <= new_l;
+
+		int_state <= new_int_state;
+		ime       <= new_ime;
+		delay_ime <= new_delay_ime;
 	end
 
 	assign dout_reg = cs_iena ? iena : { 3'b111, iflag[4:0] };
@@ -923,6 +984,23 @@ module lr35902(
 			iena <= 0;
 		else if (cs_iena && write_reg)
 			iena <= din_reg;
+
+	always @(posedge clk)
+		if (reset)
+			int_entry <= 0;
+		else if (cycle == 3) /* evaluate once for each 4-cycle-block if interrupt entry must be performed */
+			int_entry <= ime && |(iena[4:0] & iflag[4:0]);
+
+	assign do_int_entry = state == `state_ifetch && int_entry;
+
+	always @* casez (iena[4:0] & iflag[4:0])
+	'b????1: int_vector = 'h40;
+	'b???10: int_vector = 'h48;
+	'b??100: int_vector = 'h50;
+	'b?1000: int_vector = 'h58;
+	'b10000: int_vector = 'h60;
+	'b00000: int_vector = 'h00;
+	endcase
 
 endmodule
 

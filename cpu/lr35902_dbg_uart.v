@@ -29,6 +29,7 @@ module lr35902_dbg_uart(
 		input  wire [15:0] pc,
 		input  wire [15:0] sp,
 		input  wire [7:4]  f,
+		input  wire        ime,
 		output reg  [7:0]  data,   /* data driven on the bus when drv is set */
 		output reg         drv,    /* drive debug data on the bus instead of the requested */
 		output reg         halt,   /* halts CPU in instruction fetch state */
@@ -54,7 +55,7 @@ output wire [7:0] dbg,
 	(* mem2reg *)
 	reg [8:0] drvarr[0:3], new_drvarr[0:3];
 
-	reg [4:0] cycle, new_cycle;
+	reg [5:0] cycle, new_cycle;
 	reg [3:0] ret, new_ret;
 	wire [3:0] tx_prep;
 
@@ -81,7 +82,7 @@ output wire [7:0] dbg,
 	always @* begin
 		(* fullcase *)
 		case (ret)
-		0:  tx_prep = { 2'b00, no_inc, halt };
+		0:  tx_prep = { ime, 1'b0, no_inc, halt };
 		1:  tx_prep = f[7:4];
 		2:  tx_prep = probe[3:0];
 		3:  tx_prep = probe[7:4];
@@ -184,7 +185,7 @@ output wire [7:0] dbg,
 				new_rx_ack = rx_seq;
 			endcase
 		`DBG_HALT:
-			if (cycle == 23) begin
+			if (cycle == 43) begin /* longest instruction is 24; interrupt entry is 20; 24+20=44 */
 				new_dbg_state = `DBG_SEND;
 				new_tx_seq    = !tx_seq;
 			end else
@@ -192,12 +193,12 @@ output wire [7:0] dbg,
 		`DBG_STEP:
 			begin
 				new_halt = 1;
-				if (cycle == 23) begin
+				if (cycle == 43) begin
 					new_dbg_state = `DBG_SEND;
 					new_tx_seq    = !tx_seq;
 				end else
 					new_cycle     = cycle + 1;
-				{ new_drv, new_data } = new_cycle[4] ? 'h0xx : drvarr[new_cycle[3:2]];
+				{ new_drv, new_data } = new_cycle[5:4] ? 'h0xx : drvarr[new_cycle[3:2]];
 			end
 		`DBG_SEND:
 			if (tx_seq == tx_ack) begin

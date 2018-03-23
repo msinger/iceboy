@@ -63,7 +63,7 @@ module top(
 	wire [15:0] pc, sp;
 	wire [7:4]  flags;
 	wire [7:0]  dbg_probe;
-	wire        ddrv_dbg, halt, no_inc;
+	wire        ddrv_dbg, halt, no_inc, ime;
 
 	wire dma_active;
 	assign dma_active = 0;
@@ -72,7 +72,7 @@ module top(
 //	assign led = { |pc[15:7], pc[6:0] };
 	wire [7:0] dbgdbg;
 //	assign led = dbgdbg;
-	assign led = { hide_bootrom, cs_io_brom };
+	assign led = { hide_bootrom, cs_io_brom, ime };
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -205,6 +205,7 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.pc(pc),
 		.sp(sp),
 		.f(flags[7:4]),
+		.ime(ime),
 		.dbg(dbg_probe),
 		.halt(halt),
 		.no_inc(no_inc),
@@ -222,6 +223,7 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.pc(pc),
 		.sp(sp),
 		.f(flags[7:4]),
+		.ime(ime),
 		.probe(dbg_probe),
 		.data(data_dbg_out),
 		.drv(ddrv_dbg),
