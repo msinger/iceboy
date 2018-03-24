@@ -54,6 +54,7 @@ module top(
 	wire [7:0] data_oam_out, data_oam_in;
 	wire [7:0] data_ppu_out;
 	wire [7:0] data_div_out;
+	wire [7:0] data_tim_out;
 	wire [7:0] data_brom_out;
 	wire [7:0] data_hram_out;
 	wire [7:0] data_cpureg_out;
@@ -69,7 +70,6 @@ module top(
 	wire [7:0]  dbg_probe;
 	wire        ddrv_dbg, halt, no_inc, ime;
 
-	assign irq_timer = 0;
 	assign irq_serial = 0;
 	assign irq_joypad = 0;
 
@@ -101,6 +101,8 @@ module top(
 			data_cpu_in = data_hram_out;
 		cs_io_divider:
 			data_cpu_in = data_div_out;
+		cs_io_timer:
+			data_cpu_in = data_tim_out;
 		cs_io_int_flag || cs_io_int_ena:
 			data_cpu_in = data_cpureg_out;
 		cs_io_ppu:
@@ -296,6 +298,17 @@ module top(
 		.read(rd_cpu),
 		.write(wr_cpu && cs_io_divider),
 		.clk(gbclk),
+	);
+
+	lr35902_tim tim(
+		.reset(!reset_done || !n_reset),
+		.dout(data_tim_out),
+		.din(data_cpu_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_timer),
+		.clk(gbclk),
+		.adr(adr_cpu[1:0]),
+		.irq(irq_timer),
 	);
 
 	gb_bootrom bootrom(

@@ -11,6 +11,7 @@ ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \
 ppu/lr35902_ppu_dummy.v \
 lr35902_div.v \
+lr35902_tim.v \
 prog_loader.v \
 pll.v
 
