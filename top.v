@@ -23,8 +23,9 @@ module top(
 	reg [3:0] reset_ticks = 0;
 	wire      reset_done;
 
-	wire gbclk;
+	wire pllclk, gbclk;
 	wire gbclk_stable;
+	reg [2:0] clkdiv5;
 
 	wire [15:0] adr_cpu;
 	wire [15:0] adr_dma_rd;
@@ -189,14 +190,21 @@ module top(
 
 	assign reset_done = &reset_ticks;
 
-	always @(posedge gbclk) begin
+	assign gbclk = clkdiv5[2];
+
+	always @(posedge pllclk)
+		if (clkdiv5 == 4)
+			clkdiv5 <= 0;
+		else
+			clkdiv5 <= clkdiv5 + 1;
+
+	always @(posedge gbclk)
 		if (!reset_done && gbclk_stable)
 			reset_ticks <= reset_ticks + 1;
-	end
 
 	pll gbpll(
 		.clock_in(clk),
-		.clock_out(gbclk),
+		.clock_out(pllclk),
 		.locked(gbclk_stable),
 	);
 
