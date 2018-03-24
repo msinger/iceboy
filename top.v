@@ -51,6 +51,7 @@ module top(
 	wire [7:0] data_ext_in;
 	wire [7:0] data_vram_out, data_vram_in;
 	wire [7:0] data_oam_out, data_oam_in;
+	wire [7:0] data_ppu_out;
 	wire [7:0] data_div_out;
 	wire [7:0] data_brom_out;
 	wire [7:0] data_hram_out;
@@ -58,12 +59,18 @@ module top(
 	wire [7:0] data_dbg_out;
 	wire [7:0] data_prog_out;
 
+	wire irq_ppu_vblank, irq_ppu_stat, irq_timer, irq_serial, irq_joypad;
+
 	wire       ddrv_cpu;
 
 	wire [15:0] pc, sp;
 	wire [7:4]  flags;
 	wire [7:0]  dbg_probe;
 	wire        ddrv_dbg, halt, no_inc, ime;
+
+	assign irq_timer = 0;
+	assign irq_serial = 0;
+	assign irq_joypad = 0;
 
 	wire dma_active;
 	assign dma_active = 0;
@@ -95,6 +102,8 @@ module top(
 			data_cpu_in = data_div_out;
 		cs_io_int_flag || cs_io_int_ena:
 			data_cpu_in = data_cpureg_out;
+		cs_io_ppu:
+			data_cpu_in = data_ppu_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
 		cscpu_vram && !csdma_vram:
@@ -104,8 +113,6 @@ module top(
 		cscpu_ext && !csdma_ext:
 			data_cpu_in = data_ext_in;
 		endcase
-
-if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 
 		if (ddrv_dbg)
 			data_cpu_in = data_dbg_out;
@@ -215,6 +222,7 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.dout_reg(data_cpureg_out),
 		.write_reg(wr_cpu),
 		.read_reg(rd_cpu),
+		.irq({ irq_joypad, irq_serial, irq_timer, irq_ppu_stat, irq_ppu_vblank }),
 	);
 
 	lr35902_dbg_uart debugger(
@@ -315,6 +323,18 @@ if (cscpu_io && adr_cpu[7:0] == 'h44) data_cpu_in = 'h90;
 		.din(data_oam_in),
 		.read(rd_oam),
 		.write(wr_oam),
+	);
+
+	lr35902_ppu_dummy ppu(
+		.clk(gbclk),
+		.reset(!reset_done || !n_reset),
+		.adr(adr_cpu[7:0]),
+		.dout(data_ppu_out),
+		.din(data_cpu_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_ppu),
+		.irq_vblank(irq_ppu_vblank),
+		.irq_stat(irq_ppu_stat),
 	);
 
 	mbc_chip mbc(

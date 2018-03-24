@@ -45,6 +45,8 @@ module lr35902(
 		output wire [7:0]  dout_reg,
 		input  wire        write_reg,
 		input  wire        read_reg,
+
+		input  wire [4:0]  irq,
 	);
 
 	reg [15:0] new_adr;
@@ -972,6 +974,8 @@ module lr35902(
 	assign dout_reg = cs_iena ? iena : { 3'b111, iflag[4:0] };
 
 	always @(posedge clk) begin
+		iflag <= iflag | irq;
+
 		if (cs_iflag && write_reg)
 			iflag <= din_reg;
 
