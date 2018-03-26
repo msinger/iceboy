@@ -325,7 +325,7 @@ module top(
 		.write(wr_cpu && cs_io_sound),
 		.clk(gbclk),
 		.pwmclk(pllclk),
-		.adr(adr_cpu[4:0]),
+		.adr(adr_cpu[5:0]),
 		.chl(chl),
 		.chr(chr),
 		.chm(chm),
