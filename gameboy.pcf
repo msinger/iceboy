@@ -63,3 +63,8 @@ set_io rx        B10
 set_io tx        B12
 set_io cts       A15
 
+# Audio PWMs
+set_io chl       T1
+set_io chr       T2
+set_io chm       T3
+

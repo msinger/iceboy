@@ -18,6 +18,9 @@ module top(
 		output wire        tx,        /* UART TX for debugger */
 		output wire        cts,       /* UART CTS for debugger */
 		output wire [7:0]  led,
+		output wire        chl,       /* left audio PWM channel */
+		output wire        chr,       /* right audio PWM channel */
+		output wire        chm,       /* mono audio PWM channel */
 	);
 
 	reg [3:0] reset_ticks = 0;
@@ -55,6 +58,7 @@ module top(
 	wire [7:0] data_ppu_out;
 	wire [7:0] data_div_out;
 	wire [7:0] data_tim_out;
+	wire [7:0] data_snd_out;
 	wire [7:0] data_brom_out;
 	wire [7:0] data_hram_out;
 	wire [7:0] data_cpureg_out;
@@ -80,7 +84,7 @@ module top(
 //	assign led = { |pc[15:7], pc[6:0] };
 	wire [7:0] dbgdbg;
 //	assign led = dbgdbg;
-	assign led = { hide_bootrom, cs_io_brom, ime };
+	assign led = { chl, chr, chm,  hide_bootrom, cs_io_brom, ime };
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -103,6 +107,8 @@ module top(
 			data_cpu_in = data_div_out;
 		cs_io_timer:
 			data_cpu_in = data_tim_out;
+		cs_io_sound:
+			data_cpu_in = data_snd_out;
 		cs_io_int_flag || cs_io_int_ena:
 			data_cpu_in = data_cpureg_out;
 		cs_io_ppu:
@@ -309,6 +315,20 @@ module top(
 		.clk(gbclk),
 		.adr(adr_cpu[1:0]),
 		.irq(irq_timer),
+	);
+
+	lr35902_snd snd(
+		.reset(!reset_done || !n_reset),
+		.dout(data_snd_out),
+		.din(data_cpu_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_sound),
+		.clk(gbclk),
+		.pwmclk(pllclk),
+		.adr(adr_cpu[4:0]),
+		.chl(chl),
+		.chr(chr),
+		.chm(chm),
 	);
 
 	gb_bootrom bootrom(

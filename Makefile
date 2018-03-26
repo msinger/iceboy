@@ -12,6 +12,7 @@ ppu/lr35902_oam.v \
 ppu/lr35902_ppu_dummy.v \
 lr35902_div.v \
 lr35902_tim.v \
+lr35902_snd.v \
 prog_loader.v \
 pll.v
 
