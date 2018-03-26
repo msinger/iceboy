@@ -12,7 +12,8 @@ module lr35902_tim(
 		output reg        irq,
 	);
 
-	reg [7:0] tima, tma, tac;
+	reg [7:0] tima, tma;
+	reg [2:0] tac;
 
 	reg [7:0] count;
 
@@ -22,7 +23,7 @@ module lr35902_tim(
 		case (adr)
 		1: dout <= tima;
 		2: dout <= tma;
-		3: dout <= tac;
+		3: dout <= { 5'h1f, tac };
 		endcase
 	end
 
