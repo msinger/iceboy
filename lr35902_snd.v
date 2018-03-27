@@ -43,6 +43,8 @@ module lr35902_snd(
 	wire [6:0] so12_compare;
 	wire       so1_pwm, so2_pwm, so12_pwm;
 
+	wire [6:0] so1_mux, so2_mux;
+
 	/* NR10 - Voice 1 sweep */
 	reg [2:0] voc1_swp_time;
 	reg       voc1_swp_dec;
@@ -104,10 +106,31 @@ module lr35902_snd(
 	reg voc4_ena;
 	reg voc4_cntlen;
 
+	/* NR50 - Volume */
+	reg       so1_vin, so2_vin;
+	reg [2:0] so1_vol, so2_vol;
+
+	/* NR51 - Output select */
+	reg voc1_so1, voc2_so1, voc3_so1, voc4_so1;
+	reg voc1_so2, voc2_so2, voc3_so2, voc4_so2;
+
 	/* NR52 - Sound on/off */
 	reg master_ena;
 
+	reg  [1:0] clk_div4;
+	wire       clk1m;
+
+	reg  [10:0] voc1_freq_counter;
+	reg  [2:0]  voc1_duty_counter;
+	wire        voc1_pout;
+	wire [6:0]  voc1_out;
+
 	always @(posedge clk)
+		clk_div4 <= clk_div4 + 1;
+
+	assign clk1m = clk_div4[1];
+
+	always @(posedge pwmclk)
 		if (&pwm_count)
 			pwm_count <= 1; /* skip 0 */
 		else
@@ -134,13 +157,13 @@ module lr35902_snd(
 		/* Voice 1 volume */
 		`NR12: dout <= { voc1_vol, voc1_vol_inc, voc1_vol_time };
 		/* Voice 1 control */
-		`NR14: dout <= { 1'b1, voc1_cntlen, 6'h2f };
+		`NR14: dout <= { 1'b1, voc1_cntlen, 6'h3f };
 		/* Voice 2 length */
 		`NR21: dout <= { voc2_wave_duty, voc2_len };
 		/* Voice 2 volume */
 		`NR22: dout <= { voc2_vol, voc2_vol_inc, voc2_vol_time };
 		/* Voice 2 control */
-		`NR24: dout <= { 1'b1, voc2_cntlen, 6'h2f };
+		`NR24: dout <= { 1'b1, voc2_cntlen, 6'h3f };
 		/* Voice 3 enable */
 		`NR30: dout <= { voc3_ena, 7'h7f };
 		/* Voice 3 length */
@@ -148,7 +171,7 @@ module lr35902_snd(
 		/* Voice 3 volume */
 		`NR32: dout <= { 1'b1, voc3_vol, 5'h1f };
 		/* Voice 3 control */
-		`NR34: dout <= { 1'b1, voc3_cntlen, 6'h2f };
+		`NR34: dout <= { 1'b1, voc3_cntlen, 6'h3f };
 		/* Voice 4 length */
 		`NR41: dout <= { 2'h3, voc4_len };
 		/* Voice 4 volume */
@@ -156,7 +179,11 @@ module lr35902_snd(
 		/* Voice 4 frequency */
 		`NR43: dout <= { voc4_freq, voc4_steps, voc4_ratio };
 		/* Voice 4 control */
-		`NR44: dout <= { 1'b1, voc4_cntlen, 6'h2f };
+		`NR44: dout <= { 1'b1, voc4_cntlen, 6'h3f };
+		/* Volume */
+		`NR50: dout <= { so2_vin, so2_vol, so1_vin, so1_vol };
+		/* Output select */
+		`NR51: dout <= { voc4_so2, voc3_so2, voc2_so2, voc1_so2, voc4_so1, voc3_so1, voc2_so1, voc1_so1 };
 		/* Sound on/off */
 		`NR52: dout <= { master_ena, 3'h7, voc4_ena, voc3_ena, voc2_ena, voc1_ena };
 		endcase
@@ -201,6 +228,10 @@ module lr35902_snd(
 			`NR43: { voc4_freq, voc4_steps, voc4_ratio } <= din;
 			/* Voice 4 control */
 			`NR44: { voc4_ena, voc4_cntlen } <= din[7:6];
+			/* Volume */
+			`NR50: { so2_vin, so2_vol, so1_vin, so1_vol } <= din;
+			/* Output select */
+			`NR51: { voc4_so2, voc3_so2, voc2_so2, voc1_so2, voc4_so1, voc3_so1, voc2_so1, voc1_so1 } <= din;
 			/* Sound on/off */
 			`NR52: master_ena <= din[7];
 			endcase else if (adr == `NR52 && din[7]) begin
@@ -271,23 +302,74 @@ module lr35902_snd(
 			voc4_ena       <= 0;
 			voc4_cntlen    <= 0;
 
+			/* NR50 - Volume */
+			so1_vin        <= 0;
+			so2_vin        <= 0;
+			so1_vol        <= 0;
+			so2_vol        <= 0;
+
+			/* NR51 - Output select */
+			voc1_so1       <= 0;
+			voc2_so1       <= 0;
+			voc3_so1       <= 0;
+			voc4_so1       <= 0;
+			voc1_so2       <= 0;
+			voc2_so2       <= 0;
+			voc3_so2       <= 0;
+			voc4_so2       <= 0;
+
 			/* NR52 - Sound on/off */
 			master_ena     <= 0;
 		end
 	end
 
-	always @(posedge clk) begin
-		if (master_ena) begin
-			so1_compare <= 32;
-			so2_compare <= 96;
+	always @(posedge clk1m) begin
+		if (voc1_ena) begin
+			voc1_freq_counter <= voc1_freq_counter + 1;
+			if (&voc1_freq_counter) begin
+				voc1_duty_counter <= voc1_duty_counter + 1;
+				voc1_freq_counter <= voc1_freq;
+			end
 		end else begin
-			so1_compare <= 64;
-			so2_compare <= 64;
+			voc1_freq_counter <= voc1_freq;
+			voc1_duty_counter <= 0;
 		end
+	end
 
-		if (reset) begin
-			so1_compare <= 64;
-			so2_compare <= 64;
+	always @* begin
+		voc1_pout = 'bx;
+		voc1_out = 64;
+		if (voc1_ena) begin
+			case (voc1_wave_duty)
+			0: voc1_pout = voc1_duty_counter >= 1;
+			1: voc1_pout = voc1_duty_counter >= 2;
+			2: voc1_pout = voc1_duty_counter >= 4;
+			3: voc1_pout = voc1_duty_counter >= 6;
+			endcase
+
+			voc1_out = voc1_pout ? 127 : 0;
+		end
+	end
+
+	always @(posedge clk1m) begin
+		so1_compare <= 64;
+		so2_compare <= 64;
+
+		if (master_ena && !reset) begin
+			so1_compare <= so1_mux;
+			so2_compare <= so2_mux;
+		end
+	end
+
+	always @* begin
+		so1_mux = 64;
+		so2_mux = 64;
+
+		if (voc1_so1) begin
+			so1_mux = voc1_out;
+		end
+		if (voc1_so2) begin
+			so2_mux = voc1_out;
 		end
 	end
 
