@@ -55,7 +55,7 @@ module lr35902_snd(
 	reg [5:0] voc1_len;
 
 	/* NR12 - Voice 1 volume */
-	reg [3:0] voc1_vol;
+	reg [3:0] voc1_vol_init;
 	reg       voc1_vol_inc;
 	reg [2:0] voc1_vol_time;
 
@@ -69,7 +69,7 @@ module lr35902_snd(
 	reg [5:0] voc2_len;
 
 	/* NR22 - Voice 2 volume */
-	reg [3:0] voc2_vol;
+	reg [3:0] voc2_vol_init;
 	reg       voc2_vol_inc;
 	reg [2:0] voc2_vol_time;
 
@@ -93,7 +93,7 @@ module lr35902_snd(
 	reg [5:0] voc4_len;
 
 	/* NR42 - Voice 4 volume */
-	reg [3:0] voc4_vol;
+	reg [3:0] voc4_vol_init;
 	reg       voc4_vol_inc;
 	reg [2:0] voc4_vol_time;
 
@@ -120,10 +120,31 @@ module lr35902_snd(
 	reg  [1:0] clk_div4;
 	wire       clk1m;
 
+	reg [10:0] clk1m_div2048; /* for generating 512 Hz clock from 1 MHz */
+	reg [2:0]  frame;
+	/*
+	Frame Sequencer:
+	Step   Length Ctr  Vol Env     Sweep
+	---------------------------------------
+	0      Clock       -           -
+	1      -           -           -
+	2      Clock       -           Clock
+	3      -           -           -
+	4      Clock       -           -
+	5      -           -           -
+	6      Clock       -           Clock
+	7      -           Clock       -
+	---------------------------------------
+	Rate   256 Hz      64 Hz       128 Hz
+	*/
+
+	reg         voc1_trigger_seq, voc1_trigger_ack;
 	reg  [10:0] voc1_freq_counter;
 	reg  [2:0]  voc1_duty_counter;
+	reg  [2:0]  voc1_vol_counter;
 	wire        voc1_pout;
 	wire [6:0]  voc1_out;
+	reg  [3:0]  voc1_vol;
 
 	always @(posedge clk)
 		clk_div4 <= clk_div4 + 1;
@@ -155,13 +176,13 @@ module lr35902_snd(
 		/* Voice 1 length */
 		`NR11: dout <= { voc1_wave_duty, voc1_len };
 		/* Voice 1 volume */
-		`NR12: dout <= { voc1_vol, voc1_vol_inc, voc1_vol_time };
+		`NR12: dout <= { voc1_vol_init, voc1_vol_inc, voc1_vol_time };
 		/* Voice 1 control */
 		`NR14: dout <= { 1'b1, voc1_cntlen, 6'h3f };
 		/* Voice 2 length */
 		`NR21: dout <= { voc2_wave_duty, voc2_len };
 		/* Voice 2 volume */
-		`NR22: dout <= { voc2_vol, voc2_vol_inc, voc2_vol_time };
+		`NR22: dout <= { voc2_vol_init, voc2_vol_inc, voc2_vol_time };
 		/* Voice 2 control */
 		`NR24: dout <= { 1'b1, voc2_cntlen, 6'h3f };
 		/* Voice 3 enable */
@@ -175,7 +196,7 @@ module lr35902_snd(
 		/* Voice 4 length */
 		`NR41: dout <= { 2'h3, voc4_len };
 		/* Voice 4 volume */
-		`NR42: dout <= { voc4_vol, voc4_vol_inc, voc4_vol_time };
+		`NR42: dout <= { voc4_vol_init, voc4_vol_inc, voc4_vol_time };
 		/* Voice 4 frequency */
 		`NR43: dout <= { voc4_freq, voc4_steps, voc4_ratio };
 		/* Voice 4 control */
@@ -197,15 +218,15 @@ module lr35902_snd(
 			/* Voice 1 length */
 			`NR11: { voc1_wave_duty, voc1_len } <= din;
 			/* Voice 1 volume */
-			`NR12: { voc1_vol, voc1_vol_inc, voc1_vol_time } <= din;
+			`NR12: { voc1_vol_init, voc1_vol_inc, voc1_vol_time } <= din;
 			/* Voice 1 frequency */
 			`NR13: voc1_freq[7:0] <= din;
 			/* Voice 1 control */
-			`NR14: { voc1_ena, voc1_cntlen, voc1_freq[10:8] } <= { din[7:6], din[2:0] };
+			`NR14: { voc1_trigger_seq, voc1_ena, voc1_cntlen, voc1_freq[10:8] } <= { (din[7] ? !voc1_trigger_ack : voc1_trigger_ack), din[7:6], din[2:0] };
 			/* Voice 2 length */
 			`NR21: { voc2_wave_duty, voc2_len } <= din;
 			/* Voice 2 volume */
-			`NR22: { voc2_vol, voc2_vol_inc, voc2_vol_time } <= din;
+			`NR22: { voc2_vol_init, voc2_vol_inc, voc2_vol_time } <= din;
 			/* Voice 2 frequency */
 			`NR23: voc2_freq[7:0] <= din;
 			/* Voice 2 control */
@@ -223,7 +244,7 @@ module lr35902_snd(
 			/* Voice 4 length */
 			`NR41: voc4_len <= din[5:0];
 			/* Voice 4 volume */
-			`NR42: { voc4_vol, voc4_vol_inc, voc4_vol_time } <= din;
+			`NR42: { voc4_vol_init, voc4_vol_inc, voc4_vol_time } <= din;
 			/* Voice 4 frequency */
 			`NR43: { voc4_freq, voc4_steps, voc4_ratio } <= din;
 			/* Voice 4 control */
@@ -251,7 +272,7 @@ module lr35902_snd(
 			voc1_len       <= 0;
 
 			/* NR12 - Voice 1 volume */
-			voc1_vol       <= 0;
+			voc1_vol_init  <= 0;
 			voc1_vol_inc   <= 0;
 			voc1_vol_time  <= 0;
 
@@ -265,7 +286,7 @@ module lr35902_snd(
 			voc2_len       <= 0;
 
 			/* NR22 - Voice 2 volume */
-			voc2_vol       <= 0;
+			voc2_vol_init  <= 0;
 			voc2_vol_inc   <= 0;
 			voc2_vol_time  <= 0;
 
@@ -289,7 +310,7 @@ module lr35902_snd(
 			voc4_len       <= 0;
 
 			/* NR42 - Voice 4 volume */
-			voc4_vol       <= 0;
+			voc4_vol_init  <= 0;
 			voc4_vol_inc   <= 0;
 			voc4_vol_time  <= 0;
 
@@ -320,19 +341,41 @@ module lr35902_snd(
 
 			/* NR52 - Sound on/off */
 			master_ena     <= 0;
+
+			voc1_trigger_seq <= voc1_trigger_ack;
 		end
 	end
 
 	always @(posedge clk1m) begin
-		if (voc1_ena) begin
+		clk1m_div2048 <= clk1m_div2048 + 1;
+		if (&clk1m_div2048)
+			frame <= frame + 1;
+
+		if (voc1_ena && voc1_trigger_seq == voc1_trigger_ack) begin
 			voc1_freq_counter <= voc1_freq_counter + 1;
 			if (&voc1_freq_counter) begin
 				voc1_duty_counter <= voc1_duty_counter + 1;
 				voc1_freq_counter <= voc1_freq;
 			end
+			if (voc1_vol_time && &clk1m_div2048 && &frame) begin
+				voc1_vol_counter <= voc1_vol_counter + 1;
+				if (voc1_vol_counter == voc1_vol_time) begin
+					voc1_vol_counter <= 0;
+					if (voc1_vol_inc) begin
+						if (!&voc1_vol)
+							voc1_vol <= voc1_vol + 1;
+					end else begin
+						if (|voc1_vol)
+							voc1_vol <= voc1_vol - 1;
+					end
+				end
+			end
 		end else begin
 			voc1_freq_counter <= voc1_freq;
 			voc1_duty_counter <= 0;
+			voc1_vol_counter  <= 0;
+			voc1_vol          <= voc1_vol_init;
+			voc1_trigger_ack  <= voc1_trigger_seq;
 		end
 	end
 
@@ -347,7 +390,24 @@ module lr35902_snd(
 			3: voc1_pout = voc1_duty_counter >= 6;
 			endcase
 
-			voc1_out = voc1_pout ? 127 : 0;
+			case (voc1_vol)
+			0:  voc1_out = voc1_pout ?  64 : 64;
+			1:  voc1_out = voc1_pout ?  68 : 60;
+			2:  voc1_out = voc1_pout ?  72 : 56;
+			3:  voc1_out = voc1_pout ?  76 : 52;
+			4:  voc1_out = voc1_pout ?  80 : 48;
+			5:  voc1_out = voc1_pout ?  84 : 44;
+			6:  voc1_out = voc1_pout ?  88 : 40;
+			7:  voc1_out = voc1_pout ?  92 : 36;
+			8:  voc1_out = voc1_pout ?  96 : 32;
+			9:  voc1_out = voc1_pout ? 100 : 28;
+			10: voc1_out = voc1_pout ? 104 : 24;
+			11: voc1_out = voc1_pout ? 108 : 20;
+			12: voc1_out = voc1_pout ? 112 : 16;
+			13: voc1_out = voc1_pout ? 116 : 12;
+			14: voc1_out = voc1_pout ? 120 :  8;
+			15: voc1_out = voc1_pout ? 124 :  4;
+			endcase
 		end
 	end
 
