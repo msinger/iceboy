@@ -8,12 +8,10 @@ module gb_iomap(
 
 		output wire       sel_p1,
 		output wire       sel_ser,
-		output wire       sel_div,
 		output wire       sel_tim,
 		output wire       sel_if,
 		output wire       sel_snd,
 		output wire       sel_ppu,
-		output wire       sel_dma,
 		output wire       sel_brom,
 		output wire       sel_hram,
 		output wire       sel_ie,
@@ -22,12 +20,10 @@ module gb_iomap(
 	always @* begin
 		sel_p1   = 0;
 		sel_ser  = 0;
-		sel_div  = 0;
 		sel_tim  = 0;
 		sel_if   = 0;
 		sel_snd  = 0;
 		sel_ppu  = 0;
-		sel_dma  = 0;
 		sel_brom = 0;
 		sel_hram = 0;
 		sel_ie   = 0;
@@ -42,16 +38,12 @@ module gb_iomap(
 			sel_hram = 1;
 		'b_0101_0000: /* 0xff50: Hide Boot ROM */
 			sel_brom = 1;
-		'b_0100_0110: /* 0xff46: OAM-DMA */
-			sel_dma = 1;
 		'b_0100_????: /* 0xff40-0xff4b: PPU */
 			sel_ppu = 1;
 		'b_0001_????,
 		'b_001?_????: /* 0xff10-0xff3f: Sound */
 			sel_snd = 1;
-		'b_0000_0100: /* 0xff04: "Divider" (Timer) */
-			sel_div = 1;
-		'b_0000_01??: /* 0xff05-0xff07: Timer */
+		'b_0000_01??: /* 0xff04-0xff07: Timer */
 			sel_tim = 1;
 		'b_0000_0000: /* 0xff00: Joypad */
 			sel_p1 = 1;

@@ -10,7 +10,7 @@ set_io led[5]    A2
 set_io led[6]    B4
 set_io led[7]    B5
 
-# Address bus
+# Ext. Address Bus
 set_io adr[0]    R15
 set_io adr[1]    P16
 set_io adr[2]    P15
@@ -33,7 +33,7 @@ set_io adr[18]   F16
 set_io adr[19]   E14
 set_io adr[20]   E16
 
-# Data bus
+# Ext. Data Bus
 set_io data[0]   A9
 set_io data[1]   B9
 set_io data[2]   B8
@@ -43,22 +43,26 @@ set_io data[5]   C7
 set_io data[6]   A6
 set_io data[7]   C6
 
-# Clock & R/W & Reset
-set_io clk       J3
-set_io n_reset   D15
+# Ext. R/W
 set_io n_read    B6
 set_io n_write   A5
 
-# Chip selects
-set_io n_ram_cs  D16
-set_io n_cart_cs D14
-set_io n_crom_cs B16
-set_io n_cram_cs C16
+# Ext. Chip Selects
+set_io n_cs_ram  D16
+set_io n_cs_cart D14
+set_io n_cs_crom B16
+set_io n_cs_cram C16
+
+# Clock & Reset
+set_io clk12m    J3
+set_io gbclk     R9
+set_io n_reset   D15
+set_io n_vreset  R16
 
 # Config
 set_io n_emu_mbc A11
 
-# Prog Loader
+# Debugger & Prog Loader
 set_io rx        B10
 set_io tx        B12
 set_io cts       A15
@@ -67,4 +71,54 @@ set_io cts       A15
 set_io chl       T1
 set_io chr       T2
 set_io chm       T3
+
+# Joypad
+set_io p10       R6
+set_io p11       T5
+set_io p12       R5
+set_io p13       R3
+set_io p14       R4
+set_io p15       R2
+
+# Video Address Bus
+set_io vadr[0]   R1
+set_io vadr[1]   P1
+set_io vadr[2]   P2
+set_io vadr[3]   N3
+set_io vadr[4]   N2
+set_io vadr[5]   M2
+set_io vadr[6]   M1
+set_io vadr[7]   L3
+set_io vadr[8]   L1
+set_io vadr[9]   K3
+set_io vadr[10]  K1
+set_io vadr[11]  J2
+set_io vadr[12]  J1
+set_io vadr[13]  H2
+set_io vadr[14]  G2
+set_io vadr[15]  H1
+
+# Video Data Bus
+set_io vdata[0]  T15
+set_io vdata[1]  T16
+set_io vdata[2]  T13
+set_io vdata[3]  T14
+set_io vdata[4]  N12
+set_io vdata[5]  P13
+set_io vdata[6]  N10
+set_io vdata[7]  M11
+
+# Video R/W
+set_io n_vread   P10
+set_io n_vwrite  T10
+
+# Video Chip Select
+set_io n_cs_vid  T11
+
+# Video Interrupts
+set_io n_irq_vb  T8
+set_io n_irq_st  T6
+
+# DMA Bus Master Select
+set_io n_dmadrv  R10
 
