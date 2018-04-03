@@ -98,6 +98,7 @@ module lr35902(
 	reg  [7:0] iena;
 	wire       do_int_entry;
 	wire [7:0] int_vector;
+	wire [4:0] iack, int_ackmask;
 
 	assign dbg = arg;
 
@@ -172,6 +173,7 @@ module lr35902(
 		if (!halt || state != `state_ifetch || cycle || do_int_entry)
 			new_cycle = cycle + 1;
 
+		iack = 'h1f;
 		new_int_state = do_int_entry ? int_state : 0;
 		new_ime       = ime || (new_cycle == 3 && delay_ime);
 		new_delay_ime = delay_ime && new_cycle != 3;
@@ -301,8 +303,10 @@ module lr35902(
 			0: /* ADR and DOUT already latched by previous state; drive DATA */
 				begin
 					new_ddrv = 1;
-					if (int_state == 4)
-						new_pc = int_vector; /* interrupt dispatch must not cancel during low byte push */
+					if (int_state == 4) begin
+						new_pc = int_vector;  /* interrupt dispatch must not cancel during low byte push */
+						iack   = int_ackmask; /* ack interrupt (clear flag) */
+					end
 				end
 			1: /* request WRITE */
 				new_write = 1;
@@ -974,7 +978,7 @@ module lr35902(
 	assign dout_reg = cs_iena ? iena : { 3'b111, iflag[4:0] };
 
 	always @(posedge clk) begin
-		iflag <= iflag | irq;
+		iflag <= iflag & iack | irq;
 
 		if (cs_iflag && write_reg)
 			iflag <= din_reg;
@@ -1004,6 +1008,15 @@ module lr35902(
 	'b?1000: int_vector = 'h58;
 	'b10000: int_vector = 'h60;
 	'b00000: int_vector = 'h00;
+	endcase
+
+	always @* casez (iena[4:0] & iflag[4:0])
+	'b????1: int_ackmask = 'b11110;
+	'b???10: int_ackmask = 'b11101;
+	'b??100: int_ackmask = 'b11011;
+	'b?1000: int_ackmask = 'b10111;
+	'b10000: int_ackmask = 'b01111;
+	'b00000: int_ackmask = 'b11111;
 	endcase
 
 endmodule
