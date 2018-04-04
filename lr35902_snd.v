@@ -117,10 +117,7 @@ module lr35902_snd(
 	/* NR52 - Sound on/off */
 	reg master_ena;
 
-	reg  [1:0] clk_div4;
-	wire       clk1m;
-
-	reg [10:0] clk1m_div2048; /* for generating 512 Hz clock from 1 MHz */
+	reg [12:0] clk_div8192; /* for generating 512 Hz clock from 4 MHz */
 	reg [2:0]  frame;
 	/*
 	Frame Sequencer:
@@ -138,26 +135,23 @@ module lr35902_snd(
 	Rate   256 Hz      64 Hz       128 Hz
 	*/
 
-	reg         voc1_trigger_seq, voc1_trigger_ack;
+	reg         voc1_trigger;
 	reg  [10:0] voc1_freq_counter;
 	reg  [2:0]  voc1_duty_counter;
 	reg  [2:0]  voc1_vol_counter;
+	reg  [6:0]  voc1_len_counter;
 	wire        voc1_pout;
 	wire [3:0]  voc1_out;
 	reg  [3:0]  voc1_vol;
 
-	reg         voc2_trigger_seq, voc2_trigger_ack;
+	reg         voc2_trigger;
 	reg  [10:0] voc2_freq_counter;
 	reg  [2:0]  voc2_duty_counter;
 	reg  [2:0]  voc2_vol_counter;
+	reg  [6:0]  voc2_len_counter;
 	wire        voc2_pout;
 	wire [3:0]  voc2_out;
 	reg  [3:0]  voc2_vol;
-
-	always @(posedge clk)
-		clk_div4 <= clk_div4 + 1;
-
-	assign clk1m = clk_div4[1];
 
 	always @(posedge pwmclk)
 		if (&pwm_count)
@@ -219,26 +213,30 @@ module lr35902_snd(
 	end
 
 	always @(posedge clk) begin
+		clk_div8192 <= clk_div8192 + 1;
+		if (&clk_div8192)
+			frame <= frame + 1;
+
 		if (write) begin
 			if (master_ena) case (adr)
 			/* Voice 1 sweep */
 			`NR10: { voc1_swp_time, voc1_swp_dec, voc1_swp_shift } <= din[6:0];
 			/* Voice 1 length */
-			`NR11: { voc1_wave_duty, voc1_len } <= din;
+			`NR11: { voc1_len_counter, voc1_wave_duty, voc1_len } <= { 1'b0, din[5:0], din };
 			/* Voice 1 volume */
 			`NR12: { voc1_vol_init, voc1_vol_inc, voc1_vol_time } <= din;
 			/* Voice 1 frequency */
 			`NR13: voc1_freq[7:0] <= din;
 			/* Voice 1 control */
-			`NR14: { voc1_trigger_seq, voc1_ena, voc1_cntlen, voc1_freq[10:8] } <= { (din[7] ? !voc1_trigger_ack : voc1_trigger_ack), din[7:6], din[2:0] };
+			`NR14: { voc1_trigger, voc1_ena, voc1_cntlen, voc1_freq[10:8] } <= { din[7], din[7:6], din[2:0] };
 			/* Voice 2 length */
-			`NR21: { voc2_wave_duty, voc2_len } <= din;
+			`NR21: { voc2_len_counter, voc2_wave_duty, voc2_len } <= { 1'b0, din[5:0], din };
 			/* Voice 2 volume */
 			`NR22: { voc2_vol_init, voc2_vol_inc, voc2_vol_time } <= din;
 			/* Voice 2 frequency */
 			`NR23: voc2_freq[7:0] <= din;
 			/* Voice 2 control */
-			`NR24: { voc2_trigger_seq, voc2_ena, voc2_cntlen, voc2_freq[10:8] } <= { (din[7] ? !voc2_trigger_ack : voc2_trigger_ack), din[7:6], din[2:0] };
+			`NR24: { voc2_trigger, voc2_ena, voc2_cntlen, voc2_freq[10:8] } <= { din[7], din[7:6], din[2:0] };
 			/* Voice 3 enable */
 			`NR30: voc3_ena <= din[7];
 			/* Voice 3 length */
@@ -266,6 +264,90 @@ module lr35902_snd(
 			endcase else if (adr == `NR52 && din[7]) begin
 				master_ena <= 1;
 				/* TODO: reset some regs */
+			end
+		end
+
+		if (!voc1_ena || voc1_trigger) begin
+			voc1_freq_counter <= voc1_freq;
+			voc1_duty_counter <= 0;
+			voc1_vol_counter  <= 0;
+			voc1_len_counter  <= voc1_len;
+			voc1_vol          <= voc1_vol_init;
+			voc1_trigger      <= 0;
+		end
+
+		if (!voc2_ena || voc2_trigger) begin
+			voc2_freq_counter <= voc2_freq;
+			voc2_duty_counter <= 0;
+			voc2_vol_counter  <= 0;
+			voc2_len_counter  <= voc2_len;
+			voc2_vol          <= voc2_vol_init;
+			voc2_trigger      <= 0;
+		end
+
+		if (&clk_div8192[1:0]) begin /* frequency counters count with 1 MiHz */
+			if (voc1_ena) begin
+				voc1_freq_counter <= voc1_freq_counter + 1;
+				if (&voc1_freq_counter) begin
+					voc1_duty_counter <= voc1_duty_counter + 1;
+					voc1_freq_counter <= voc1_freq;
+				end
+			end
+
+			if (voc2_ena) begin
+				voc2_freq_counter <= voc2_freq_counter + 1;
+				if (&voc2_freq_counter) begin
+					voc2_duty_counter <= voc2_duty_counter + 1;
+					voc2_freq_counter <= voc2_freq;
+				end
+			end
+		end
+
+		if (&clk_div8192 && !frame[0]) begin /* len counters count with 256 Hz */
+			if (voc1_ena && voc1_cntlen) begin
+				voc1_len_counter <= voc1_len_counter + 1;
+				if (voc1_len_counter[6]) begin
+					voc1_len_counter <= voc1_len;
+					voc1_ena         <= 0;
+				end
+			end
+
+			if (voc2_ena && voc2_cntlen) begin
+				voc2_len_counter <= voc2_len_counter + 1;
+				if (voc2_len_counter[6]) begin
+					voc2_len_counter <= voc2_len;
+					voc2_ena         <= 0;
+				end
+			end
+		end
+
+		if (&clk_div8192 && &frame) begin /* vol counters count with 64 Hz */
+			if (voc1_ena && voc1_vol_time) begin
+				voc1_vol_counter <= voc1_vol_counter + 1;
+				if (voc1_vol_counter == voc1_vol_time) begin
+					voc1_vol_counter <= 0;
+					if (voc1_vol_inc) begin
+						if (!&voc1_vol)
+							voc1_vol <= voc1_vol + 1;
+					end else begin
+						if (|voc1_vol)
+							voc1_vol <= voc1_vol - 1;
+					end
+				end
+			end
+
+			if (voc2_ena && voc2_vol_time) begin
+				voc2_vol_counter <= voc2_vol_counter + 1;
+				if (voc2_vol_counter == voc2_vol_time) begin
+					voc2_vol_counter <= 0;
+					if (voc2_vol_inc) begin
+						if (!&voc2_vol)
+							voc2_vol <= voc2_vol + 1;
+					end else begin
+						if (|voc2_vol)
+							voc2_vol <= voc2_vol - 1;
+					end
+				end
 			end
 		end
 
@@ -350,68 +432,11 @@ module lr35902_snd(
 			/* NR52 - Sound on/off */
 			master_ena     <= 0;
 
-			voc1_trigger_seq <= voc1_trigger_ack;
-			voc2_trigger_seq <= voc2_trigger_ack;
-		end
-	end
+			clk_div8192 <= 0;
+			frame       <= 0;
 
-	always @(posedge clk1m) begin
-		clk1m_div2048 <= clk1m_div2048 + 1;
-		if (&clk1m_div2048)
-			frame <= frame + 1;
-
-		if (voc1_ena && voc1_trigger_seq == voc1_trigger_ack) begin
-			voc1_freq_counter <= voc1_freq_counter + 1;
-			if (&voc1_freq_counter) begin
-				voc1_duty_counter <= voc1_duty_counter + 1;
-				voc1_freq_counter <= voc1_freq;
-			end
-			if (voc1_vol_time && &clk1m_div2048 && &frame) begin
-				voc1_vol_counter <= voc1_vol_counter + 1;
-				if (voc1_vol_counter == voc1_vol_time) begin
-					voc1_vol_counter <= 0;
-					if (voc1_vol_inc) begin
-						if (!&voc1_vol)
-							voc1_vol <= voc1_vol + 1;
-					end else begin
-						if (|voc1_vol)
-							voc1_vol <= voc1_vol - 1;
-					end
-				end
-			end
-		end else begin
-			voc1_freq_counter <= voc1_freq;
-			voc1_duty_counter <= 0;
-			voc1_vol_counter  <= 0;
-			voc1_vol          <= voc1_vol_init;
-			voc1_trigger_ack  <= voc1_trigger_seq;
-		end
-
-		if (voc2_ena && voc2_trigger_seq == voc2_trigger_ack) begin
-			voc2_freq_counter <= voc2_freq_counter + 1;
-			if (&voc2_freq_counter) begin
-				voc2_duty_counter <= voc2_duty_counter + 1;
-				voc2_freq_counter <= voc2_freq;
-			end
-			if (voc2_vol_time && &clk1m_div2048 && &frame) begin
-				voc2_vol_counter <= voc1_vol_counter + 1;
-				if (voc2_vol_counter == voc2_vol_time) begin
-					voc2_vol_counter <= 0;
-					if (voc2_vol_inc) begin
-						if (!&voc2_vol)
-							voc2_vol <= voc2_vol + 1;
-					end else begin
-						if (|voc2_vol)
-							voc2_vol <= voc2_vol - 1;
-					end
-				end
-			end
-		end else begin
-			voc2_freq_counter <= voc2_freq;
-			voc2_duty_counter <= 0;
-			voc2_vol_counter  <= 0;
-			voc2_vol          <= voc2_vol_init;
-			voc2_trigger_ack  <= voc2_trigger_seq;
+			voc1_trigger <= 0;
+			voc2_trigger <= 0;
 		end
 	end
 
@@ -479,7 +504,7 @@ module lr35902_snd(
 		end
 	end
 
-	always @(posedge clk1m) begin
+	always @(posedge clk) begin
 		so1_compare <= 32;
 		so2_compare <= 32;
 
