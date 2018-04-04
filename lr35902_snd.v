@@ -37,13 +37,13 @@ module lr35902_snd(
 		output wire       chm,
 	);
 
-	reg  [6:0] pwm_count;
-	reg  [6:0] so1_compare, so2_compare;
-	wire [7:0] so12_sum;
-	wire [6:0] so12_compare;
+	reg  [5:0] pwm_count;
+	reg  [5:0] so1_compare, so2_compare;
+	wire [6:0] so12_sum;
+	wire [5:0] so12_compare;
 	wire       so1_pwm, so2_pwm, so12_pwm;
 
-	wire [6:0] so1_mux, so2_mux;
+	wire [5:0] so1_mux, so2_mux;
 
 	/* NR10 - Voice 1 sweep */
 	reg [2:0] voc1_swp_time;
@@ -143,8 +143,16 @@ module lr35902_snd(
 	reg  [2:0]  voc1_duty_counter;
 	reg  [2:0]  voc1_vol_counter;
 	wire        voc1_pout;
-	wire [6:0]  voc1_out;
+	wire [3:0]  voc1_out;
 	reg  [3:0]  voc1_vol;
+
+	reg         voc2_trigger_seq, voc2_trigger_ack;
+	reg  [10:0] voc2_freq_counter;
+	reg  [2:0]  voc2_duty_counter;
+	reg  [2:0]  voc2_vol_counter;
+	wire        voc2_pout;
+	wire [3:0]  voc2_out;
+	reg  [3:0]  voc2_vol;
 
 	always @(posedge clk)
 		clk_div4 <= clk_div4 + 1;
@@ -158,7 +166,7 @@ module lr35902_snd(
 			pwm_count <= pwm_count + 1;
 
 	assign so12_sum = so1_compare + so2_compare;
-	assign so12_compare = so12_sum[7:1];
+	assign so12_compare = so12_sum[6:1];
 
 	assign so1_pwm  = pwm_count <= so1_compare;
 	assign so2_pwm  = pwm_count <= so2_compare;
@@ -230,7 +238,7 @@ module lr35902_snd(
 			/* Voice 2 frequency */
 			`NR23: voc2_freq[7:0] <= din;
 			/* Voice 2 control */
-			`NR24: { voc2_ena, voc2_cntlen, voc2_freq[10:8] } <= { din[7:6], din[2:0] };
+			`NR24: { voc2_trigger_seq, voc2_ena, voc2_cntlen, voc2_freq[10:8] } <= { (din[7] ? !voc2_trigger_ack : voc2_trigger_ack), din[7:6], din[2:0] };
 			/* Voice 3 enable */
 			`NR30: voc3_ena <= din[7];
 			/* Voice 3 length */
@@ -343,6 +351,7 @@ module lr35902_snd(
 			master_ena     <= 0;
 
 			voc1_trigger_seq <= voc1_trigger_ack;
+			voc2_trigger_seq <= voc2_trigger_ack;
 		end
 	end
 
@@ -377,11 +386,38 @@ module lr35902_snd(
 			voc1_vol          <= voc1_vol_init;
 			voc1_trigger_ack  <= voc1_trigger_seq;
 		end
+
+		if (voc2_ena && voc2_trigger_seq == voc2_trigger_ack) begin
+			voc2_freq_counter <= voc2_freq_counter + 1;
+			if (&voc2_freq_counter) begin
+				voc2_duty_counter <= voc2_duty_counter + 1;
+				voc2_freq_counter <= voc2_freq;
+			end
+			if (voc2_vol_time && &clk1m_div2048 && &frame) begin
+				voc2_vol_counter <= voc1_vol_counter + 1;
+				if (voc2_vol_counter == voc2_vol_time) begin
+					voc2_vol_counter <= 0;
+					if (voc2_vol_inc) begin
+						if (!&voc2_vol)
+							voc2_vol <= voc2_vol + 1;
+					end else begin
+						if (|voc2_vol)
+							voc2_vol <= voc2_vol - 1;
+					end
+				end
+			end
+		end else begin
+			voc2_freq_counter <= voc2_freq;
+			voc2_duty_counter <= 0;
+			voc2_vol_counter  <= 0;
+			voc2_vol          <= voc2_vol_init;
+			voc2_trigger_ack  <= voc2_trigger_seq;
+		end
 	end
 
 	always @* begin
 		voc1_pout = 'bx;
-		voc1_out = 64;
+		voc1_out = 8;
 		if (voc1_ena) begin
 			case (voc1_wave_duty)
 			0: voc1_pout = voc1_duty_counter >= 1;
@@ -391,29 +427,61 @@ module lr35902_snd(
 			endcase
 
 			case (voc1_vol)
-			0:  voc1_out = voc1_pout ?  64 : 64;
-			1:  voc1_out = voc1_pout ?  68 : 60;
-			2:  voc1_out = voc1_pout ?  72 : 56;
-			3:  voc1_out = voc1_pout ?  76 : 52;
-			4:  voc1_out = voc1_pout ?  80 : 48;
-			5:  voc1_out = voc1_pout ?  84 : 44;
-			6:  voc1_out = voc1_pout ?  88 : 40;
-			7:  voc1_out = voc1_pout ?  92 : 36;
-			8:  voc1_out = voc1_pout ?  96 : 32;
-			9:  voc1_out = voc1_pout ? 100 : 28;
-			10: voc1_out = voc1_pout ? 104 : 24;
-			11: voc1_out = voc1_pout ? 108 : 20;
-			12: voc1_out = voc1_pout ? 112 : 16;
-			13: voc1_out = voc1_pout ? 116 : 12;
-			14: voc1_out = voc1_pout ? 120 :  8;
-			15: voc1_out = voc1_pout ? 124 :  4;
+			0:  voc1_out = voc1_pout ?  8 : 8;
+			1:  voc1_out = voc1_pout ?  8 : 7;
+			2:  voc1_out = voc1_pout ?  9 : 7;
+			3:  voc1_out = voc1_pout ?  9 : 6;
+			4:  voc1_out = voc1_pout ? 10 : 6;
+			5:  voc1_out = voc1_pout ? 10 : 5;
+			6:  voc1_out = voc1_pout ? 11 : 5;
+			7:  voc1_out = voc1_pout ? 11 : 4;
+			8:  voc1_out = voc1_pout ? 12 : 4;
+			9:  voc1_out = voc1_pout ? 12 : 3;
+			10: voc1_out = voc1_pout ? 13 : 3;
+			11: voc1_out = voc1_pout ? 13 : 2;
+			12: voc1_out = voc1_pout ? 14 : 2;
+			13: voc1_out = voc1_pout ? 14 : 1;
+			14: voc1_out = voc1_pout ? 15 : 1;
+			15: voc1_out = voc1_pout ? 15 : 0;
+			endcase
+		end
+	end
+
+	always @* begin
+		voc2_pout = 'bx;
+		voc2_out = 8;
+		if (voc2_ena) begin
+			case (voc2_wave_duty)
+			0: voc2_pout = voc2_duty_counter >= 1;
+			1: voc2_pout = voc2_duty_counter >= 2;
+			2: voc2_pout = voc2_duty_counter >= 4;
+			3: voc2_pout = voc2_duty_counter >= 6;
+			endcase
+
+			case (voc2_vol)
+			0:  voc2_out = voc2_pout ?  8 : 8;
+			1:  voc2_out = voc2_pout ?  8 : 7;
+			2:  voc2_out = voc2_pout ?  9 : 7;
+			3:  voc2_out = voc2_pout ?  9 : 6;
+			4:  voc2_out = voc2_pout ? 10 : 6;
+			5:  voc2_out = voc2_pout ? 10 : 5;
+			6:  voc2_out = voc2_pout ? 11 : 5;
+			7:  voc2_out = voc2_pout ? 11 : 4;
+			8:  voc2_out = voc2_pout ? 12 : 4;
+			9:  voc2_out = voc2_pout ? 12 : 3;
+			10: voc2_out = voc2_pout ? 13 : 3;
+			11: voc2_out = voc2_pout ? 13 : 2;
+			12: voc2_out = voc2_pout ? 14 : 2;
+			13: voc2_out = voc2_pout ? 14 : 1;
+			14: voc2_out = voc2_pout ? 15 : 1;
+			15: voc2_out = voc2_pout ? 15 : 0;
 			endcase
 		end
 	end
 
 	always @(posedge clk1m) begin
-		so1_compare <= 64;
-		so2_compare <= 64;
+		so1_compare <= 32;
+		so2_compare <= 32;
 
 		if (master_ena && !reset) begin
 			so1_compare <= so1_mux;
@@ -422,15 +490,8 @@ module lr35902_snd(
 	end
 
 	always @* begin
-		so1_mux = 64;
-		so2_mux = 64;
-
-		if (voc1_so1) begin
-			so1_mux = voc1_out;
-		end
-		if (voc1_so2) begin
-			so2_mux = voc1_out;
-		end
+		so1_mux = (voc1_so1 ? voc1_out : 8) + (voc2_so1 ? voc2_out : 8) + 8 + 8;
+		so2_mux = (voc1_so2 ? voc1_out : 8) + (voc2_so2 ? voc2_out : 8) + 8 + 8;
 	end
 
 endmodule
