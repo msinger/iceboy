@@ -98,9 +98,9 @@ module lr35902_snd(
 	reg [2:0] voc4_vol_time;
 
 	/* NR43 - Voice 4 frequency */
-	reg [3:0] voc4_freq;
-	reg       voc4_steps;
-	reg [2:0] voc4_ratio;
+	reg [3:0] voc4_clkshift;
+	reg       voc4_width;
+	reg [2:0] voc4_div;
 
 	/* NR44 - Voice 4 control */
 	reg voc4_ena;
@@ -157,6 +157,17 @@ module lr35902_snd(
 	wire [3:0]  voc2_out;
 	reg  [3:0]  voc2_vol;
 
+	reg         voc4_trigger;
+	reg  [14:0] voc4_lfsr;
+	reg  [17:0] voc4_freq_counter;
+	wire [17:0] voc4_freq_unshift;
+	wire [17:0] voc4_freq;
+	reg  [2:0]  voc4_vol_counter;
+	reg  [6:0]  voc4_len_counter;
+	wire        voc4_pout;
+	wire [3:0]  voc4_out;
+	reg  [3:0]  voc4_vol;
+
 	always @(posedge pwmclk)
 		if (&pwm_count)
 			pwm_count <= 1; /* skip 0 */
@@ -194,6 +205,29 @@ module lr35902_snd(
 			voc1_freq_new_shadow = voc1_freq_shadow + voc1_freq_delta;
 	end
 
+	assign voc4_freq_unshift = 18'h3ffff - voc4_div;
+
+	always @* begin
+		case (voc4_clkshift)
+		0:  voc4_freq = voc4_freq_unshift;
+		1:  voc4_freq = { voc4_freq_unshift, 1'b0 };
+		2:  voc4_freq = { voc4_freq_unshift, 2'b0 };
+		3:  voc4_freq = { voc4_freq_unshift, 3'b0 };
+		4:  voc4_freq = { voc4_freq_unshift, 4'b0 };
+		5:  voc4_freq = { voc4_freq_unshift, 5'b0 };
+		6:  voc4_freq = { voc4_freq_unshift, 6'b0 };
+		7:  voc4_freq = { voc4_freq_unshift, 7'b0 };
+		8:  voc4_freq = { voc4_freq_unshift, 8'b0 };
+		9:  voc4_freq = { voc4_freq_unshift, 9'b0 };
+		10: voc4_freq = { voc4_freq_unshift, 10'b0 };
+		11: voc4_freq = { voc4_freq_unshift, 11'b0 };
+		12: voc4_freq = { voc4_freq_unshift, 12'b0 };
+		13: voc4_freq = { voc4_freq_unshift, 13'b0 };
+		14: voc4_freq = { voc4_freq_unshift, 14'b0 };
+		15: voc4_freq = { voc4_freq_unshift, 15'b0 };
+		endcase
+	end
+
 	always @(posedge read) begin
 		dout <= 'hff;
 		case (adr)
@@ -224,7 +258,7 @@ module lr35902_snd(
 		/* Voice 4 volume */
 		`NR42: dout <= { voc4_vol_init, voc4_vol_inc, voc4_vol_time };
 		/* Voice 4 frequency */
-		`NR43: dout <= { voc4_freq, voc4_steps, voc4_ratio };
+		`NR43: dout <= { voc4_clkshift, voc4_width, voc4_div };
 		/* Voice 4 control */
 		`NR44: dout <= { 1'b1, voc4_cntlen, 6'h3f };
 		/* Volume */
@@ -276,9 +310,9 @@ module lr35902_snd(
 			/* Voice 4 volume */
 			`NR42: { voc4_vol_init, voc4_vol_inc, voc4_vol_time } <= din;
 			/* Voice 4 frequency */
-			`NR43: { voc4_freq, voc4_steps, voc4_ratio } <= din;
+			`NR43: { voc4_clkshift, voc4_width, voc4_div } <= din;
 			/* Voice 4 control */
-			`NR44: { voc4_ena, voc4_cntlen } <= din[7:6];
+			`NR44: { voc4_ena, voc4_trigger, voc4_cntlen } <= { din[7] && voc4_ena, din[7:6] };
 			/* Volume */
 			`NR50: { so2_vin, so2_vol, so1_vin, so1_vol } <= din;
 			/* Output select */
@@ -311,6 +345,16 @@ module lr35902_snd(
 				voc2_trigger      <= 0;
 				voc2_ena          <= 1;
 			end
+
+			if (voc4_trigger) begin
+				voc4_lfsr         <= 15'h7fff;
+				voc4_freq_counter <= voc4_freq;
+				voc4_vol_counter  <= 0;
+				voc4_len_counter  <= voc4_len;
+				voc4_vol          <= voc4_vol_init;
+				voc4_trigger      <= 0;
+				voc4_ena          <= 1;
+			end
 		end
 
 		if (&clk_div8192[1:0]) begin /* frequency counters count with 1 MiHz */
@@ -329,6 +373,17 @@ module lr35902_snd(
 					voc2_freq_counter <= voc2_freq;
 				end
 			end
+
+			if (voc4_ena) begin
+				voc4_freq_counter <= voc4_freq_counter + 1;
+				if (&voc4_freq_counter) begin
+					voc4_freq_counter <= voc4_freq;
+
+					voc4_lfsr[14:0] <= { ^voc4_lfsr[1:0], voc4_lfsr[14:1] };
+					if (voc4_width)
+						voc4_lfsr[6] <= ^voc4_lfsr[1:0];
+				end
+			end
 		end
 
 		if (&clk_div8192 && !frame[0]) begin /* len counters count with 256 Hz */
@@ -345,6 +400,14 @@ module lr35902_snd(
 				if (voc2_len_counter[6]) begin
 					voc2_len_counter <= voc2_len;
 					voc2_ena         <= 0;
+				end
+			end
+
+			if (voc4_ena && voc4_cntlen) begin
+				voc4_len_counter <= voc4_len_counter + 1;
+				if (voc4_len_counter[6]) begin
+					voc4_len_counter <= voc4_len;
+					voc4_ena         <= 0;
 				end
 			end
 		end
@@ -374,6 +437,20 @@ module lr35902_snd(
 					end else begin
 						if (|voc2_vol)
 							voc2_vol <= voc2_vol - 1;
+					end
+				end
+			end
+
+			if (voc4_ena && voc4_vol_time) begin
+				voc4_vol_counter <= voc4_vol_counter + 1;
+				if (voc4_vol_counter == voc4_vol_time) begin
+					voc4_vol_counter <= 0;
+					if (voc4_vol_inc) begin
+						if (!&voc4_vol)
+							voc4_vol <= voc4_vol + 1;
+					end else begin
+						if (|voc4_vol)
+							voc4_vol <= voc4_vol - 1;
 					end
 				end
 			end
@@ -448,9 +525,9 @@ module lr35902_snd(
 			voc4_vol_time  <= 0;
 
 			/* NR43 - Voice 4 frequency */
-			voc4_freq      <= 0;
-			voc4_steps     <= 0;
-			voc4_ratio     <= 0;
+			voc4_clkshift  <= 0;
+			voc4_width     <= 0;
+			voc4_div       <= 0;
 
 			/* NR44 - Voice 4 control */
 			voc4_ena       <= 0;
@@ -547,6 +624,33 @@ module lr35902_snd(
 		end
 	end
 
+	always @* begin
+		voc4_pout = 'bx;
+		voc4_out = 8;
+		if (voc4_ena) begin
+			voc4_pout = !voc4_lfsr[0];
+
+			case (voc4_vol)
+			0:  voc4_out = voc4_pout ?  8 : 8;
+			1:  voc4_out = voc4_pout ?  8 : 7;
+			2:  voc4_out = voc4_pout ?  9 : 7;
+			3:  voc4_out = voc4_pout ?  9 : 6;
+			4:  voc4_out = voc4_pout ? 10 : 6;
+			5:  voc4_out = voc4_pout ? 10 : 5;
+			6:  voc4_out = voc4_pout ? 11 : 5;
+			7:  voc4_out = voc4_pout ? 11 : 4;
+			8:  voc4_out = voc4_pout ? 12 : 4;
+			9:  voc4_out = voc4_pout ? 12 : 3;
+			10: voc4_out = voc4_pout ? 13 : 3;
+			11: voc4_out = voc4_pout ? 13 : 2;
+			12: voc4_out = voc4_pout ? 14 : 2;
+			13: voc4_out = voc4_pout ? 14 : 1;
+			14: voc4_out = voc4_pout ? 15 : 1;
+			15: voc4_out = voc4_pout ? 15 : 0;
+			endcase
+		end
+	end
+
 	always @(posedge clk) begin
 		so1_compare <= 32;
 		so2_compare <= 32;
@@ -558,8 +662,8 @@ module lr35902_snd(
 	end
 
 	always @* begin
-		so1_mux = (voc1_so1 ? voc1_out : 8) + (voc2_so1 ? voc2_out : 8) + 8 + 8;
-		so2_mux = (voc1_so2 ? voc1_out : 8) + (voc2_so2 ? voc2_out : 8) + 8 + 8;
+		so1_mux = (voc1_so1 ? voc1_out : 8) + (voc2_so1 ? voc2_out : 8) + 8 + (voc4_so1 ? voc4_out : 8);
+		so2_mux = (voc1_so2 ? voc1_out : 8) + (voc2_so2 ? voc2_out : 8) + 8 + (voc4_so2 ? voc4_out : 8);
 	end
 
 endmodule
