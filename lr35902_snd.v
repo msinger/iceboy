@@ -136,10 +136,14 @@ module lr35902_snd(
 	*/
 
 	reg         voc1_trigger;
+	reg  [10:0] voc1_freq_shadow;
+	wire [11:0] voc1_freq_new_shadow;
+	wire [10:0] voc1_freq_delta;
 	reg  [10:0] voc1_freq_counter;
 	reg  [2:0]  voc1_duty_counter;
 	reg  [2:0]  voc1_vol_counter;
 	reg  [6:0]  voc1_len_counter;
+	reg  [2:0]  voc1_swp_counter;
 	wire        voc1_pout;
 	wire [3:0]  voc1_out;
 	reg  [3:0]  voc1_vol;
@@ -169,6 +173,26 @@ module lr35902_snd(
 	assign chl = so1_pwm; /* which one is which? */
 	assign chr = so2_pwm;
 	assign chm = so12_pwm;
+
+	always @* begin
+		case (voc1_swp_shift)
+		0: voc1_freq_delta = voc1_freq_shadow;
+		1: voc1_freq_delta = voc1_freq_shadow[10:1];
+		2: voc1_freq_delta = voc1_freq_shadow[10:2];
+		3: voc1_freq_delta = voc1_freq_shadow[10:3];
+		4: voc1_freq_delta = voc1_freq_shadow[10:4];
+		5: voc1_freq_delta = voc1_freq_shadow[10:5];
+		6: voc1_freq_delta = voc1_freq_shadow[10:6];
+		7: voc1_freq_delta = voc1_freq_shadow[10:7];
+		endcase
+	end
+
+	always @* begin
+		if (voc1_swp_dec)
+			voc1_freq_new_shadow = voc1_freq_shadow - voc1_freq_delta;
+		else
+			voc1_freq_new_shadow = voc1_freq_shadow + voc1_freq_delta;
+	end
 
 	always @(posedge read) begin
 		dout <= 'hff;
@@ -228,7 +252,7 @@ module lr35902_snd(
 			/* Voice 1 frequency */
 			`NR13: voc1_freq[7:0] <= din;
 			/* Voice 1 control */
-			`NR14: { voc1_trigger, voc1_ena, voc1_cntlen, voc1_freq[10:8] } <= { din[7], din[7:6], din[2:0] };
+			`NR14: { voc1_ena, voc1_trigger, voc1_cntlen, voc1_freq[10:8] } <= { din[7] && voc1_ena, din[7:6], din[2:0] };
 			/* Voice 2 length */
 			`NR21: { voc2_len_counter, voc2_wave_duty, voc2_len } <= { 1'b0, din[5:0], din };
 			/* Voice 2 volume */
@@ -236,7 +260,7 @@ module lr35902_snd(
 			/* Voice 2 frequency */
 			`NR23: voc2_freq[7:0] <= din;
 			/* Voice 2 control */
-			`NR24: { voc2_trigger, voc2_ena, voc2_cntlen, voc2_freq[10:8] } <= { din[7], din[7:6], din[2:0] };
+			`NR24: { voc2_ena, voc2_trigger, voc2_cntlen, voc2_freq[10:8] } <= { din[7] && voc2_ena, din[7:6], din[2:0] };
 			/* Voice 3 enable */
 			`NR30: voc3_ena <= din[7];
 			/* Voice 3 length */
@@ -265,24 +289,28 @@ module lr35902_snd(
 				master_ena <= 1;
 				/* TODO: reset some regs */
 			end
-		end
+		end else begin
+			if (voc1_trigger) begin
+				voc1_freq_shadow  <= voc1_freq;
+				voc1_freq_counter <= voc1_freq;
+				voc1_duty_counter <= 0;
+				voc1_vol_counter  <= 0;
+				voc1_swp_counter  <= 0;
+				voc1_len_counter  <= voc1_len;
+				voc1_vol          <= voc1_vol_init;
+				voc1_trigger      <= 0;
+				voc1_ena          <= 1;
+			end
 
-		if (!voc1_ena || voc1_trigger) begin
-			voc1_freq_counter <= voc1_freq;
-			voc1_duty_counter <= 0;
-			voc1_vol_counter  <= 0;
-			voc1_len_counter  <= voc1_len;
-			voc1_vol          <= voc1_vol_init;
-			voc1_trigger      <= 0;
-		end
-
-		if (!voc2_ena || voc2_trigger) begin
-			voc2_freq_counter <= voc2_freq;
-			voc2_duty_counter <= 0;
-			voc2_vol_counter  <= 0;
-			voc2_len_counter  <= voc2_len;
-			voc2_vol          <= voc2_vol_init;
-			voc2_trigger      <= 0;
+			if (voc2_trigger) begin
+				voc2_freq_counter <= voc2_freq;
+				voc2_duty_counter <= 0;
+				voc2_vol_counter  <= 0;
+				voc2_len_counter  <= voc2_len;
+				voc2_vol          <= voc2_vol_init;
+				voc2_trigger      <= 0;
+				voc2_ena          <= 1;
+			end
 		end
 
 		if (&clk_div8192[1:0]) begin /* frequency counters count with 1 MiHz */
@@ -346,6 +374,21 @@ module lr35902_snd(
 					end else begin
 						if (|voc2_vol)
 							voc2_vol <= voc2_vol - 1;
+					end
+				end
+			end
+		end
+
+		if (&clk_div8192 && !frame[0] && frame[1]) begin /* sweep counter counts with 128 Hz */
+			if (voc1_ena && voc1_swp_time) begin
+				voc1_swp_counter <= voc1_swp_counter + 1;
+				if (voc1_swp_counter == voc1_swp_time) begin
+					voc1_swp_counter <= 0;
+					if (voc1_freq_new_shadow[11]) begin
+						voc1_ena         <= 0;
+					end else begin
+						voc1_freq_shadow <= voc1_freq_new_shadow[10:0];
+						voc1_freq        <= voc1_freq_new_shadow[10:0];
 					end
 				end
 			end
