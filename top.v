@@ -69,6 +69,7 @@ module top(
 	wire [7:0] data_cpu_out, data_cpu_in;
 	wire [7:0] data_ext_in;
 	wire [7:0] data_vid_in;
+	wire [7:0] data_joy_out;
 	wire [7:0] data_sio_out;
 	wire [7:0] data_tim_out;
 	wire [7:0] data_snd_out;
@@ -192,6 +193,8 @@ module top(
 		case (1)
 		cs_io_hram:
 			data_cpu_in = data_hram_out;
+		cs_io_joypad:
+			data_cpu_in = data_joy_out;
 		cs_io_serial:
 			data_cpu_in = data_sio_out;
 		cs_io_timer:
@@ -224,9 +227,6 @@ module top(
 		end
 	end
 
-	assign p14 = 1;
-	assign p15 = 1;
-	assign irq_joypad     = 0;
 	assign irq_ppu_vblank = !n_irq_vb_in;
 	assign irq_ppu_stat   = !n_irq_st_in;
 
@@ -367,6 +367,22 @@ module top(
 		.sel_brom(cs_io_brom),
 		.sel_hram(cs_io_hram),
 		.sel_ie(cs_io_int_ena),
+	);
+
+	lr35902_joy joy(
+		.reset(reset_gb),
+		.dout(data_joy_out),
+		.din(data_cpu_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_joypad),
+		.clk(gbclk),
+		.irq(irq_joypad),
+		.p10(p10_in),
+		.p11(p11_in),
+		.p12(p12_in),
+		.p13(p13_in),
+		.p14(p14),
+		.p15(p15),
 	);
 
 	lr35902_sio_dummy sio(

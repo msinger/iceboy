@@ -10,6 +10,7 @@ bootrom.v \
 lr35902_tim.v \
 lr35902_snd.v \
 lr35902_sio_dummy.v \
+lr35902_joy.v \
 prog_loader.v \
 pll.v
 
