@@ -45,6 +45,9 @@ module lr35902_snd(
 
 	wire [5:0] so1_mux, so2_mux;
 
+	reg [7:0] waveram[0:15];
+	reg [7:0] wave_read;
+
 	/* NR10 - Voice 1 sweep */
 	reg [2:0] voc1_swp_time;
 	reg       voc1_swp_dec;
@@ -157,6 +160,14 @@ module lr35902_snd(
 	wire [3:0]  voc2_out;
 	reg  [3:0]  voc2_vol;
 
+	reg         voc3_trigger;
+	reg  [10:0] voc3_freq_counter;
+	reg  [8:0]  voc3_len_counter;
+	reg  [3:0]  voc3_sample;
+	reg  [4:0]  voc3_pos;
+	wire [4:0]  voc3_next_pos;
+	wire [3:0]  voc3_out;
+
 	reg         voc4_trigger;
 	reg  [14:0] voc4_lfsr;
 	reg  [17:0] voc4_freq_counter;
@@ -205,6 +216,8 @@ module lr35902_snd(
 			voc1_freq_new_shadow = voc1_freq_shadow + voc1_freq_delta;
 	end
 
+	assign voc3_next_pos = voc3_pos + 1;
+
 	assign voc4_freq_unshift = 18'h3ffff - voc4_div;
 
 	always @* begin
@@ -230,7 +243,10 @@ module lr35902_snd(
 
 	always @(posedge read) begin
 		dout <= 'hff;
-		case (adr)
+
+		if (&adr[5:4])
+			dout <= wave_read;
+		else case (adr)
 		/* Voice 1 sweep */
 		`NR10: dout <= { 1'b1, voc1_swp_time, voc1_swp_dec, voc1_swp_shift };
 		/* Voice 1 length */
@@ -275,6 +291,8 @@ module lr35902_snd(
 		if (&clk_div8192)
 			frame <= frame + 1;
 
+		wave_read <= waveram[voc3_ena ? voc3_pos[4:1] : adr[3:0]];
+
 		if (write) begin
 			if (master_ena) case (adr)
 			/* Voice 1 sweep */
@@ -304,7 +322,7 @@ module lr35902_snd(
 			/* Voice 3 frequency */
 			`NR33: voc3_freq[7:0] <= din;
 			/* Voice 3 control */
-			`NR34: { voc3_ena, voc3_cntlen, voc3_freq[10:8] } <= { din[7:6], din[2:0] };
+			`NR34: { voc3_ena, voc3_trigger, voc3_cntlen, voc3_freq[10:8] } <= { din[7] && voc3_ena, din[7:6], din[2:0] };
 			/* Voice 4 length */
 			`NR41: voc4_len <= din[5:0];
 			/* Voice 4 volume */
@@ -323,6 +341,9 @@ module lr35902_snd(
 				master_ena <= 1;
 				/* TODO: reset some regs */
 			end
+
+			if (!voc3_ena && &adr[5:4])
+				waveram[adr[3:0]] <= din;
 		end else begin
 			if (voc1_trigger) begin
 				voc1_freq_shadow  <= voc1_freq;
@@ -344,6 +365,14 @@ module lr35902_snd(
 				voc2_vol          <= voc2_vol_init;
 				voc2_trigger      <= 0;
 				voc2_ena          <= 1;
+			end
+
+			if (voc3_trigger) begin
+				voc3_freq_counter <= voc3_freq;
+				voc3_len_counter  <= voc3_len;
+				voc3_pos          <= 0;
+				voc3_trigger      <= 0;
+				voc3_ena          <= 1;
 			end
 
 			if (voc4_trigger) begin
@@ -386,6 +415,22 @@ module lr35902_snd(
 			end
 		end
 
+		if (clk_div8192[0]) begin /* voice 3 frequency counter counts with 2 MiHz */
+			if (voc3_ena) begin
+				voc3_freq_counter <= voc3_freq_counter + 1;
+				if (&voc3_freq_counter) begin
+					voc3_freq_counter <= voc3_freq;
+
+					voc3_pos <= voc3_next_pos;
+
+					if (voc3_next_pos[0])
+						voc3_sample <= wave_read[3:0];
+					else
+						voc3_sample <= wave_read[7:4];
+				end
+			end
+		end
+
 		if (&clk_div8192 && !frame[0]) begin /* len counters count with 256 Hz */
 			if (voc1_ena && voc1_cntlen) begin
 				voc1_len_counter <= voc1_len_counter + 1;
@@ -400,6 +445,14 @@ module lr35902_snd(
 				if (voc2_len_counter[6]) begin
 					voc2_len_counter <= voc2_len;
 					voc2_ena         <= 0;
+				end
+			end
+
+			if (voc3_ena && voc3_cntlen) begin
+				voc3_len_counter <= voc3_len_counter + 1;
+				if (voc3_len_counter[8]) begin
+					voc3_len_counter <= voc3_len;
+					voc3_ena         <= 0;
 				end
 			end
 
@@ -625,6 +678,18 @@ module lr35902_snd(
 	end
 
 	always @* begin
+		voc3_out = 8;
+		if (voc3_ena) begin
+			case (voc3_vol)
+			0: voc3_out = 8;
+			1: voc3_out = voc3_sample;
+			2: voc3_out = voc3_sample[3:1] + 4;
+			3: voc3_out = voc3_sample[3:2] + 6;
+			endcase
+		end
+	end
+
+	always @* begin
 		voc4_pout = 'bx;
 		voc4_out = 8;
 		if (voc4_ena) begin
@@ -661,10 +726,15 @@ module lr35902_snd(
 		end
 	end
 
-	always @* begin
-		so1_mux = (voc1_so1 ? voc1_out : 8) + (voc2_so1 ? voc2_out : 8) + 8 + (voc4_so1 ? voc4_out : 8);
-		so2_mux = (voc1_so2 ? voc1_out : 8) + (voc2_so2 ? voc2_out : 8) + 8 + (voc4_so2 ? voc4_out : 8);
-	end
+	assign so1_mux = (voc1_so1 ? voc1_out : 8) +
+	                 (voc2_so1 ? voc2_out : 8) +
+	                 (voc3_so1 ? voc3_out : 8) +
+	                 (voc4_so1 ? voc4_out : 8);
+
+	assign so2_mux = (voc1_so2 ? voc1_out : 8) +
+	                 (voc2_so2 ? voc2_out : 8) +
+	                 (voc3_so2 ? voc3_out : 8) +
+	                 (voc4_so2 ? voc4_out : 8);
 
 endmodule
 
