@@ -81,6 +81,9 @@ module lr35902_snd(
 	reg        voc2_ena;
 	reg        voc2_cntlen;
 
+	/* NR30 - Voice 3 enable */
+	reg       voc3_dacena;
+
 	/* NR31 - Voice 3 length */
 	reg [7:0] voc3_len;
 
@@ -262,7 +265,7 @@ module lr35902_snd(
 		/* Voice 2 control */
 		`NR24: dout <= { 1'b1, voc2_cntlen, 6'h3f };
 		/* Voice 3 enable */
-		`NR30: dout <= { voc3_ena, 7'h7f };
+		`NR30: dout <= { voc3_dacena, 7'h7f };
 		/* Voice 3 length */
 		`NR31: dout <= voc3_len;
 		/* Voice 3 volume */
@@ -314,7 +317,7 @@ module lr35902_snd(
 			/* Voice 2 control */
 			`NR24: { voc2_ena, voc2_trigger, voc2_cntlen, voc2_freq[10:8] } <= { din[7] && voc2_ena, din[7:6], din[2:0] };
 			/* Voice 3 enable */
-			`NR30: voc3_ena <= din[7];
+			`NR30: { voc3_dacena, voc3_ena } <= { din[7], voc3_ena && din[7] };
 			/* Voice 3 length */
 			`NR31: voc3_len <= din;
 			/* Voice 3 volume */
@@ -339,7 +342,6 @@ module lr35902_snd(
 			`NR52: master_ena <= din[7];
 			endcase else if (adr == `NR52 && din[7]) begin
 				master_ena <= 1;
-				/* TODO: reset some regs */
 			end
 
 			if (!voc3_ena && &adr[5:4])
@@ -372,7 +374,7 @@ module lr35902_snd(
 				voc3_len_counter  <= voc3_len;
 				voc3_pos          <= 0;
 				voc3_trigger      <= 0;
-				voc3_ena          <= 1;
+				voc3_ena          <= voc3_dacena;
 			end
 
 			if (voc4_trigger) begin
@@ -524,7 +526,7 @@ module lr35902_snd(
 			end
 		end
 
-		if (reset) begin
+		if (!master_ena) begin
 			/* NR10 - Voice 1 sweep */
 			voc1_swp_time  <= 0;
 			voc1_swp_dec   <= 0;
@@ -532,7 +534,6 @@ module lr35902_snd(
 
 			/* NR11 - Voice 1 length */
 			voc1_wave_duty <= 0;
-			voc1_len       <= 0;
 
 			/* NR12 - Voice 1 volume */
 			voc1_vol_init  <= 0;
@@ -546,7 +547,6 @@ module lr35902_snd(
 
 			/* NR21 - Voice 2 length */
 			voc2_wave_duty <= 0;
-			voc2_len       <= 0;
 
 			/* NR22 - Voice 2 volume */
 			voc2_vol_init  <= 0;
@@ -558,8 +558,8 @@ module lr35902_snd(
 			voc2_ena       <= 0;
 			voc2_cntlen    <= 0;
 
-			/* NR31 - Voice 3 length */
-			voc3_len       <= 0;
+			/* NR30 - Voice 3 enable */
+			voc3_dacena    <= 0;
 
 			/* NR32 - Voice 3 volume */
 			voc3_vol       <= 0;
@@ -568,9 +568,6 @@ module lr35902_snd(
 			voc3_freq      <= 0;
 			voc3_ena       <= 0;
 			voc3_cntlen    <= 0;
-
-			/* NR41 - Voice 4 length */
-			voc4_len       <= 0;
 
 			/* NR42 - Voice 4 volume */
 			voc4_vol_init  <= 0;
@@ -602,14 +599,32 @@ module lr35902_snd(
 			voc3_so2       <= 0;
 			voc4_so2       <= 0;
 
+			clk_div8192    <= 0;
+			frame          <= 0;
+
+			voc1_trigger   <= 0;
+			voc2_trigger   <= 0;
+			voc3_trigger   <= 0;
+			voc4_trigger   <= 0;
+
+			voc3_sample    <= 8;
+		end
+
+		if (reset) begin
+			/* NR11 - Voice 1 length */
+			voc1_len       <= 0;
+
+			/* NR21 - Voice 2 length */
+			voc2_len       <= 0;
+
+			/* NR31 - Voice 3 length */
+			voc3_len       <= 0;
+
+			/* NR41 - Voice 4 length */
+			voc4_len       <= 0;
+
 			/* NR52 - Sound on/off */
 			master_ena     <= 0;
-
-			clk_div8192 <= 0;
-			frame       <= 0;
-
-			voc1_trigger <= 0;
-			voc2_trigger <= 0;
 		end
 	end
 
