@@ -69,6 +69,7 @@ module top(
 	wire [7:0] data_cpu_out, data_cpu_in;
 	wire [7:0] data_ext_in;
 	wire [7:0] data_vid_in;
+	wire [7:0] data_sio_out;
 	wire [7:0] data_tim_out;
 	wire [7:0] data_snd_out;
 	wire [7:0] data_brom_out;
@@ -191,6 +192,8 @@ module top(
 		case (1)
 		cs_io_hram:
 			data_cpu_in = data_hram_out;
+		cs_io_serial:
+			data_cpu_in = data_sio_out;
 		cs_io_timer:
 			data_cpu_in = data_tim_out;
 		cs_io_sound:
@@ -223,7 +226,6 @@ module top(
 
 	assign p14 = 1;
 	assign p15 = 1;
-	assign irq_serial     = 0;
 	assign irq_joypad     = 0;
 	assign irq_ppu_vblank = !n_irq_vb_in;
 	assign irq_ppu_stat   = !n_irq_st_in;
@@ -365,6 +367,17 @@ module top(
 		.sel_brom(cs_io_brom),
 		.sel_hram(cs_io_hram),
 		.sel_ie(cs_io_int_ena),
+	);
+
+	lr35902_sio_dummy sio(
+		.reset(reset_gb),
+		.dout(data_sio_out),
+		.din(data_cpu_out),
+		.read(rd_cpu),
+		.write(wr_cpu && cs_io_serial),
+		.clk(gbclk),
+		.adr(adr_cpu[0]),
+		.irq(irq_serial),
 	);
 
 	lr35902_tim tim(
