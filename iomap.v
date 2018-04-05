@@ -47,7 +47,8 @@ module gb_iomap(
 			sel_tim = 1;
 		'b_0000_0000: /* 0xff00: Joypad */
 			sel_p1 = 1;
-		'b_0000_00??: /* 0xff01-0xff02: Serial */
+		'b_0000_0001,
+		'b_0000_0010: /* 0xff01-0xff02: Serial */
 			sel_ser = 1;
 		endcase
 	end
