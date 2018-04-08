@@ -105,6 +105,8 @@ module lr35902(
 	reg halt, no_inc;
 	reg new_halt, new_no_inc;
 
+	reg stop, new_stop;
+
 	assign dbg = arg;
 
 	always @* begin
@@ -175,11 +177,13 @@ module lr35902(
 		new_h       = h;
 		new_l       = l;
 
-		if ((!halt && !dbg_halt) || state != `state_ifetch || cycle || do_int_entry)
+		if ((!halt && !stop && !dbg_halt) || state != `state_ifetch || cycle || do_int_entry)
 			new_cycle = cycle + 1;
 
 		new_halt   = halt && !|(iena[4:0] & iflag[4:0]);
 		new_no_inc = (cycle == 3) ? halt : no_inc;
+
+		new_stop = stop && !(iena[4] & iflag[4]);
 
 		iack = 'h1f;
 		new_int_state = do_int_entry ? int_state : 0;
@@ -402,7 +406,7 @@ module lr35902(
 			'h 0_00: /* NOP (1,4) */
 				;
 			'h 0_10: /* STOP (1,4) */
-				/* TODO: implement */;
+				new_stop = 1;
 			'h 0_76: /* HALT (1,4) */
 				begin
 					new_halt   = 1;
@@ -951,6 +955,7 @@ module lr35902(
 
 			new_halt    = 0;
 			new_no_inc  = 0;
+			new_stop    = 0;
 
 			new_int_state = 0;
 			new_ime       = 0;
@@ -986,6 +991,7 @@ module lr35902(
 
 		halt    <= new_halt;
 		no_inc  <= new_no_inc;
+		stop    <= new_stop;
 
 		int_state <= new_int_state;
 		ime       <= new_ime;
