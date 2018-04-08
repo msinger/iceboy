@@ -36,8 +36,8 @@ module lr35902(
 		output reg  [7:4]  f,
 		output reg         ime,
 		output wire [7:0]  dbg,
-		input  wire        halt,
-		input  wire        no_inc,
+		input  wire        dbg_halt,
+		input  wire        dbg_no_inc,
 
 		input  wire        cs_iflag,
 		input  wire        cs_iena,
@@ -99,6 +99,11 @@ module lr35902(
 	wire       do_int_entry;
 	wire [7:0] int_vector;
 	wire [4:0] iack, int_ackmask;
+
+	/* HALT instruction sets these -- interrupt clears them.
+	 *  no_inc clear is delayed till cycle==3 for implementing HALT bug. */
+	reg halt, no_inc;
+	reg new_halt, new_no_inc;
 
 	assign dbg = arg;
 
@@ -170,8 +175,11 @@ module lr35902(
 		new_h       = h;
 		new_l       = l;
 
-		if (!halt || state != `state_ifetch || cycle || do_int_entry)
+		if ((!halt && !dbg_halt) || state != `state_ifetch || cycle || do_int_entry)
 			new_cycle = cycle + 1;
+
+		new_halt   = halt && !|(iena[4:0] & iflag[4:0]);
+		new_no_inc = (cycle == 3) ? halt : no_inc;
 
 		iack = 'h1f;
 		new_int_state = do_int_entry ? int_state : 0;
@@ -339,7 +347,7 @@ module lr35902(
 			1: /* request READ and increment PC */
 				begin
 					new_read = 1;
-					if (!no_inc)
+					if (!no_inc && !dbg_no_inc)
 						new_pc = result16;
 				end
 			2: /* fetch OPCODE or immediate from DATA bus */
@@ -396,7 +404,10 @@ module lr35902(
 			'h 0_10: /* STOP (1,4) */
 				/* TODO: implement */;
 			'h 0_76: /* HALT (1,4) */
-				/* TODO: implement */;
+				begin
+					new_halt   = 1;
+					new_no_inc = 1;
+				end
 			'h 0_cb: /* PREFIX CB (1,4): switch OP bank - fetch second OPCODE */
 				new_state = `state_cb_ifetch;
 			'h 0_f3: /* DI (1,4) */
@@ -938,6 +949,9 @@ module lr35902(
 			new_h       = 'bx;
 			new_l       = 'bx;
 
+			new_halt    = 0;
+			new_no_inc  = 0;
+
 			new_int_state = 0;
 			new_ime       = 0;
 			new_delay_ime = 0;
@@ -969,6 +983,9 @@ module lr35902(
 		e       <= new_e;
 		h       <= new_h;
 		l       <= new_l;
+
+		halt    <= new_halt;
+		no_inc  <= new_no_inc;
 
 		int_state <= new_int_state;
 		ime       <= new_ime;
