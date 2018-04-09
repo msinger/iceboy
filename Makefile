@@ -18,9 +18,10 @@ SOURCES_VID = \
 top_vid.v \
 map.v \
 iomap.v \
-ppu/lr35902_ppu_dummy.v \
+ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
-ppu/lr35902_oam.v
+ppu/lr35902_oam.v \
+ppu/lcd_uc1611.v
 
 all: gameboy.bin gameboy_vid.bin
 

@@ -56,3 +56,21 @@ set_io n_irq_st  M11
 # DMA Bus Master Select
 set_io n_dmadrv  R10
 
+# LCD Data Bus
+set_io lcd_data[0] E14
+set_io lcd_data[1] F16
+set_io lcd_data[2] F15
+set_io lcd_data[3] G16
+set_io lcd_data[4] G15
+set_io lcd_data[5] H16
+set_io lcd_data[6] H14
+set_io lcd_data[7] J15
+
+# LCD R/W, Reset, Chip Select, C/D, Backlight
+set_io n_lcd_rd    E16
+set_io n_lcd_wr    D15
+set_io n_lcd_rst   D16
+set_io n_lcd_cs    D14
+set_io lcd_cd      C16
+set_io lcd_vled    B16
+

@@ -14,9 +14,18 @@ module top(
 		output wire        n_dmadrv,  /* DMA drives bus? */
 		output wire        n_irq_vb,
 		output wire        n_irq_st,
+		output wire [7:0]  lcd_data,
+		output wire        n_lcd_rd,
+		output wire        n_lcd_wr,
+		input  wire        n_lcd_rst,
+		output wire        n_lcd_cs,
+		output wire        lcd_cd,
+		output wire        lcd_vled,
 	);
 
-	wire reset, n_reset_in;
+	wire      reset, n_reset_in;
+	reg [3:0] initial_reset_ticks = 0;
+	wire      initial_reset_done;
 
 	wire [15:0] adr_dma_rd;
 	wire [7:0]  adr_dma_wr;
@@ -41,6 +50,10 @@ module top(
 	wire irq_ppu_vblank, irq_ppu_stat;
 
 	wire dma_active, dma_drvext;
+
+	wire lcd_read, lcd_write, lcd_cs;
+
+	wire disp_on;
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -170,6 +183,15 @@ module top(
 	assign cs_vram = csext_vram || csdma_vram;
 
 	assign reset = !n_reset_in;
+	assign initial_reset_done = &initial_reset_ticks;
+
+	assign n_lcd_rd  = !lcd_read;
+	assign n_lcd_wr  = !lcd_write;
+	assign n_lcd_cs  = !lcd_cs;
+
+	always @(posedge gbclk)
+		if (!initial_reset_done)
+			initial_reset_ticks <= initial_reset_ticks + 1;
 
 	gb_memmap ext_map(
 		.adr(adr_ext),
@@ -211,7 +233,7 @@ module top(
 		.write(wr_oam),
 	);
 
-	lr35902_ppu_dummy ppu(
+	lr35902_ppu ppu(
 		.clk(gbclk),
 		.reset(reset),
 		.adr(adr_ext[7:0]),
@@ -221,6 +243,20 @@ module top(
 		.write(wr_ext && csext_io_ppu),
 		.irq_vblank(irq_ppu_vblank),
 		.irq_stat(irq_ppu_stat),
+		.disp_on(disp_on),
+	);
+
+	uc1611 lcd(
+		.clk(gbclk),
+		.reset(!initial_reset_done),
+		.disp_on(disp_on),
+		.lcd_data(lcd_data),
+		.lcd_read(lcd_read),
+		.lcd_write(lcd_write),
+		.lcd_reset(!n_lcd_rst),
+		.lcd_cs(lcd_cs),
+		.lcd_cd(lcd_cd),
+		.lcd_vled(lcd_vled),
 	);
 
 endmodule
