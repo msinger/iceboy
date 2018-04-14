@@ -4,11 +4,11 @@
 module lr35902_ppu_dummy(
 		input  wire       clk,
 		input  wire       reset,
-		output reg  [7:0] dout,
-		input  wire [7:0] din,
-		input  wire [7:0] adr,
-		input  wire       read,
-		input  wire       write,
+		output reg  [7:0] reg_dout,
+		input  wire [7:0] reg_din,
+		input  wire [3:0] reg_adr,
+		input  wire       reg_read,
+		input  wire       reg_write,
 		output wire       irq_vblank,
 		output wire       irq_stat,
 	);
@@ -25,20 +25,20 @@ module lr35902_ppu_dummy(
 
 	assign irq_vblank = lcdc[7] && lx == 0 && ly == 144;
 
-	always @(posedge read) begin
-		case (adr)
-		'h40: dout <= lcdc;
-		'h41: dout <= stat;
-		'h42: dout <= scy;
-		'h43: dout <= scx;
-		'h44: dout <= ly;
-		'h45: dout <= lyc;
-		'h47: dout <= bgp;
-		'h48: dout <= obp0;
-		'h49: dout <= obp1;
-		'h4a: dout <= wy;
-		'h4b: dout <= wx;
-		default: dout <= 'hff;
+	always @(posedge reg_read) begin
+		case (reg_adr)
+		'h40: reg_dout <= lcdc;
+		'h41: reg_dout <= stat;
+		'h42: reg_dout <= scy;
+		'h43: reg_dout <= scx;
+		'h44: reg_dout <= ly;
+		'h45: reg_dout <= lyc;
+		'h47: reg_dout <= bgp;
+		'h48: reg_dout <= obp0;
+		'h49: reg_dout <= obp1;
+		'h4a: reg_dout <= wy;
+		'h4b: reg_dout <= wx;
+		default: reg_dout <= 'hff;
 		endcase
 	end
 
@@ -53,18 +53,18 @@ module lr35902_ppu_dummy(
 			end else
 				lx <= lx + 1;
 
-		if (write) case (adr)
-		'h40: lcdc <= din;
-		'h41: stat[7:3] <= din[7:3];
-		'h42: scy  <= din;
-		'h43: scx  <= din;
+		if (reg_write) case (reg_adr)
+		'h40: lcdc <= reg_din;
+		'h41: stat[7:3] <= reg_din[7:3];
+		'h42: scy  <= reg_din;
+		'h43: scx  <= reg_din;
 		'h44: { lx, ly } <= 0;
-		'h45: lyc  <= din;
-		'h47: bgp  <= din;
-		'h48: obp0 <= din;
-		'h49: obp1 <= din;
-		'h4a: wy   <= din;
-		'h4b: wx   <= din;
+		'h45: lyc  <= reg_din;
+		'h47: bgp  <= reg_din;
+		'h48: obp0 <= reg_din;
+		'h49: obp1 <= reg_din;
+		'h4a: wy   <= reg_din;
+		'h4b: wx   <= reg_din;
 		endcase
 
 		stat[2] <= ly == lyc;
