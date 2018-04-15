@@ -45,6 +45,8 @@ module lr35902_ppu(
 		output reg  [15:0] adr,
 		output reg         read,
 		output wire        disp_on,
+		output wire        hsync,
+		output wire        vsync,
 		output wire        px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
 		output wire [1:0]  px,         /* The color of the pixel being shifted out. */
 	);
@@ -114,6 +116,8 @@ module lr35902_ppu(
 	assign irq_vblank = new_lx == 0 && new_ly == 144;
 
 	assign disp_on = ppu_ena;
+	assign hsync   = 0;
+	assign vsync   = 0;
 
 	assign fifo_can_shift_out = new_fifo_len > 8;
 	assign fifo_can_shift_in  = new_fifo_len == 8 || new_fifo_len == 0;

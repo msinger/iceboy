@@ -53,7 +53,8 @@ module top(
 
 	wire lcd_read, lcd_write, lcd_cs;
 
-	wire disp_on;
+	wire       disp_on, hsync, vsync, px_out;
+	wire [1:0] px;
 
 	SB_IO #(
 			.PIN_TYPE('b 1010_01),
@@ -244,12 +245,20 @@ module top(
 		.irq_vblank(irq_ppu_vblank),
 		.irq_stat(irq_ppu_stat),
 		.disp_on(disp_on),
+		.hsync(hsync),
+		.vsync(vsync),
+		.px_out(px_out),
+		.px(px),
 	);
 
 	uc1611 lcd(
 		.clk(gbclk),
 		.reset(!initial_reset_done),
 		.disp_on(disp_on),
+		.hsync(hsync),
+		.vsync(vsync),
+		.px_out(px_out),
+		.px(px),
 		.lcd_data(lcd_data),
 		.lcd_read(lcd_read),
 		.lcd_write(lcd_write),

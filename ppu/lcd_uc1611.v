@@ -5,25 +5,37 @@
 `define STATE_ON     2
 `define STATE_UNINIT 3
 
+`define COLOR0  0
+`define COLOR1  5
+`define COLOR2 10
+`define COLOR3 15
+
 (* nolatches *)
 module uc1611(
 		input  wire       clk,
 		input  wire       reset,
 		input  wire       disp_on,
+		input  wire       hsync,
+		input  wire       vsync,
+		input  wire       px_out,
+		input  wire [1:0] px,
 		output reg  [7:0] lcd_data,
 		output wire       lcd_read,
 		output reg        lcd_write,
 		input  wire       lcd_reset,
-		output reg        lcd_cs,
+		output wire       lcd_cs,
 		output reg        lcd_cd,
 		output wire       lcd_vled,
 	);
 
-	reg [1:0]  state, new_state;
-	reg [15:0] count, new_count;
+	reg [1:0]  state; wire [1:0]  new_state;
+	reg [15:0] count; wire [15:0] new_count;
 
-	reg [7:0] new_lcd_data;
-	reg       new_lcd_cd, new_lcd_write, new_lcd_cs;
+	reg insync; wire new_insync;
+	reg oddpx;  wire new_oddpx;
+
+	wire [7:0] new_lcd_data;
+	wire       new_lcd_cd, new_lcd_write;
 
 	reg [7:0] init_seq[0:15];
 	initial begin
@@ -51,6 +63,7 @@ module uc1611(
 		init_seq[15] <= 'h10; /* Set Column Address MSB: CA[7:4]=0 */
 	end
 
+	assign lcd_cs   = 1;
 	assign lcd_read = 0;
 	assign lcd_vled = disp_on;
 
@@ -58,66 +71,96 @@ module uc1611(
 		new_state     = state;
 		new_count     = (state == `STATE_INIT || state == `STATE_UNINIT) ? (count + 1) : 'bx;
 
+		new_insync    = insync;
+		new_oddpx     = oddpx;
+
 		new_lcd_data  = lcd_data;
 		new_lcd_cd    = lcd_cd;
 		new_lcd_write = lcd_write;
-		new_lcd_cs    = lcd_cs;
 
 		case (state)
 		`STATE_OFF:
 			if (disp_on) begin
-				new_state  = `STATE_INIT;
-				new_count  = 0;
-				new_lcd_cd = 0;
+				new_state     = `STATE_INIT;
+				new_count     = 0;
+				new_lcd_cd    = 0;
+				new_lcd_write = 0;
+				new_insync    = 1;
+				new_oddpx     = 0;
 			end
 		`STATE_INIT:
-			if (&count[15:14]) begin
-				case (count[1:0])
-				0:
-					new_lcd_cs = 1;
-				1:
-					new_lcd_write = 1;
-				2:
-					new_lcd_write = 0;
-				3:
-					begin
-						new_lcd_cs = 0;
-						if (count[5:2] == 15)
-							new_state = `STATE_ON;
-					end
-				endcase
+			begin
+				if (&count[15:14]) begin
+					new_lcd_write = !count[0];
+					if (count[0] && count[4:1] == 15)
+						new_state  = `STATE_ON;
+				end
+				if (vsync)
+					new_insync = 1;
+				else if (hsync || px_out)
+					new_insync = 0;
 			end
 		`STATE_ON:
 			if (!disp_on) begin
-				new_state  = `STATE_UNINIT;
-				new_count  = 0;
-				new_lcd_cd = 0;
-				new_lcd_data = 'he2; /* System Reset */
+				new_state      = `STATE_UNINIT;
+				new_count[0]   = 0;
+				new_lcd_cd     = 0;
+				new_lcd_write  = 0;
+				new_lcd_data   = 'he2; /* System Reset */
+			end else if (vsync) begin
+				new_state      = `STATE_INIT;
+				new_count[15]  = 1;  /* do not wait */
+				new_count[14]  = 1;  /* do not wait */
+				new_count[4:1] = 12; /* start at index 12: only set page&col addresses to zero */
+				new_count[0]   = 0;
+				new_lcd_cd     = 0;
+				new_lcd_write  = 0;
+				new_insync     = 1;
+				new_oddpx      = 0;
 			end
 		`STATE_UNINIT:
-			case (count[1:0])
-			0:
-				new_lcd_cs = 1;
-			1:
-				new_lcd_write = 1;
-			2:
-				new_lcd_write = 0;
-			3:
-				begin
-					new_lcd_cs = 0;
+			begin
+				new_lcd_write = !count[0];
+				if (count[0])
 					new_state = `STATE_OFF;
-				end
-			endcase
+			end
 		endcase
+
+		if (new_state == `STATE_ON && new_insync) begin /* ready to shift out pixels? */
+			new_lcd_cd    = 1;
+			new_lcd_write = 0;
+			if (px_out) begin                           /* new pixel arrived? */
+				if (!new_oddpx) begin                   /* pixel 0, 2, 4, ... */
+					new_oddpx = 1;
+					case (px)                           /* store in low nibble */
+					0: new_lcd_data[3:0] = `COLOR0;
+					1: new_lcd_data[3:0] = `COLOR1;
+					2: new_lcd_data[3:0] = `COLOR2;
+					3: new_lcd_data[3:0] = `COLOR3;
+					endcase
+				end else begin                          /* pixel 1, 3, 5, ... */
+					new_oddpx = 0;
+					case (px)                           /* store in high nibble */
+					0: new_lcd_data[7:4] = `COLOR0;
+					1: new_lcd_data[7:4] = `COLOR1;
+					2: new_lcd_data[7:4] = `COLOR2;
+					3: new_lcd_data[7:4] = `COLOR3;
+					endcase
+					new_lcd_write = 1;                  /* send 2 pixels to the LCD */
+				end
+			end
+		end
 
 		if (reset) begin
 			new_state     = `STATE_OFF;
 			new_count     = 'bx;
 
+			new_insync    = 'bx;
+			new_oddpx     = 'bx;
+
 			new_lcd_data  = 'bx;
 			new_lcd_cd    = 'bx;
 			new_lcd_write = 0;
-			new_lcd_cs    = 0;
 		end
 	end
 
@@ -126,12 +169,14 @@ module uc1611(
 		count     <= new_count;
 
 		lcd_data  <= new_lcd_data;
-		if (state == `STATE_INIT && !count[1:0])
-			lcd_data <= init_seq[count[5:2]];
+		if (state == `STATE_INIT && !count[0])
+			lcd_data <= init_seq[count[4:1]];
+
+		insync    <= new_insync;
+		oddpx     <= new_oddpx;
 
 		lcd_cd    <= new_lcd_cd;
 		lcd_write <= new_lcd_write;
-		lcd_cs    <= new_lcd_cs;
 	end
 
 endmodule
