@@ -6,12 +6,12 @@
 `define MODE_PXTRANS 3
 
 `define FETCH_STATE_IDLE   0
-`define FETCH_STATE_TILE_0 1
-`define FETCH_STATE_TILE_1 2
-`define FETCH_STATE_PXL0_0 3
-`define FETCH_STATE_PXL0_1 4
-`define FETCH_STATE_PXL1_0 5
-`define FETCH_STATE_PXL1_1 6
+`define FETCH_STATE_TILE   1
+`define FETCH_STATE_PXL0_0 2
+`define FETCH_STATE_PXL0_1 3
+`define FETCH_STATE_PXL1_0 4
+`define FETCH_STATE_PXL1_1 5
+`define FETCH_STATE_BLOCK  6
 
 `define SRC_BG 0
 `define SRC_WD 1
@@ -47,14 +47,16 @@ module lr35902_ppu(
 		output wire        disp_on,
 		output wire        hsync,
 		output wire        vsync,
-		output wire        px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
-		output wire [1:0]  px,         /* The color of the pixel being shifted out. */
+		output reg         px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
+		output reg  [1:0]  px,         /* The color of the pixel being shifted out. */
 	);
 
 	wire        new_need_oam, new_need_vram;
 	wire [15:0] new_adr;
 	wire        new_read;
 
+	wire       new_px_out;
+	wire [1:0] new_px;
 	reg  [7:0] px_cnt;     /* number of pixels shifted out already for current line (0 .. 160) */
 	wire [7:0] new_px_cnt;
 	reg  [8:0] lx;         /* counts 0 .. 455 */
@@ -90,19 +92,21 @@ module lr35902_ppu(
 	wire [15:0] new_fifo1_src, new_fifo0_src;
 	reg  [4:0]  fifo_len;              /* Number of pixels in the FIFO. */
 	wire [4:0]  new_fifo_len;
-	wire        fifo_can_shift_out;    /* True, when the FIFO can shift pixels out (new_fifo_len>8). */
-	wire        fifo_can_shift_in;     /* True, when the FIFO can accept new pixels that got fetched (new_fifo_len<=8). */
 
-	reg  [2:0] fetch_state;
-	wire [2:0] new_fetch_state;
-	reg  [1:0] fetch_src;              /* Stores the source of the pixels currently held in the fetch buffer. */
-	wire [1:0] new_fetch_src;
-	reg  [7:0] fetch_tile;             /* Stores the fetched tile number. */
-	wire [7:0] new_fetch_tile;
-	reg  [7:0] fetch1, fetch0;         /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
-	wire [7:0] new_fetch1, new_fetch0;
+	reg  [2:0]  fetch_state;
+	wire [2:0]  new_fetch_state;
+	reg  [1:0]  fetch_src;              /* Stores the source of the pixels currently held in the fetch buffer. */
+	wire [1:0]  new_fetch_src;
+	reg  [7:0]  fetch_tile;             /* Stores the fetched tile number. */
+	wire [7:0]  new_fetch_tile;
+	reg  [7:0]  fetch1, fetch0;         /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
+	wire [7:0]  new_fetch1, new_fetch0;
+	reg  [15:0] fetch_bg_adr;
+	wire [15:0] new_fetch_bg_adr;
 
 	wire [7:0] px_pal;
+
+	wire [15:0] bg_map_start_adr;
 
 	assign irq_stat =  ((new_lyc_eq    && new_sel_lyc)   ||
 	                    (new_mode == 0 && new_sel_mode0) ||
@@ -116,26 +120,10 @@ module lr35902_ppu(
 	assign irq_vblank = new_lx == 0 && new_ly == 144;
 
 	assign disp_on = ppu_ena;
-	assign hsync   = 0;
-	assign vsync   = 0;
+	assign hsync   = ppu_ena && lx == 0;
+	assign vsync   = hsync && ly == 0;
 
-	assign fifo_can_shift_out = new_fifo_len > 8;
-	assign fifo_can_shift_in  = new_fifo_len == 8 || new_fifo_len == 0;
-
-	always @* case ({ new_fifo1_src[0], new_fifo0_src[0] })
-		`SRC_BG, `SRC_WD: px_pal = new_bgp;
-		`SRC_O0:          px_pal = new_obp0;
-		`SRC_O1:          px_pal = new_obp1;
-	endcase
-
-	always @* case ({ new_fifo1[0], new_fifo0[0] })
-		0: px = px_pal[1:0];
-		1: px = px_pal[3:2];
-		2: px = px_pal[5:4];
-		3: px = px_pal[7:6];
-	endcase
-
-	assign px_out = fifo_can_shift_out;
+	assign bg_map_start_adr  = new_bg_map   ? 'h9c00 : 'h9800;
 
 	always @(posedge reg_read) begin
 		case (reg_adr)
@@ -160,6 +148,8 @@ module lr35902_ppu(
 		new_adr       = adr;
 		new_read      = read;
 
+		new_px_out = 0;
+		new_px     = 'bx;
 		new_px_cnt = px_cnt;
 		new_lx     = lx + 1;
 		new_ly     = ly;
@@ -195,11 +185,12 @@ module lr35902_ppu(
 		new_fifo1_src = fifo1_src;
 		new_fifo_len  = fifo_len;
 
-		new_fetch_state = fetch_state;
-		new_fetch_src   = fetch_src;
-		new_fetch_tile  = fetch_tile;
-		new_fetch0      = fetch0;
-		new_fetch1      = fetch1;
+		new_fetch_state  = fetch_state;
+		new_fetch_src    = fetch_src;
+		new_fetch_tile   = fetch_tile;
+		new_fetch0       = fetch0;
+		new_fetch1       = fetch1;
+		new_fetch_bg_adr = fetch_bg_adr;
 
 		if (new_lx == 456) begin
 			new_px_cnt = 0;
@@ -233,9 +224,6 @@ module lr35902_ppu(
 		new_need_oam  = new_ly < 144 && new_px_cnt != 160;
 		new_need_vram = new_need_oam && new_lx >= 80;
 
-		if (px_cnt != 160 && new_lx >= 80)
-			new_px_cnt = px_cnt + 1;
-
 		new_lyc_eq = new_ly == new_lyc;
 
 		if (new_ly >= 144)
@@ -246,6 +234,106 @@ module lr35902_ppu(
 			new_mode = `MODE_HBLANK;
 		else
 			new_mode = `MODE_PXTRANS;
+
+		if (mode == `MODE_OAMSRC && new_mode == `MODE_PXTRANS) begin
+			new_fetch_bg_adr = bg_map_start_adr + ((scy[7:3] + ly[7:3]) & 31) * 32 + scx[7:3];
+			new_fetch_src    = `SRC_BG;
+		end
+
+		case (new_fetch_state)
+		`FETCH_STATE_IDLE:
+			if (new_mode == `MODE_PXTRANS) begin
+				new_fetch_state  = `FETCH_STATE_TILE;
+				new_read         = 1;
+			end
+		`FETCH_STATE_TILE:
+			begin
+				new_fetch_state  = `FETCH_STATE_PXL0_0;
+				new_read         = 0;
+				new_fetch_tile   = data;
+				new_fetch_bg_adr = fetch_bg_adr + 1;
+				new_adr[15:12]   = 'h8 | (!bg_tiles && !fetch_tile[7]);
+				new_adr[11:4]    = fetch_tile;
+				new_adr[3:1]     = scy[2:0] + ly[2:0];
+				new_adr[0]       = 0;
+			end
+		`FETCH_STATE_PXL0_0:
+			begin
+				new_fetch_state  = `FETCH_STATE_PXL0_1;
+				new_read         = 1;
+			end
+		`FETCH_STATE_PXL0_1:
+			begin
+				new_fetch_state  = `FETCH_STATE_PXL1_0;
+				new_read         = 0;
+				new_fetch0       = data;
+				new_adr[0]       = 1;
+			end
+		`FETCH_STATE_PXL1_0:
+			begin
+				new_fetch_state  = `FETCH_STATE_PXL1_1;
+				new_read         = 1;
+			end
+		`FETCH_STATE_PXL1_1:
+			begin
+				new_fetch_state  = `FETCH_STATE_BLOCK;
+				new_read         = 0;
+				new_fetch1       = data;
+			end
+		endcase
+
+		if ((new_fifo_len == 8 || new_fifo_len == 0) &&
+		    (new_fetch_state == `FETCH_STATE_BLOCK)) begin
+			new_fetch_state = `FETCH_STATE_IDLE;
+			if (!new_fifo_len) begin
+				new_fifo0[7:0]      = new_fetch0;
+				new_fifo1[7:0]      = new_fetch1;
+				new_fifo0_src[7:0]  = { 8{new_fetch_src[0]} };
+				new_fifo1_src[7:0]  = { 8{new_fetch_src[1]} };
+				new_fifo_len        = 8;
+			end else begin
+				new_fifo0[15:8]     = new_fetch0;
+				new_fifo1[15:8]     = new_fetch1;
+				new_fifo0_src[15:8] = { 8{new_fetch_src[0]} };
+				new_fifo1_src[15:8] = { 8{new_fetch_src[1]} };
+				new_fifo_len        = 16;
+			end
+		end
+
+		case ({ new_fifo1_src[0], new_fifo0_src[0] })
+		`SRC_BG, `SRC_WD: px_pal = new_bgp;
+		`SRC_O0:          px_pal = new_obp0;
+		`SRC_O1:          px_pal = new_obp1;
+		endcase
+
+		case ({ new_fifo1[0], new_fifo0[0] })
+		0: new_px = px_pal[1:0];
+		1: new_px = px_pal[3:2];
+		2: new_px = px_pal[5:4];
+		3: new_px = px_pal[7:6];
+		endcase
+
+		if (new_mode == `MODE_PXTRANS && new_fifo_len > 8) begin
+			new_px_out    = 1;
+			new_px_cnt    = new_px_cnt + 1;
+			new_fifo_len  = new_fifo_len - 1;
+			new_fifo0     = { 1'bx, new_fifo0[15:1] };
+			new_fifo1     = { 1'bx, new_fifo1[15:1] };
+			new_fifo0_src = { 1'bx, new_fifo0_src[15:1] };
+			new_fifo1_src = { 1'bx, new_fifo1_src[15:1] };
+		end
+
+		if (new_px_cnt == 160) begin
+			new_fifo_len    = 0;
+			new_fetch_state = `FETCH_STATE_IDLE;
+			new_read        = 0;
+		end
+
+		if (new_fetch_state == `FETCH_STATE_BLOCK && new_fifo_len <= 8)
+			new_fetch_state = `FETCH_STATE_IDLE;
+
+		if (new_fetch_state == `FETCH_STATE_IDLE && new_mode == `MODE_PXTRANS && new_fetch_src == `SRC_BG)
+			new_adr = new_fetch_bg_adr;
 
 		if (reset) begin
 			new_ppu_ena  = 0;
@@ -278,6 +366,8 @@ module lr35902_ppu(
 			new_adr       = 'bx;
 			new_read      = 0;
 
+			new_px_out = 0;
+			new_px     = 'bx;
 			new_px_cnt = 0;
 			new_lx     = 0;
 			new_ly     = 0;
@@ -291,11 +381,12 @@ module lr35902_ppu(
 			new_fifo1_src = 'bx;
 			new_fifo_len  = 0;
 
-			new_fetch_state = `FETCH_STATE_IDLE;
-			new_fetch_src   = 'bx;
-			new_fetch_tile  = 'bx;
-			new_fetch0      = 'bx;
-			new_fetch1      = 'bx;
+			new_fetch_state  = `FETCH_STATE_IDLE;
+			new_fetch_src    = 'bx;
+			new_fetch_tile   = 'bx;
+			new_fetch0       = 'bx;
+			new_fetch1       = 'bx;
+			new_fetch_bg_adr = 'bx;
 		end
 	end
 
@@ -305,6 +396,8 @@ module lr35902_ppu(
 		adr       <= new_adr;
 		read      <= new_read;
 
+		px_out <= new_px_out;
+		px     <= new_px;
 		px_cnt <= new_px_cnt;
 		lx     <= new_lx;
 		ly     <= new_ly;
@@ -340,11 +433,12 @@ module lr35902_ppu(
 		fifo1_src <= new_fifo1_src;
 		fifo_len  <= new_fifo_len;
 
-		fetch_state <= new_fetch_state;
-		fetch_src   <= new_fetch_src;
-		fetch_tile  <= new_fetch_tile;
-		fetch0      <= new_fetch0;
-		fetch1      <= new_fetch1;
+		fetch_state  <= new_fetch_state;
+		fetch_src    <= new_fetch_src;
+		fetch_tile   <= new_fetch_tile;
+		fetch0       <= new_fetch0;
+		fetch1       <= new_fetch1;
+		fetch_bg_adr <= new_fetch_bg_adr;
 	end
 
 endmodule
