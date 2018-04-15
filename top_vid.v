@@ -27,29 +27,34 @@ module top(
 	reg [3:0] initial_reset_ticks = 0;
 	wire      initial_reset_done;
 
+	wire [15:0] adr_ppu;
 	wire [15:0] adr_dma_rd;
 	wire [7:0]  adr_dma_wr;
 	wire [15:0] adr_ext;
 	wire [12:0] adr_vram;
 	wire [7:0]  adr_oam;
 
+	wire rd_ppu;
 	wire rd_dma, wr_dma;
 	wire rd_vram, wr_vram;
 	wire rd_oam, wr_oam;
 	wire rd_ext, wr_ext, n_read_in, n_write_in;
 	wire cs_ext, cs_ram, cs_cart, cs_vram, n_cs_vid_in;
 	wire csext_vram, csext_oam, csext_io, csext_io_ppu;
+	wire csppu_vram, csppu_oam;
 	wire csdma_vram;
 
 	wire [7:0] data_dma_out, data_dma_in;
 	wire [7:0] data_ext_out, data_ext_in;
 	wire [7:0] data_vram_out, data_vram_in;
 	wire [7:0] data_oam_out, data_oam_in;
-	wire [7:0] data_ppu_out;
+	wire [7:0] data_ppu_out, data_ppu_in;
 
 	wire irq_ppu_vblank, irq_ppu_stat;
 
 	wire dma_active, dma_drvext;
+
+	wire ppu_needs_oam, ppu_needs_vram;
 
 	wire lcd_read, lcd_write, lcd_cs;
 
@@ -116,10 +121,22 @@ module top(
 		case (1)
 		csext_io_ppu:
 			data_ext_out = data_ppu_out;
-		csext_vram && !csdma_vram:
+		csext_vram && !csdma_vram && !ppu_needs_vram:
 			data_ext_out = data_vram_out;
-		csext_oam && !dma_active:
+		csext_oam && !dma_active && !ppu_needs_oam:
 			data_ext_out = data_oam_out;
+		endcase
+	end
+
+	always @* begin
+		data_ppu_in = 'hff;
+
+		(* parallelcase *)
+		case (1)
+		csppu_vram:
+			data_ppu_in = data_vram_out;
+		csppu_oam:
+			data_ppu_in = data_oam_out;
 		endcase
 	end
 
@@ -136,20 +153,31 @@ module top(
 	end
 
 	always @* begin
-		if (csdma_vram) begin
+		if (ppu_needs_vram) begin
+			adr_vram = adr_ppu;
+			rd_vram = rd_ppu && csppu_vram;
+			wr_vram = 0;
+			data_vram_in = 'bx;
+		end else if (csdma_vram) begin
 			adr_vram = adr_dma_rd;
 			rd_vram = rd_dma;
 			wr_vram = 0;
+			data_vram_in = 'bx;
 		end else begin
 			adr_vram = adr_ext;
 			rd_vram = rd_ext;
 			wr_vram = wr_ext && cs_vram;
+			data_vram_in = data_ext_in;
 		end
-		data_vram_in = data_ext_in;
 	end
 
 	always @* begin
-		if (dma_active) begin
+		if (ppu_needs_oam) begin
+			adr_oam = adr_ppu;
+			rd_oam = rd_ppu && csppu_oam;
+			wr_oam = 0;
+			data_oam_in = 'bx;
+		end else if (dma_active) begin
 			adr_oam = adr_dma_wr;
 			rd_oam = 0;
 			wr_oam = wr_dma;
@@ -203,6 +231,14 @@ module top(
 		.sel_io(csext_io),
 	);
 
+	gb_memmap ppu_map(
+		.adr(adr_ppu),
+		.reset(!ppu_needs_oam && !ppu_needs_vram),
+		.enable_bootrom(0),
+		.sel_vram(csppu_vram),
+		.sel_oam(csppu_oam),
+	);
+
 	gb_memmap dma_map(
 		.adr(adr_dma_rd),
 		.reset(!dma_active),
@@ -249,6 +285,11 @@ module top(
 		.vsync(vsync),
 		.px_out(px_out),
 		.px(px),
+		.need_oam(ppu_needs_oam),
+		.need_vram(ppu_needs_vram),
+		.adr(adr_ppu),
+		.data(data_ppu_in),
+		.read(rd_ppu),
 	);
 
 	uc1611 lcd(
