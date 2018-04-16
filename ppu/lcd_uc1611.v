@@ -37,6 +37,7 @@ module uc1611(
 	wire [7:0] new_lcd_data;
 	wire       new_lcd_cd, new_lcd_write;
 
+	(* mem2reg *)
 	reg [7:0] init_seq[0:15];
 	initial begin
 //		init_seq[0]  <= 'hc0; /* Set LCD Mapping Control: MY=0 MX=0 MSF=0 */
@@ -69,14 +70,14 @@ module uc1611(
 
 	always @* begin
 		new_state     = state;
-		new_count     = (state == `STATE_INIT || state == `STATE_UNINIT) ? (count + 1) : 'bx;
+		new_count     = 'bx;
 
 		new_insync    = insync;
 		new_oddpx     = oddpx;
 
 		new_lcd_data  = lcd_data;
 		new_lcd_cd    = lcd_cd;
-		new_lcd_write = lcd_write;
+		new_lcd_write = 0;
 
 		case (state)
 		`STATE_OFF:
@@ -84,7 +85,6 @@ module uc1611(
 				new_state     = `STATE_INIT;
 				new_count     = 0;
 				new_lcd_cd    = 0;
-				new_lcd_write = 0;
 				new_insync    = 1;
 				new_oddpx     = 0;
 			end
@@ -92,6 +92,7 @@ module uc1611(
 			begin
 				if (&count[15:14]) begin
 					new_lcd_write = !count[0];
+if (new_lcd_write) new_lcd_data = init_seq[count[4:1]];
 					if (count[0] && count[4:1] == 15)
 						new_state  = `STATE_ON;
 				end
@@ -99,13 +100,13 @@ module uc1611(
 					new_insync = 1;
 				else if (hsync || px_out)
 					new_insync = 0;
+				new_count = count + 1;
 			end
 		`STATE_ON:
 			if (!disp_on) begin
 				new_state      = `STATE_UNINIT;
 				new_count[0]   = 0;
 				new_lcd_cd     = 0;
-				new_lcd_write  = 0;
 				new_lcd_data   = 'he2; /* System Reset */
 			end else if (vsync) begin
 				new_state      = `STATE_INIT;
@@ -114,7 +115,6 @@ module uc1611(
 				new_count[4:1] = 12; /* start at index 12: only set page&col addresses to zero */
 				new_count[0]   = 0;
 				new_lcd_cd     = 0;
-				new_lcd_write  = 0;
 				new_insync     = 1;
 				new_oddpx      = 0;
 			end
@@ -123,12 +123,12 @@ module uc1611(
 				new_lcd_write = !count[0];
 				if (count[0])
 					new_state = `STATE_OFF;
+				new_count[0] = 1;
 			end
 		endcase
 
 		if (new_state == `STATE_ON && new_insync) begin /* ready to shift out pixels? */
 			new_lcd_cd    = 1;
-			new_lcd_write = 0;
 			if (px_out) begin                           /* new pixel arrived? */
 				if (!new_oddpx) begin                   /* pixel 0, 2, 4, ... */
 					new_oddpx = 1;
@@ -164,19 +164,25 @@ module uc1611(
 		end
 	end
 
+/*
+	reg [7:0] init_lcd_data;
+	always @(negedge clk) begin
+		init_lcd_data  <= init_seq[new_count[4:1]];
+	end
+*/
 	always @(posedge clk) begin
 		state     <= new_state;
 		count     <= new_count;
-
-		lcd_data  <= new_lcd_data;
-		if (state == `STATE_INIT && !count[0])
-			lcd_data <= init_seq[count[4:1]];
+/*
+		lcd_data  <= init_lcd_data;
+		if (new_state != `STATE_INIT || !new_lcd_write)*/
+			lcd_data <= new_lcd_data;
 
 		insync    <= new_insync;
 		oddpx     <= new_oddpx;
 
 		lcd_cd    <= new_lcd_cd;
-		lcd_write <= new_lcd_write;
+		lcd_write <= !new_lcd_write;
 	end
 
 endmodule
