@@ -286,27 +286,27 @@ module lr35902_ppu(
 		    (new_fetch_state == `FETCH_STATE_BLOCK)) begin
 			new_fetch_state = `FETCH_STATE_IDLE;
 			if (!new_fifo_len) begin
-				new_fifo0[7:0]      = new_fetch0;
-				new_fifo1[7:0]      = new_fetch1;
-				new_fifo0_src[7:0]  = { 8{new_fetch_src[0]} };
-				new_fifo1_src[7:0]  = { 8{new_fetch_src[1]} };
-				new_fifo_len        = 8;
-			end else begin
 				new_fifo0[15:8]     = new_fetch0;
 				new_fifo1[15:8]     = new_fetch1;
 				new_fifo0_src[15:8] = { 8{new_fetch_src[0]} };
 				new_fifo1_src[15:8] = { 8{new_fetch_src[1]} };
+				new_fifo_len        = 8;
+			end else begin
+				new_fifo0[7:0]      = new_fetch0;
+				new_fifo1[7:0]      = new_fetch1;
+				new_fifo0_src[7:0]  = { 8{new_fetch_src[0]} };
+				new_fifo1_src[7:0]  = { 8{new_fetch_src[1]} };
 				new_fifo_len        = 16;
 			end
 		end
 
-		case ({ new_fifo1_src[0], new_fifo0_src[0] })
+		case ({ new_fifo1_src[15], new_fifo0_src[15] })
 		`SRC_BG, `SRC_WD: px_pal = new_bgp;
 		`SRC_O0:          px_pal = new_obp0;
 		`SRC_O1:          px_pal = new_obp1;
 		endcase
 
-		case ({ new_fifo1[0], new_fifo0[0] })
+		case ({ new_fifo1[15], new_fifo0[15] })
 		0: new_px = px_pal[1:0];
 		1: new_px = px_pal[3:2];
 		2: new_px = px_pal[5:4];
@@ -317,10 +317,10 @@ module lr35902_ppu(
 			new_px_out    = 1;
 			new_px_cnt    = new_px_cnt + 1;
 			new_fifo_len  = new_fifo_len - 1;
-			new_fifo0     = { 1'bx, new_fifo0[15:1] };
-			new_fifo1     = { 1'bx, new_fifo1[15:1] };
-			new_fifo0_src = { 1'bx, new_fifo0_src[15:1] };
-			new_fifo1_src = { 1'bx, new_fifo1_src[15:1] };
+			new_fifo0     = { new_fifo0[14:0], 1'bx };
+			new_fifo1     = { new_fifo1[14:0], 1'bx };
+			new_fifo0_src = { new_fifo0_src[14:0], 1'bx };
+			new_fifo1_src = { new_fifo1_src[14:0], 1'bx };
 		end
 
 		if (new_px_cnt == 160) begin
