@@ -31,8 +31,9 @@ module uc1611(
 	reg [1:0]  state; wire [1:0]  new_state;
 	reg [15:0] count; wire [15:0] new_count;
 
-	reg insync; wire new_insync;
-	reg oddpx;  wire new_oddpx;
+	reg       insync; wire       new_insync;
+	reg       oddpx;  wire       new_oddpx;
+	reg [3:0] pxbuf;  wire [3:0] new_pxbuf;
 
 	wire [7:0] new_lcd_data;
 	wire       new_lcd_cd, new_lcd_write;
@@ -74,6 +75,7 @@ module uc1611(
 
 		new_insync    = insync;
 		new_oddpx     = oddpx;
+		new_pxbuf     = pxbuf;
 
 		new_lcd_data  = lcd_data;
 		new_lcd_cd    = lcd_cd;
@@ -130,17 +132,18 @@ if (new_lcd_write) new_lcd_data = init_seq[count[4:1]];
 		if (new_state == `STATE_ON && new_insync) begin /* ready to shift out pixels? */
 			new_lcd_cd    = 1;
 			if (px_out) begin                           /* new pixel arrived? */
-				if (!new_oddpx) begin                   /* pixel 0, 2, 4, ... */
+				if (!oddpx) begin                       /* pixel 0, 2, 4, ... */
 					new_oddpx = 1;
-					case (px)                           /* store in low nibble */
-					0: new_lcd_data[3:0] = `COLOR0;
-					1: new_lcd_data[3:0] = `COLOR1;
-					2: new_lcd_data[3:0] = `COLOR2;
-					3: new_lcd_data[3:0] = `COLOR3;
+					case (px)                           /* store px in pxbuf */
+					0: new_pxbuf = `COLOR0;
+					1: new_pxbuf = `COLOR1;
+					2: new_pxbuf = `COLOR2;
+					3: new_pxbuf = `COLOR3;
 					endcase
 				end else begin                          /* pixel 1, 3, 5, ... */
 					new_oddpx = 0;
-					case (px)                           /* store in high nibble */
+					new_lcd_data[3:0] = pxbuf;          /* store pxbuf in low nibble */
+					case (px)                           /* store px in high nibble */
 					0: new_lcd_data[7:4] = `COLOR0;
 					1: new_lcd_data[7:4] = `COLOR1;
 					2: new_lcd_data[7:4] = `COLOR2;
@@ -157,6 +160,7 @@ if (new_lcd_write) new_lcd_data = init_seq[count[4:1]];
 
 			new_insync    = 'bx;
 			new_oddpx     = 'bx;
+			new_pxbuf     = 'bx;
 
 			new_lcd_data  = 'bx;
 			new_lcd_cd    = 'bx;
@@ -170,19 +174,21 @@ if (new_lcd_write) new_lcd_data = init_seq[count[4:1]];
 		init_lcd_data  <= init_seq[new_count[4:1]];
 	end
 */
+
 	always @(posedge clk) begin
 		state     <= new_state;
 		count     <= new_count;
-/*
-		lcd_data  <= init_lcd_data;
-		if (new_state != `STATE_INIT || !new_lcd_write)*/
+
+//		lcd_data  <= init_lcd_data;
+//		if (new_state != `STATE_INIT || !new_lcd_write)
 			lcd_data <= new_lcd_data;
 
 		insync    <= new_insync;
 		oddpx     <= new_oddpx;
+		pxbuf     <= new_pxbuf;
 
 		lcd_cd    <= new_lcd_cd;
-		lcd_write <= !new_lcd_write;
+		lcd_write <= new_lcd_write;
 	end
 
 endmodule
