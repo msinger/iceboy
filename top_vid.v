@@ -255,6 +255,7 @@ module top(
 	);
 
 	lr35902_vram vram(
+		.clk(gbclk),
 		.adr(adr_vram),
 		.dout(data_vram_out),
 		.din(data_vram_in),
