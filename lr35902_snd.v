@@ -48,6 +48,8 @@ module lr35902_snd(
 	reg [7:0] waveram[0:15];
 	reg [7:0] wave_read;
 
+	reg pwrite;
+
 	/* NR10 - Voice 1 sweep */
 	reg [2:0] voc1_swp_time;
 	reg       voc1_swp_dec;
@@ -296,7 +298,7 @@ module lr35902_snd(
 
 		wave_read <= waveram[voc3_ena ? voc3_pos[4:1] : adr[3:0]];
 
-		if (write) begin
+		if (pwrite && !write) begin
 			if (master_ena) case (adr)
 			/* Voice 1 sweep */
 			`NR10: { voc1_swp_time, voc1_swp_dec, voc1_swp_shift } <= din[6:0];
@@ -610,7 +612,11 @@ module lr35902_snd(
 			voc3_sample    <= 8;
 		end
 
+		pwrite <= write;
+
 		if (reset) begin
+			pwrite         <= 0;
+
 			/* NR11 - Voice 1 length */
 			voc1_len       <= 0;
 

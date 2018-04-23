@@ -39,406 +39,416 @@ module lr35902_ppu(
 		input  wire        reg_write,
 		output wire        irq_vblank,
 		output wire        irq_stat,
-		output reg         need_oam,
-		output reg         need_vram,
+		output wire        need_oam,
+		output wire        need_vram,
 		input  wire [7:0]  data,
-		output reg  [15:0] adr,
-		output reg         read,
+		output wire [15:0] adr,
+		output wire        read,
 		output wire        disp_on,
 		output wire        hsync,
 		output wire        vsync,
-		output reg         px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
-		output reg  [1:0]  px,         /* The color of the pixel being shifted out. */
+		output wire        px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
+		output wire [1:0]  px,         /* The color of the pixel being shifted out. */
 	);
 
-	wire        new_need_oam, new_need_vram;
-	wire [15:0] new_adr;
-	wire        new_read;
+	reg r_preg_write; wire preg_write;
 
-	wire       new_px_out;
-	wire [1:0] new_px;
-	reg  [7:0] px_cnt;     /* number of pixels shifted out already for current line (0 .. 160) */
-	wire [7:0] new_px_cnt;
-	reg  [8:0] lx;         /* counts 0 .. 455 */
-	wire [8:0] new_lx;
-	reg  [7:0] ly;         /* counts 0 .. 153 (each time lx resets to 0) */
-	wire [7:0] new_ly;
+	reg        r_need_oam, r_need_vram;
+	reg [15:0] r_adr;
+	reg        r_read;
+
+	reg       r_px_out;
+	reg [1:0] r_px;
+	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 160) */
+	reg [8:0] r_lx;     wire [8:0] lx;     /* counts 0 .. 455 */
+	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0) */
 
 	/* FF40 (LCDC) */
-	reg ppu_ena;   wire new_ppu_ena;   /* bit 7 */
-	reg win_map;   wire new_win_map;   /* bit 6   0: 9800-9bff  1: 9c00-9fff */
-	reg win_ena;   wire new_win_ena;   /* bit 5 */
-	reg bg_tiles;  wire new_bg_tiles;  /* bit 4   0: 8800-97ff  1: 8000-8fff */
-	reg bg_map;    wire new_bg_map;    /* bit 3   0: 9800-9bff  1: 9c00-9fff */
-	reg obj_size;  wire new_obj_size;  /* bit 2   0: 8*8  1: 8*16 */
-	reg obj_ena;   wire new_obj_ena;   /* bit 1 */
-	reg bg_ena;    wire new_bg_ena;    /* bit 0 */
+	reg r_ppu_ena;  wire ppu_ena;  /* bit 7 */
+	reg r_win_map;  wire win_map;  /* bit 6   0: 9800-9bff  1: 9c00-9fff */
+	reg r_win_ena;  wire win_ena;  /* bit 5 */
+	reg r_bg_tiles; wire bg_tiles; /* bit 4   0: 8800-97ff  1: 8000-8fff */
+	reg r_bg_map;   wire bg_map;   /* bit 3   0: 9800-9bff  1: 9c00-9fff */
+	reg r_obj_size; wire obj_size; /* bit 2   0: 8*8  1: 8*16 */
+	reg r_obj_ena;  wire obj_ena;  /* bit 1 */
+	reg r_bg_ena;   wire bg_ena;   /* bit 0 */
 
 	/* FF41 (STAT) */
-	reg sel_lyc;   wire new_sel_lyc;   /* bit 6 */
-	reg sel_mode2; wire new_sel_mode2; /* bit 5 */
-	reg sel_mode1; wire new_sel_mode1; /* bit 4 */
-	reg sel_mode0; wire new_sel_mode0; /* bit 3 */
-	reg lyc_eq;    wire new_lyc_eq;    /* bit 2 */
-	reg  [1:0] mode;                   /* bit 1:0 */
-	wire [1:0] new_mode;
+	reg       r_sel_lyc;   wire       sel_lyc;   /* bit 6 */
+	reg       r_sel_mode2; wire       sel_mode2; /* bit 5 */
+	reg       r_sel_mode1; wire       sel_mode1; /* bit 4 */
+	reg       r_sel_mode0; wire       sel_mode0; /* bit 3 */
+	reg       r_lyc_eq;    wire       lyc_eq;    /* bit 2 */
+	reg [1:0] r_mode;      wire [1:0] mode;      /* bit 1:0 */
 
-	reg  [7:0] scx, scy, lyc, bgp, obp0, obp1, wx, wy;
-	wire [7:0] new_scx, new_scy, new_lyc, new_bgp, new_obp0, new_obp1, new_wx, new_wy;
+	reg [7:0] r_scx;  wire [7:0] scx;
+	reg [7:0] r_scy;  wire [7:0] scy;
+	reg [7:0] r_lyc;  wire [7:0] lyc;
+	reg [7:0] r_bgp;  wire [7:0] bgp;
+	reg [7:0] r_obp0; wire [7:0] obp0;
+	reg [7:0] r_obp1; wire [7:0] obp1;
+	reg [7:0] r_wx;   wire [7:0] wx;
+	reg [7:0] r_wy;   wire [7:0] wy;
 
-	reg  [15:0] fifo1, fifo0;          /* Stores the color of each pixel in the FIFO. (fifo0=LSB, fifo1=MSB) */
-	wire [15:0] new_fifo1, new_fifo0;
-	reg  [15:0] fifo1_src, fifo0_src;  /* Stores the source of each pixel in the FIFO. (fifo0_src=LSB, fifo1_src=MSB) */
-	wire [15:0] new_fifo1_src, new_fifo0_src;
-	reg  [4:0]  fifo_len;              /* Number of pixels in the FIFO. */
-	wire [4:0]  new_fifo_len;
+	reg  [15:0] r_fifo1, r_fifo0;          /* Stores the color of each pixel in the FIFO. (fifo0=LSB, fifo1=MSB) */
+	wire [15:0] fifo1, fifo0;
+	reg  [15:0] r_fifo1_src, r_fifo0_src;  /* Stores the source of each pixel in the FIFO. (fifo0_src=LSB, fifo1_src=MSB) */
+	wire [15:0] fifo1_src, fifo0_src;
+	reg  [4:0]  r_fifo_len;                /* Number of pixels in the FIFO. */
+	wire [4:0]  fifo_len;
 
-	reg  [2:0]  fetch_state;
-	wire [2:0]  new_fetch_state;
-	reg  [1:0]  fetch_src;              /* Stores the source of the pixels currently held in the fetch buffer. */
-	wire [1:0]  new_fetch_src;
-	reg  [7:0]  fetch_tile;             /* Stores the fetched tile number. */
-	wire [7:0]  new_fetch_tile;
-	reg  [7:0]  fetch1, fetch0;         /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
-	wire [7:0]  new_fetch1, new_fetch0;
-	reg  [15:0] fetch_bg_adr;
-	wire [15:0] new_fetch_bg_adr;
+	reg  [2:0]  r_fetch_state;
+	wire [2:0]  fetch_state;
+	reg  [1:0]  r_fetch_src;               /* Stores the source of the pixels currently held in the fetch buffer. */
+	wire [1:0]  fetch_src;
+	reg  [7:0]  r_fetch_tile;              /* Stores the fetched tile number. */
+	wire [7:0]  fetch_tile;
+	reg  [7:0]  r_fetch1, r_fetch0;        /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
+	wire [7:0]  fetch1, fetch0;
+	reg  [15:0] r_fetch_bg_adr;
+	wire [15:0] fetch_bg_adr;
 
 	wire [7:0] px_pal;
 
 	wire [15:0] bg_map_start_adr;
 
-	assign irq_stat =  ((new_lyc_eq    && new_sel_lyc)   ||
-	                    (new_mode == 0 && new_sel_mode0) ||
-	                    (new_mode == 1 && new_sel_mode1) ||
-	                    (new_mode == 2 && new_sel_mode2))   &&
-	                  !((lyc_eq        && sel_lyc)       ||
-	                    (mode == 0     && sel_mode0)     ||
-	                    (mode == 1     && sel_mode1)     ||
-	                    (mode == 2     && sel_mode2));
+	assign irq_stat =  ((lyc_eq      && sel_lyc)     ||
+	                    (mode == 0   && sel_mode0)   ||
+	                    (mode == 1   && sel_mode1)   ||
+	                    (mode == 2   && sel_mode2)) &&
+	                  !((r_lyc_eq    && r_sel_lyc)   ||
+	                    (r_mode == 0 && r_sel_mode0) ||
+	                    (r_mode == 1 && r_sel_mode1) ||
+	                    (r_mode == 2 && r_sel_mode2));
 
-	assign irq_vblank = new_lx == 0 && new_ly == 144;
+	assign irq_vblank = lx == 0 && ly == 144;
 
 	assign disp_on = ppu_ena;
 	assign hsync   = ppu_ena && lx == 0;
 	assign vsync   = hsync && ly == 0;
 
-	assign bg_map_start_adr  = new_bg_map   ? 'h9c00 : 'h9800;
+	assign bg_map_start_adr = bg_map ? 'h9c00 : 'h9800;
 
 	always @(posedge reg_read) begin
 		case (reg_adr)
-		'h0: reg_dout <= { ppu_ena, win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena };
-		'h1: reg_dout <= { 1'b1, sel_lyc, sel_mode2, sel_mode1, sel_mode0, lyc_eq, mode };
-		'h2: reg_dout <= scy;
-		'h3: reg_dout <= scx;
-		'h4: reg_dout <= ly;
-		'h5: reg_dout <= lyc;
-		'h7: reg_dout <= bgp;
-		'h8: reg_dout <= obp0;
-		'h9: reg_dout <= obp1;
-		'ha: reg_dout <= wy;
-		'hb: reg_dout <= wx;
+		'h0: reg_dout <= { r_ppu_ena, r_win_map, r_win_ena, r_bg_tiles, r_bg_map, r_obj_size, r_obj_ena, r_bg_ena };
+		'h1: reg_dout <= { 1'b1, r_sel_lyc, r_sel_mode2, r_sel_mode1, r_sel_mode0, r_lyc_eq, r_mode };
+		'h2: reg_dout <= r_scy;
+		'h3: reg_dout <= r_scx;
+		'h4: reg_dout <= r_ly;
+		'h5: reg_dout <= r_lyc;
+		'h7: reg_dout <= r_bgp;
+		'h8: reg_dout <= r_obp0;
+		'h9: reg_dout <= r_obp1;
+		'ha: reg_dout <= r_wy;
+		'hb: reg_dout <= r_wx;
 		default: reg_dout <= 'hff;
 		endcase
 	end
 
 	always @* begin
-		new_need_oam  = need_oam;
-		new_need_vram = need_vram;
-		new_adr       = adr;
-		new_read      = read;
+		preg_write = reg_write;
 
-		new_px_out = 0;
-		new_px     = 'bx;
-		new_px_cnt = px_cnt;
-		new_lx     = lx + 1;
-		new_ly     = ly;
+		need_oam  = r_need_oam;
+		need_vram = r_need_vram;
+		adr       = r_adr;
+		read      = r_read;
 
-		new_ppu_ena  = ppu_ena;
-		new_win_map  = win_map;
-		new_win_ena  = win_ena;
-		new_bg_tiles = bg_tiles;
-		new_bg_map   = bg_map;
-		new_obj_size = obj_size;
-		new_obj_ena  = obj_ena;
-		new_bg_ena   = bg_ena;
+		px_out = 0;
+		px     = 'bx;
+		px_cnt = r_px_cnt;
+		lx     = r_lx + 1;
+		ly     = r_ly;
 
-		new_sel_lyc   = sel_lyc;
-		new_sel_mode2 = sel_mode2;
-		new_sel_mode1 = sel_mode1;
-		new_sel_mode0 = sel_mode0;
-		new_lyc_eq    = lyc_eq;
-		new_mode      = mode;
+		ppu_ena  = r_ppu_ena;
+		win_map  = r_win_map;
+		win_ena  = r_win_ena;
+		bg_tiles = r_bg_tiles;
+		bg_map   = r_bg_map;
+		obj_size = r_obj_size;
+		obj_ena  = r_obj_ena;
+		bg_ena   = r_bg_ena;
 
-		new_scx  = scx;
-		new_scy  = scy;
-		new_lyc  = lyc;
-		new_bgp  = bgp;
-		new_obp0 = obp0;
-		new_obp1 = obp1;
-		new_wx   = wx;
-		new_wy   = wy;
+		sel_lyc   = r_sel_lyc;
+		sel_mode2 = r_sel_mode2;
+		sel_mode1 = r_sel_mode1;
+		sel_mode0 = r_sel_mode0;
+		lyc_eq    = r_lyc_eq;
+		mode      = r_mode;
 
-		new_fifo0     = fifo0;
-		new_fifo1     = fifo1;
-		new_fifo0_src = fifo0_src;
-		new_fifo1_src = fifo1_src;
-		new_fifo_len  = fifo_len;
+		scx  = r_scx;
+		scy  = r_scy;
+		lyc  = r_lyc;
+		bgp  = r_bgp;
+		obp0 = r_obp0;
+		obp1 = r_obp1;
+		wx   = r_wx;
+		wy   = r_wy;
 
-		new_fetch_state  = fetch_state;
-		new_fetch_src    = fetch_src;
-		new_fetch_tile   = fetch_tile;
-		new_fetch0       = fetch0;
-		new_fetch1       = fetch1;
-		new_fetch_bg_adr = fetch_bg_adr;
+		fifo0     = r_fifo0;
+		fifo1     = r_fifo1;
+		fifo0_src = r_fifo0_src;
+		fifo1_src = r_fifo1_src;
+		fifo_len  = r_fifo_len;
 
-		if (new_lx == 456) begin
-			new_px_cnt = 0;
-			new_lx     = 0;
-			new_ly     = ly + 1;
-			if (new_ly == 154)
-				new_ly = 0;
+		fetch_state  = r_fetch_state;
+		fetch_src    = r_fetch_src;
+		fetch_tile   = r_fetch_tile;
+		fetch0       = r_fetch0;
+		fetch1       = r_fetch1;
+		fetch_bg_adr = r_fetch_bg_adr;
+
+		if (lx == 456) begin
+			px_cnt = 0;
+			lx     = 0;
+			ly     = r_ly + 1;
+			if (ly == 154)
+				ly = 0;
 		end else
 
-		if (reg_write) case (reg_adr)
+		if (r_preg_write && !reg_write) case (reg_adr)
 		'h0:
 			begin
-				{ new_win_map, new_win_ena, new_bg_tiles, new_bg_map, new_obj_size, new_obj_ena, new_bg_ena } = reg_din[6:0];
+				{ win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena } = reg_din[6:0];
 				if (reg_din[7])
-					new_ppu_ena = 1;
-				if (!reg_din[7] && new_ly >= 144)
-					new_ppu_ena = 0;
+					ppu_ena = 1;
+				if (!reg_din[7] && ly >= 144)
+					ppu_ena = 0;
 			end
-		'h1: { new_sel_lyc, new_sel_mode2, new_sel_mode1, new_sel_mode0 } = reg_din[6:3];
-		'h2: new_scy  = reg_din;
-		'h3: new_scx  = reg_din;
-		'h4: new_ly   = 0;
-		'h5: new_lyc  = reg_din;
-		'h7: new_bgp  = reg_din;
-		'h8: new_obp0 = reg_din;
-		'h9: new_obp1 = reg_din;
-		'ha: new_wy   = reg_din;
-		'hb: new_wx   = reg_din;
+		'h1: { sel_lyc, sel_mode2, sel_mode1, sel_mode0 } = reg_din[6:3];
+		'h2: scy  = reg_din;
+		'h3: scx  = reg_din;
+		'h4: ly   = 0;
+		'h5: lyc  = reg_din;
+		'h7: bgp  = reg_din;
+		'h8: obp0 = reg_din;
+		'h9: obp1 = reg_din;
+		'ha: wy   = reg_din;
+		'hb: wx   = reg_din;
 		endcase
 
-		new_need_oam  = new_ly < 144 && new_px_cnt != 160;
-		new_need_vram = new_need_oam && new_lx >= 80;
+		need_oam  = ly < 144 && px_cnt != 160;
+		need_vram = need_oam && lx >= 80;
 
-		new_lyc_eq = new_ly == new_lyc;
+		lyc_eq = ly == lyc;
 
-		if (new_ly >= 144)
-			new_mode = `MODE_VBLANK;
-		else if (new_lx < 80)
-			new_mode = `MODE_OAMSRC;
-		else if (new_px_cnt == 160)
-			new_mode = `MODE_HBLANK;
+		if (ly >= 144)
+			mode = `MODE_VBLANK;
+		else if (lx < 80)
+			mode = `MODE_OAMSRC;
+		else if (px_cnt == 160)
+			mode = `MODE_HBLANK;
 		else
-			new_mode = `MODE_PXTRANS;
+			mode = `MODE_PXTRANS;
 
-		if (mode == `MODE_OAMSRC && new_mode == `MODE_PXTRANS) begin
-			new_fetch_bg_adr = bg_map_start_adr + ((scy[7:3] + ly[7:3]) & 31) * 32 + scx[7:3];
-			new_fetch_src    = `SRC_BG;
+		if (r_mode == `MODE_OAMSRC && mode == `MODE_PXTRANS) begin
+			fetch_bg_adr = bg_map_start_adr + ((r_scy[7:3] + r_ly[7:3]) & 31) * 32 + r_scx[7:3];
+			fetch_src    = `SRC_BG;
 		end
 
-		case (new_fetch_state)
+		case (fetch_state)
 		`FETCH_STATE_IDLE:
-			if (new_mode == `MODE_PXTRANS) begin
-				new_fetch_state  = `FETCH_STATE_TILE;
-				new_read         = 1;
+			if (mode == `MODE_PXTRANS) begin
+				fetch_state  = `FETCH_STATE_TILE;
+				read         = 1;
 			end
 		`FETCH_STATE_TILE:
 			begin
-				new_fetch_state  = `FETCH_STATE_PXL0_0;
-				new_read         = 0;
-				new_fetch_tile   = data;
-				new_fetch_bg_adr = fetch_bg_adr + 1;
-				new_adr[15:12]   = 'h8 | (!bg_tiles && !fetch_tile[7]);
-				new_adr[11:4]    = fetch_tile;
-				new_adr[3:1]     = scy[2:0] + ly[2:0];
-				new_adr[0]       = 0;
+				fetch_state  = `FETCH_STATE_PXL0_0;
+				read         = 0;
+				fetch_tile   = data;
+				fetch_bg_adr = r_fetch_bg_adr + 1;
+				adr[15:12]   = 'h8 | (!r_bg_tiles && !r_fetch_tile[7]);
+				adr[11:4]    = r_fetch_tile;
+				adr[3:1]     = r_scy[2:0] + r_ly[2:0];
+				adr[0]       = 0;
 			end
 		`FETCH_STATE_PXL0_0:
 			begin
-				new_fetch_state  = `FETCH_STATE_PXL0_1;
-				new_read         = 1;
+				fetch_state  = `FETCH_STATE_PXL0_1;
+				read         = 1;
 			end
 		`FETCH_STATE_PXL0_1:
 			begin
-				new_fetch_state  = `FETCH_STATE_PXL1_0;
-				new_read         = 0;
-				new_fetch0       = data;
-				new_adr[0]       = 1;
+				fetch_state  = `FETCH_STATE_PXL1_0;
+				read         = 0;
+				fetch0       = data;
+				adr[0]       = 1;
 			end
 		`FETCH_STATE_PXL1_0:
 			begin
-				new_fetch_state  = `FETCH_STATE_PXL1_1;
-				new_read         = 1;
+				fetch_state  = `FETCH_STATE_PXL1_1;
+				read         = 1;
 			end
 		`FETCH_STATE_PXL1_1:
 			begin
-				new_fetch_state  = `FETCH_STATE_BLOCK;
-				new_read         = 0;
-				new_fetch1       = data;
+				fetch_state  = `FETCH_STATE_BLOCK;
+				read         = 0;
+				fetch1       = data;
 			end
 		endcase
 
-		if ((new_fifo_len == 8 || new_fifo_len == 0) &&
-		    (new_fetch_state == `FETCH_STATE_BLOCK)) begin
-			new_fetch_state = `FETCH_STATE_IDLE;
-			if (!new_fifo_len) begin
-				new_fifo0[15:8]     = new_fetch0;
-				new_fifo1[15:8]     = new_fetch1;
-				new_fifo0_src[15:8] = { 8{new_fetch_src[0]} };
-				new_fifo1_src[15:8] = { 8{new_fetch_src[1]} };
-				new_fifo_len        = 8;
+		if ((fifo_len == 8 || fifo_len == 0) &&
+		    (fetch_state == `FETCH_STATE_BLOCK)) begin
+			fetch_state = `FETCH_STATE_IDLE;
+			if (!fifo_len) begin
+				fifo0[15:8]     = fetch0;
+				fifo1[15:8]     = fetch1;
+				fifo0_src[15:8] = { 8{fetch_src[0]} };
+				fifo1_src[15:8] = { 8{fetch_src[1]} };
+				fifo_len        = 8;
 			end else begin
-				new_fifo0[7:0]      = new_fetch0;
-				new_fifo1[7:0]      = new_fetch1;
-				new_fifo0_src[7:0]  = { 8{new_fetch_src[0]} };
-				new_fifo1_src[7:0]  = { 8{new_fetch_src[1]} };
-				new_fifo_len        = 16;
+				fifo0[7:0]      = fetch0;
+				fifo1[7:0]      = fetch1;
+				fifo0_src[7:0]  = { 8{fetch_src[0]} };
+				fifo1_src[7:0]  = { 8{fetch_src[1]} };
+				fifo_len        = 16;
 			end
 		end
 
-		case ({ new_fifo1_src[15], new_fifo0_src[15] })
-		`SRC_BG, `SRC_WD: px_pal = new_bgp;
-		`SRC_O0:          px_pal = new_obp0;
-		`SRC_O1:          px_pal = new_obp1;
+		case ({ fifo1_src[15], fifo0_src[15] })
+		`SRC_BG, `SRC_WD: px_pal = bgp;
+		`SRC_O0:          px_pal = obp0;
+		`SRC_O1:          px_pal = obp1;
 		endcase
 
-		case ({ new_fifo1[15], new_fifo0[15] })
-		0: new_px = px_pal[1:0];
-		1: new_px = px_pal[3:2];
-		2: new_px = px_pal[5:4];
-		3: new_px = px_pal[7:6];
+		case ({ fifo1[15], fifo0[15] })
+		0: px = px_pal[1:0];
+		1: px = px_pal[3:2];
+		2: px = px_pal[5:4];
+		3: px = px_pal[7:6];
 		endcase
 
-		if (new_mode == `MODE_PXTRANS && new_fifo_len > 8) begin
-			new_px_out    = 1;
-			new_px_cnt    = new_px_cnt + 1;
-			new_fifo_len  = new_fifo_len - 1;
-			new_fifo0     = { new_fifo0[14:0], 1'bx };
-			new_fifo1     = { new_fifo1[14:0], 1'bx };
-			new_fifo0_src = { new_fifo0_src[14:0], 1'bx };
-			new_fifo1_src = { new_fifo1_src[14:0], 1'bx };
+		if (mode == `MODE_PXTRANS && fifo_len > 8) begin
+			px_out    = 1;
+			px_cnt    = px_cnt + 1;
+			fifo_len  = fifo_len - 1;
+			fifo0     = { fifo0[14:0], 1'bx };
+			fifo1     = { fifo1[14:0], 1'bx };
+			fifo0_src = { fifo0_src[14:0], 1'bx };
+			fifo1_src = { fifo1_src[14:0], 1'bx };
 		end
 
-		if (new_px_cnt == 160) begin
-			new_fifo_len    = 0;
-			new_fetch_state = `FETCH_STATE_IDLE;
-			new_read        = 0;
+		if (px_cnt == 160) begin
+			fifo_len    = 0;
+			fetch_state = `FETCH_STATE_IDLE;
+			read        = 0;
 		end
 
-		if (new_fetch_state == `FETCH_STATE_BLOCK && new_fifo_len <= 8)
-			new_fetch_state = `FETCH_STATE_IDLE;
+		if (fetch_state == `FETCH_STATE_BLOCK && fifo_len <= 8)
+			fetch_state = `FETCH_STATE_IDLE;
 
-		if (new_fetch_state == `FETCH_STATE_IDLE && new_mode == `MODE_PXTRANS && new_fetch_src == `SRC_BG)
-			new_adr = new_fetch_bg_adr;
+		if (fetch_state == `FETCH_STATE_IDLE && mode == `MODE_PXTRANS && fetch_src == `SRC_BG)
+			adr = fetch_bg_adr;
 
 		if (reset) begin
-			new_ppu_ena  = 0;
-			new_win_map  = 0;
-			new_win_ena  = 0;
-			new_bg_tiles = 0;
-			new_bg_map   = 0;
-			new_obj_size = 0;
-			new_obj_ena  = 0;
-			new_bg_ena   = 0;
+			preg_write = 0;
 
-			new_sel_lyc   = 0;
-			new_sel_mode2 = 0;
-			new_sel_mode1 = 0;
-			new_sel_mode0 = 0;
+			ppu_ena  = 0;
+			win_map  = 0;
+			win_ena  = 0;
+			bg_tiles = 0;
+			bg_map   = 0;
+			obj_size = 0;
+			obj_ena  = 0;
+			bg_ena   = 0;
 
-			new_scx  = 0;
-			new_scy  = 0;
-			new_lyc  = 0;
-			new_bgp  = 0;
-			new_obp0 = 0;
-			new_obp1 = 0;
-			new_wx   = 0;
-			new_wy   = 0;
+			sel_lyc   = 0;
+			sel_mode2 = 0;
+			sel_mode1 = 0;
+			sel_mode0 = 0;
+
+			scx  = 0;
+			scy  = 0;
+			lyc  = 0;
+			bgp  = 0;
+			obp0 = 0;
+			obp1 = 0;
+			wx   = 0;
+			wy   = 0;
 		end
 
-		if (!new_ppu_ena) begin
-			new_need_oam  = 0;
-			new_need_vram = 0;
-			new_adr       = 'bx;
-			new_read      = 0;
+		if (!ppu_ena) begin
+			need_oam  = 0;
+			need_vram = 0;
+			adr       = 'bx;
+			read      = 0;
 
-			new_px_out = 0;
-			new_px     = 'bx;
-			new_px_cnt = 0;
-			new_lx     = 0;
-			new_ly     = 0;
+			px_out = 0;
+			px     = 'bx;
+			px_cnt = 0;
+			lx     = 0;
+			ly     = 0;
 
-			new_lyc_eq = 0;
-			new_mode   = 0;
+			lyc_eq = 0;
+			mode   = 0;
 
-			new_fifo0     = 'bx;
-			new_fifo1     = 'bx;
-			new_fifo0_src = 'bx;
-			new_fifo1_src = 'bx;
-			new_fifo_len  = 0;
+			fifo0     = 'bx;
+			fifo1     = 'bx;
+			fifo0_src = 'bx;
+			fifo1_src = 'bx;
+			fifo_len  = 0;
 
-			new_fetch_state  = `FETCH_STATE_IDLE;
-			new_fetch_src    = 'bx;
-			new_fetch_tile   = 'bx;
-			new_fetch0       = 'bx;
-			new_fetch1       = 'bx;
-			new_fetch_bg_adr = 'bx;
+			fetch_state  = `FETCH_STATE_IDLE;
+			fetch_src    = 'bx;
+			fetch_tile   = 'bx;
+			fetch0       = 'bx;
+			fetch1       = 'bx;
+			fetch_bg_adr = 'bx;
 		end
 	end
 
 	always @(posedge clk) begin
-		need_oam  <= new_need_oam;
-		need_vram <= new_need_vram;
-		adr       <= new_adr;
-		read      <= new_read;
+		r_preg_write <= preg_write;
 
-		px_out <= new_px_out;
-		px     <= new_px;
-		px_cnt <= new_px_cnt;
-		lx     <= new_lx;
-		ly     <= new_ly;
+		r_need_oam  <= need_oam;
+		r_need_vram <= need_vram;
+		r_adr       <= adr;
+		r_read      <= read;
 
-		ppu_ena  <= new_ppu_ena;
-		win_map  <= new_win_map;
-		win_ena  <= new_win_ena;
-		bg_tiles <= new_bg_tiles;
-		bg_map   <= new_bg_map;
-		obj_size <= new_obj_size;
-		obj_ena  <= new_obj_ena;
-		bg_ena   <= new_bg_ena;
+		r_px_out <= px_out;
+		r_px     <= px;
+		r_px_cnt <= px_cnt;
+		r_lx     <= lx;
+		r_ly     <= ly;
 
-		sel_lyc   <= new_sel_lyc;
-		sel_mode2 <= new_sel_mode2;
-		sel_mode1 <= new_sel_mode1;
-		sel_mode0 <= new_sel_mode0;
-		lyc_eq    <= new_lyc_eq;
-		mode      <= new_mode;
+		r_ppu_ena  <= ppu_ena;
+		r_win_map  <= win_map;
+		r_win_ena  <= win_ena;
+		r_bg_tiles <= bg_tiles;
+		r_bg_map   <= bg_map;
+		r_obj_size <= obj_size;
+		r_obj_ena  <= obj_ena;
+		r_bg_ena   <= bg_ena;
 
-		scx  <= new_scx;
-		scy  <= new_scy;
-		lyc  <= new_lyc;
-		bgp  <= new_bgp;
-		obp0 <= new_obp0;
-		obp1 <= new_obp1;
-		wx   <= new_wx;
-		wy   <= new_wy;
+		r_sel_lyc   <= sel_lyc;
+		r_sel_mode2 <= sel_mode2;
+		r_sel_mode1 <= sel_mode1;
+		r_sel_mode0 <= sel_mode0;
+		r_lyc_eq    <= lyc_eq;
+		r_mode      <= mode;
 
-		fifo0     <= new_fifo0;
-		fifo1     <= new_fifo1;
-		fifo0_src <= new_fifo0_src;
-		fifo1_src <= new_fifo1_src;
-		fifo_len  <= new_fifo_len;
+		r_scx  <= scx;
+		r_scy  <= scy;
+		r_lyc  <= lyc;
+		r_bgp  <= bgp;
+		r_obp0 <= obp0;
+		r_obp1 <= obp1;
+		r_wx   <= wx;
+		r_wy   <= wy;
 
-		fetch_state  <= new_fetch_state;
-		fetch_src    <= new_fetch_src;
-		fetch_tile   <= new_fetch_tile;
-		fetch0       <= new_fetch0;
-		fetch1       <= new_fetch1;
-		fetch_bg_adr <= new_fetch_bg_adr;
+		r_fifo0     <= fifo0;
+		r_fifo1     <= fifo1;
+		r_fifo0_src <= fifo0_src;
+		r_fifo1_src <= fifo1_src;
+		r_fifo_len  <= fifo_len;
+
+		r_fetch_state  <= fetch_state;
+		r_fetch_src    <= fetch_src;
+		r_fetch_tile   <= fetch_tile;
+		r_fetch0       <= fetch0;
+		r_fetch1       <= fetch1;
+		r_fetch_bg_adr <= fetch_bg_adr;
 	end
 
 endmodule

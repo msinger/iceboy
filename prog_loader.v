@@ -13,115 +13,116 @@
 (* nolatches *)
 module prog_loader(
 		input  wire        clk,
-		output reg  [20:0] adr,
-		output reg  [7:0]  data,
-		output reg         write,
+		output wire [20:0] adr,
+		output wire [7:0]  data,
+		output wire        write,
 		input  wire        reset,
 
+		input  wire        uart_clk,
 		input  wire        rx,
 	);
 
-	reg [20:0] new_adr;
-	reg        new_write;
+	reg [20:0] r_adr;
+	reg [7:0]  r_data;
 
-	reg [7:0]  new_data;
+	reg [1:0]  r_wr_state; wire [1:0] wr_state;
 
-	reg [1:0]  wr_state, new_wr_state;
+	reg [1:0]  r_rx_state;
+	reg [2:0]  r_cur_bit;
+	reg [3:0]  r_sub_count;
+	reg [7:0]  r_shift;
+	reg        r_data_in_seq;
+	reg        r_data_out_seq; wire data_out_seq;
 
-	reg [1:0]  rx_state;
-	reg [2:0]  cur_bit;
-	reg [3:0]  sub_count;
-	reg [7:0]  shift;
-	reg        data_in_seq, data_out_seq, new_data_out_seq;
+	always @* begin
+		adr          = r_adr;
+		data         = r_data;
+		write        = 0;
+		wr_state     = r_wr_state;
+		data_out_seq = r_data_out_seq;
 
-	always @(*) begin
-		new_adr          = adr;
-		new_data         = data;
-		new_write        = write;
-		new_wr_state     = wr_state;
-		new_data_out_seq = data_out_seq;
-
-		case (wr_state)
+		case (r_wr_state)
 		`WR_IDLE:
-			if (data_in_seq != data_out_seq) begin
-				new_data_out_seq = data_in_seq;
-				new_data         = shift;
-				new_wr_state     = `WR_AD_LATCH;
+			if (r_data_in_seq != r_data_out_seq) begin
+				data_out_seq = r_data_in_seq;
+				data         = r_shift;
+				wr_state     = `WR_AD_LATCH;
 			end
 		`WR_AD_LATCH:
 			begin
-				new_write    = 1;
-				new_wr_state = `WR_WRITE;
+				write    = 1;
+				wr_state = `WR_WRITE;
 			end
 		`WR_WRITE:
 			begin
-				new_write    = 0;
-				new_wr_state = `WR_INC;
+				wr_state = `WR_INC;
 			end
 		`WR_INC:
 			begin
-				new_adr      = adr + 1;
-				new_wr_state = `WR_IDLE;
+				adr      = r_adr + 1;
+				wr_state = `WR_IDLE;
 			end
 		endcase
 
 		if (reset) begin
-			new_adr          = 0;
-			new_data         = 0;
-			new_write        = 0;
-			new_wr_state     = `WR_IDLE;
-			new_data_out_seq = data_in_seq;
+			adr          = 0;
+			data         = 'bx;
+			write        = 0;
+			wr_state     = `WR_IDLE;
+			data_out_seq = r_data_in_seq;
 		end
 	end
 
 	always @(posedge clk) begin
-		{ adr, data, write, wr_state, data_out_seq } <=
-			{ new_adr, new_data, new_write, new_wr_state, new_data_out_seq };
+		r_adr          <= adr;
+		r_data         <= data;
+		r_wr_state     <= wr_state;
+		r_data_out_seq <= data_out_seq;
 	end
 
-	always @(posedge clk) begin
-		case (rx_state)
+	always @(posedge uart_clk) begin
+		case (r_rx_state)
 		`RX_IDLE:
 			begin
 				if (!rx) begin
-					rx_state  <= `RX_STARTBIT;
-					sub_count <= 6;
-					cur_bit   <= 0;
+					r_rx_state  <= `RX_STARTBIT;
+					r_sub_count <= 6;
+					r_cur_bit   <= 0;
 				end
 			end
 		`RX_STARTBIT:
 			begin
-				if (sub_count == 11) begin
-					rx_state  <= !rx ? `RX_DATABIT : `RX_IDLE;
-					sub_count <= 0;
+				if (r_sub_count == 11) begin
+					r_rx_state  <= !rx ? `RX_DATABIT : `RX_IDLE;
+					r_sub_count <= 0;
 				end else
-					sub_count <= sub_count + 1;
+					r_sub_count <= r_sub_count + 1;
 			end
 		`RX_DATABIT:
 			begin
-				if (sub_count == 11) begin
-					shift <= { rx, shift[7:1] };
-					if (cur_bit == 7)
-						rx_state <= `RX_STOPBIT;
+				if (r_sub_count == 11) begin
+					r_shift <= { rx, r_shift[7:1] };
+					if (r_cur_bit == 7)
+						r_rx_state <= `RX_STOPBIT;
 					else
-						cur_bit <= cur_bit + 1;
-					sub_count <= 0;
+						r_cur_bit <= r_cur_bit + 1;
+					r_sub_count <= 0;
 				end else
-					sub_count <= sub_count + 1;
+					r_sub_count <= r_sub_count + 1;
 			end
 		`RX_STOPBIT:
 			begin
-				if (sub_count == 11) begin
-					rx_state <= `RX_IDLE;
+				if (r_sub_count == 11) begin
+					r_rx_state <= `RX_IDLE;
 					if (rx)
-						data_in_seq <= !data_in_seq;
+						r_data_in_seq <= !r_data_in_seq;
 				end else
-					sub_count <= sub_count + 1;
+					r_sub_count <= r_sub_count + 1;
 			end
 		endcase
 
 		if (reset) begin
-			rx_state <= `RX_IDLE;
+			r_rx_state <= `RX_IDLE;
 		end
 	end
 

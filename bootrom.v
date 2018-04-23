@@ -9,8 +9,10 @@ module gb_bootrom(
 		input  wire       write_reg,
 		input  wire       clk,
 		input  wire       reset,
-		output reg        hide,
+		output reg        r_hide,
 	);
+
+	wire hide;
 
 	reg [7:0] rom[0:255];
 	initial $readmemh("bootrom.hex", rom, 0, 255);
@@ -19,12 +21,16 @@ module gb_bootrom(
 		dout <= rom[adr];
 	end
 
-	always @(posedge clk) begin
+	always @* begin
+		hide = r_hide;
+		if (write_reg)
+			hide = 1;
 		if (reset)
-			hide <= 0;
-		else if (write_reg)
-			hide <= 1;
+			hide = 0;
 	end
+
+	always @(posedge clk)
+		r_hide <= hide;
 
 endmodule
 

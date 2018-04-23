@@ -18,6 +18,8 @@ module lr35902_sio_dummy(
 	reg [8:0] clk_count;
 	reg [2:0] bit_count;
 
+	reg pwrite;
+
 	always @(posedge read) begin
 		case (adr)
 		1: dout <= sb;
@@ -41,7 +43,7 @@ module lr35902_sio_dummy(
 			end
 		end
 
-		if (write) case (adr)
+		if (pwrite && !write) case (adr)
 		1: sb <= din;
 		0:
 			begin
@@ -55,12 +57,15 @@ module lr35902_sio_dummy(
 			end
 		endcase
 
+		pwrite <= write;
+
 		if (reset) begin
 			sb        <= 0;
 			tstart    <= 0;
 			sclk      <= 0;
 			clk_count <= 0;
 			bit_count <= 0;
+			pwrite    <= 0;
 			irq       <= 0;
 		end
 	end

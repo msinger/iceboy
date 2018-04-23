@@ -17,6 +17,8 @@ module lr35902_tim(
 
 	reg [9:0] count;
 
+	reg pwrite;
+
 	wire incr, incr_div;
 
 	always @(posedge read) begin
@@ -57,20 +59,23 @@ module lr35902_tim(
 		if (incr_div)
 			div <= div + 1;
 
-		if (write) case (adr)
+		if (pwrite && !write) case (adr)
 		0: div  <= 0;
 		1: tima <= din;
 		2: tma  <= din;
 		3: tac  <= din;
 		endcase
 
+		pwrite <= write;
+
 		if (reset) begin
-			div   <= 0;
-			count <= 0;
-			tima  <= 0;
-			tma   <= 0;
-			tac   <= 0;
-			irq   <= 0;
+			div    <= 0;
+			count  <= 0;
+			pwrite <= 0;
+			tima   <= 0;
+			tma    <= 0;
+			tac    <= 0;
+			irq    <= 0;
 		end
 	end
 

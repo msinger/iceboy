@@ -14,7 +14,6 @@ module top(
 		output wire        n_cs_cart, /* chip select for cartridge */
 		output wire        n_cs_crom, /* chip select for cartridge ROM (only when emulating MBC chip) */
 		output wire        n_cs_cram, /* chip select for cartridge RAM (only when emulating MBC chip) */
-		output wire        n_cs_vid,  /* chip select for video hardware (VRAM, OAM, PPU) */
 		input  wire        n_reset,   /* Reset input */
 		output wire        n_vreset,  /* Reset output to video hardware */
 		input  wire        rx,        /* UART RX for prog loader and debugger */
@@ -39,28 +38,35 @@ module top(
 		output wire        p15,
 	);
 
-	reg [3:0] reset_ticks = 0;
-	reg [3:0] initial_reset_ticks = 0;
-	reg       prev_n_reset;
-	wire      reset_done, initial_reset_done, reset_gb, reset_ld, gb_on;
+	reg  [3:0] r_reset_ticks         = 0; wire [3:0] reset_ticks;
+	reg  [3:0] r_initial_reset_ticks = 0; wire [3:0] initial_reset_ticks;
+	reg        r_reset_done          = 0; wire       reset_done;
+	reg        r_initial_reset_done  = 0; wire       initial_reset_done;
+	reg        r_reset_gb            = 1; wire       reset_gb;
+	reg        r_reset_ld            = 1; wire       reset_ld;
+	reg        r_gb_on               = 0; wire       gb_on;
 
 	wire       pllclk;
 	wire       gbclk_stable;
-	reg  [2:0] clkdiv5;
+	reg  [2:0] r_clkdiv5;
 
 	wire [15:0] adr_cpu;
 	wire [15:0] adr_dma;
 	wire [15:0] adr_ext;
 	wire [20:0] adr21, adr21_prog;
 
+	wire n_emu_mbc_in, n_reset_in, rx_in;
+	wire chl_out, chr_out, chm_out;
+
 	wire n_dmadrv_in, n_irq_vb_in, n_irq_st_in;
 	wire p10_in, p11_in, p12_in, p13_in;
+	wire p14_out, p15_out;
 
 	wire rd_cpu, wr_cpu;
 	wire rd_dma, n_rd_dma;
 	wire rd_ext, wr_ext;
 	wire wr_prog;
-	wire cs_ext, cs_ram, cs_cart, cs_crom, cs_cram, cs_vram, cs_oam, cs_vid;
+	wire cs_ext, cs_ram, cs_cart, cs_crom, cs_cram, cs_vram, cs_oam;
 	wire cscpu_ext, cscpu_ram, cscpu_cart, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
 	wire csdma_ext, csdma_ram, csdma_cart, csdma_vram;
 	wire cs_io_joypad, cs_io_serial, cs_io_timer, cs_io_int_flag;
@@ -92,39 +98,147 @@ module top(
 	wire hide_bootrom;
 
 	SB_IO #(
-			.PIN_TYPE('b 1010_01),
+			.PIN_TYPE('b 0101_01),
+		) adr_io[20:0] (
+			.PACKAGE_PIN(adr),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(gb_on ? adr21 : adr21_prog),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 1101_01),
 			.PULLUP(1),
-		) data_io [7:0] (
+		) data_io[7:0] (
 			.PACKAGE_PIN(data),
+			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && (gb_on ? ddrv_cpu : 1)),
 			.D_OUT_0(gb_on ? data_cpu_out : data_prog_out),
 			.D_IN_0(data_ext_in),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 1010_01),
+			.PIN_TYPE('b 0101_01),
+		) n_read_io (
+			.PACKAGE_PIN(n_read),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!rd_ext),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_write_io (
+			.PACKAGE_PIN(n_write),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || (gb_on ? (cs_crom || !wr_ext) : !wr_prog)), /* suppress outgoing n_write if rom is selected */
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
 			.PULLUP(1),
-		) vdata_io [7:0] (
+		) n_emu_mbc_io (
+			.PACKAGE_PIN(n_emu_mbc),
+			.D_IN_0(n_emu_mbc_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_cs_ram_io (
+			.PACKAGE_PIN(n_cs_ram),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!cs_ram),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_cs_cart_io (
+			.PACKAGE_PIN(n_cs_cart),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !cs_cart),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_cs_crom_io (
+			.PACKAGE_PIN(n_cs_crom),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || (gb_on ? !cs_crom : 0)),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_cs_cram_io (
+			.PACKAGE_PIN(n_cs_cram),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !cs_cram),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) n_reset_io (
+			.PACKAGE_PIN(n_reset),
+			.D_IN_0(n_reset_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) rx_io (
+			.PACKAGE_PIN(rx),
+			.D_IN_0(rx_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) chl_io (
+			.PACKAGE_PIN(chl),
+			.OUTPUT_CLK(pllclk),
+			.D_OUT_0(chl_out),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) chr_io (
+			.PACKAGE_PIN(chr),
+			.OUTPUT_CLK(pllclk),
+			.D_OUT_0(chr_out),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) chm_io (
+			.PACKAGE_PIN(chm),
+			.OUTPUT_CLK(pllclk),
+			.D_OUT_0(chm_out),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 1110_01),
+			.PULLUP(1),
+		) vdata_io[7:0] (
 			.PACKAGE_PIN(vdata),
+			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && (dma_active || ddrv_cpu)),
 			.D_OUT_0(dma_active ? data_ext_in : data_cpu_out),
 			.D_IN_0(data_vid_in),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 1010_01),
-		) vadr_io [15:0] (
+			.PIN_TYPE('b 1110_01),
+		) vadr_io[15:0] (
 			.PACKAGE_PIN(vadr),
+			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && !dma_active),
 			.D_OUT_0(adr_cpu),
 			.D_IN_0(adr_dma),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 1010_01),
+			.PIN_TYPE('b 1110_01),
 			.PULLUP(1),
 		) n_vread_io (
 			.PACKAGE_PIN(n_vread),
+			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && !dma_active),
 			.D_OUT_0(!rd_cpu),
 			.D_IN_0(n_rd_dma),
@@ -186,6 +300,22 @@ module top(
 			.D_IN_0(p13_in),
 		);
 
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) p14_io (
+			.PACKAGE_PIN(p14),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(p14_out),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) p15_io (
+			.PACKAGE_PIN(p15),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(p15_out),
+		);
+
 	always @* begin
 		data_cpu_in = 'hff;
 
@@ -205,7 +335,7 @@ module top(
 			data_cpu_in = data_cpureg_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
-		cs_vid && !dma_active:
+		(cs_vram || cs_oam || cs_io_ppu) && !dma_active:
 			data_cpu_in = data_vid_in;
 		cscpu_ext && !csdma_ext:
 			data_cpu_in = data_ext_in;
@@ -223,7 +353,7 @@ module top(
 		end else begin
 			adr_ext = adr_cpu;
 			rd_ext = rd_cpu;
-			wr_ext = wr_cpu && cs_ext;
+			wr_ext = wr_cpu;
 		end
 	end
 
@@ -231,21 +361,11 @@ module top(
 	assign irq_ppu_stat   = !n_irq_st_in;
 
 	assign dma_active = !n_dmadrv_in;
-	assign led = { hide_bootrom, gb_on };
-
-	assign n_read    = !rd_ext;
-	assign n_write   = gb_on ? (cs_crom || !wr_ext) : !wr_prog; /* suppress outgoing n_write if rom is selected */
-	assign n_cs_ram  = !cs_ram;
-	assign n_cs_cart = !reset_done || !cs_cart;
-	assign n_cs_crom = !reset_done || (gb_on ? !cs_crom : 0);
-	assign n_cs_cram = !reset_done || !cs_cram;
-	assign n_cs_vid  = !reset_done || !cs_vid;
+	assign led = { hide_bootrom, r_gb_on };
 
 	assign rd_dma    = dma_active && !n_rd_dma;
-	assign n_vwrite  = dma_active || !(cs_vid && wr_cpu);
+	assign n_vwrite  = dma_active || !wr_cpu;
 	assign n_vreset  = !reset_gb;
-
-	assign adr = gb_on ? adr21 : adr21_prog;
 
 	assign cs_ext = cs_ram || cs_cart;
 	assign cscpu_ext = cscpu_ram || cscpu_cart;
@@ -256,33 +376,50 @@ module top(
 	assign cs_vram = cscpu_vram;
 	assign cs_oam = cscpu_oam;
 
-	assign cs_vid = cs_vram || cs_oam || cs_io_ppu;
-
-	assign initial_reset_done = &initial_reset_ticks;
-	assign reset_done = &reset_ticks;
-	assign reset_gb   = !reset_done || !n_reset;
-	assign reset_ld   = !reset_done || n_reset;
-	assign gb_on      = n_reset;
-
-	assign gbclk = clkdiv5[2];
+	assign gbclk = r_clkdiv5[2];
 
 	always @(posedge pllclk)
-		if (clkdiv5 == 4)
-			clkdiv5 <= 0;
+		if (r_clkdiv5 == 5)
+			r_clkdiv5 <= 1;
 		else
-			clkdiv5 <= clkdiv5 + 1;
+			r_clkdiv5 <= r_clkdiv5 + 1;
+
+	always @* begin
+		initial_reset_ticks = r_initial_reset_ticks;
+		initial_reset_done  = r_initial_reset_done;
+		reset_ticks         = r_reset_ticks;
+		reset_done          = r_reset_done;
+		reset_gb            = r_reset_gb;
+		reset_ld            = r_reset_ld;
+		gb_on               = n_reset_in;
+
+		if (!r_initial_reset_done && gbclk_stable)
+			initial_reset_ticks = r_initial_reset_ticks + 1;
+
+		if (&r_initial_reset_ticks)
+			initial_reset_done = 1;
+
+		if (!r_reset_done && r_initial_reset_done)
+			reset_ticks = r_reset_ticks + 1;
+
+		if (r_gb_on != gb_on)
+			reset_ticks = 0;
+
+		if (&r_reset_ticks)
+			reset_done = 1;
+
+		reset_gb = !reset_done || !gb_on;
+		reset_ld = !reset_done || gb_on;
+	end
 
 	always @(posedge gbclk) begin
-		if (!initial_reset_done && gbclk_stable)
-			initial_reset_ticks <= initial_reset_ticks + 1;
-
-		if (!reset_done && gbclk_stable)
-			reset_ticks <= reset_ticks + 1;
-
-		if (prev_n_reset != n_reset) begin
-			prev_n_reset <= n_reset;
-			reset_ticks  <= 0;
-		end
+		r_initial_reset_ticks <= initial_reset_ticks;
+		r_initial_reset_done  <= initial_reset_done;
+		r_reset_ticks         <= reset_ticks;
+		r_reset_done          <= reset_done;
+		r_reset_gb            <= reset_gb;
+		r_reset_ld            <= reset_ld;
+		r_gb_on               <= gb_on;
 	end
 
 	pll gbpll(
@@ -300,11 +437,11 @@ module top(
 		.write(wr_cpu),
 		.read(rd_cpu),
 		.reset(reset_gb),
-		.pc(pc),
-		.sp(sp),
-		.f(flags[7:4]),
-		.ime(ime),
-		.dbg(dbg_probe),
+		.r_pc(pc),
+		.r_sp(sp),
+		.r_f(flags[7:4]),
+		.r_ime(ime),
+		.dbg_probe(dbg_probe),
 		.dbg_halt(halt),
 		.dbg_no_inc(no_inc),
 		.cs_iflag(cs_io_int_flag),
@@ -330,7 +467,7 @@ module top(
 		.no_inc(no_inc),
 		.uart_clk(clk12m),
 		.uart_reset(reset_gb),
-		.rx(rx),
+		.rx(rx_in),
 		.tx(tx),
 		.cts(cts),
 	);
@@ -373,7 +510,7 @@ module top(
 		.reset(reset_gb),
 		.dout(data_joy_out),
 		.din(data_cpu_out),
-		.read(rd_cpu),
+		.read(gbclk),
 		.write(wr_cpu && cs_io_joypad),
 		.clk(gbclk),
 		.irq(irq_joypad),
@@ -381,15 +518,15 @@ module top(
 		.p11(p11_in),
 		.p12(p12_in),
 		.p13(p13_in),
-		.p14(p14),
-		.p15(p15),
+		.p14(p14_out),
+		.p15(p15_out),
 	);
 
 	lr35902_sio_dummy sio(
 		.reset(reset_gb),
 		.dout(data_sio_out),
 		.din(data_cpu_out),
-		.read(rd_cpu),
+		.read(gbclk),
 		.write(wr_cpu && cs_io_serial),
 		.clk(gbclk),
 		.adr(adr_cpu[0]),
@@ -400,7 +537,7 @@ module top(
 		.reset(reset_gb),
 		.dout(data_tim_out),
 		.din(data_cpu_out),
-		.read(rd_cpu),
+		.read(gbclk),
 		.write(wr_cpu && cs_io_timer),
 		.clk(gbclk),
 		.adr(adr_cpu[1:0]),
@@ -411,38 +548,40 @@ module top(
 		.reset(reset_gb),
 		.dout(data_snd_out),
 		.din(data_cpu_out),
-		.read(rd_cpu),
+		.read(gbclk),
 		.write(wr_cpu && cs_io_sound),
 		.clk(gbclk),
 		.pwmclk(pllclk),
 		.adr(adr_cpu[5:0]),
-		.chl(chl),
-		.chr(chr),
-		.chm(chm),
+		.chl(chl_out),
+		.chr(chr_out),
+		.chm(chm_out),
 	);
 
 	gb_bootrom bootrom(
 		.adr(adr_cpu[7:0]),
 		.dout(data_brom_out),
 		.din(data_cpu_out),
-		.read(rd_cpu),
+		.read(gbclk),
 		.write_reg(wr_cpu && cs_io_brom),
 		.clk(gbclk),
 		.reset(reset_gb),
-		.hide(hide_bootrom),
+		.r_hide(hide_bootrom),
 	);
 
+	reg r_wr_hram;
+	always @(posedge gbclk) r_wr_hram <= wr_cpu && cs_io_hram;
 	lr35902_hram hram(
 		.adr(adr_cpu[6:0]),
 		.dout(data_hram_out),
 		.din(data_cpu_out),
-		.read(rd_cpu),
-		.write(wr_cpu && cs_io_hram),
+		.read(gbclk),
+		.write(r_wr_hram),
 	);
 
 	mbc_chip mbc(
 		.clk(gbclk),
-		.write(wr_ext && !n_emu_mbc),
+		.write(wr_ext && !n_emu_mbc_in),
 		.data(data_cpu_out),
 		.iadr(adr_ext),
 		.oadr(adr21),
@@ -453,12 +592,13 @@ module top(
 	);
 
 	prog_loader loader(
-		.clk(clk12m),
+		.clk(gbclk),
 		.write(wr_prog),
 		.data(data_prog_out),
 		.adr(adr21_prog),
 		.reset(reset_ld),
-		.rx(rx),
+		.uart_clk(clk12m),
+		.rx(rx_in),
 	);
 
 endmodule

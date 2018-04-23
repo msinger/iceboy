@@ -112,9 +112,6 @@ set_io vdata[7]  M11
 set_io n_vread   P10
 set_io n_vwrite  T10
 
-# Video Chip Select
-set_io n_cs_vid  T11
-
 # Video Interrupts
 set_io n_irq_vb  T8
 set_io n_irq_st  T6

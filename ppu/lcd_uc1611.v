@@ -19,24 +19,23 @@ module uc1611(
 		input  wire       vsync,
 		input  wire       px_out,
 		input  wire [1:0] px,
-		output reg  [7:0] lcd_data,
+		output wire [7:0] lcd_data,
 		output wire       lcd_read,
-		output reg        lcd_write,
-		input  wire       lcd_reset,
+		output wire       lcd_write,
 		output wire       lcd_cs,
-		output reg        lcd_cd,
+		output wire       lcd_cd,
 		output wire       lcd_vled,
 	);
 
-	reg [1:0]  state; wire [1:0]  new_state;
-	reg [15:0] count; wire [15:0] new_count;
+	reg [1:0]  r_state; wire [1:0]  state;
+	reg [15:0] r_count; wire [15:0] count;
 
-	reg       insync; wire       new_insync;
-	reg       oddpx;  wire       new_oddpx;
-	reg [3:0] pxbuf;  wire [3:0] new_pxbuf;
+	reg       r_insync; wire       insync;
+	reg       r_oddpx;  wire       oddpx;
+	reg [3:0] r_pxbuf;  wire [3:0] pxbuf;
 
-	wire [7:0] new_lcd_data;
-	wire       new_lcd_cd, new_lcd_write;
+	reg [7:0] r_lcd_data;
+	reg       r_lcd_cd;
 
 	(* mem2reg *)
 	reg [7:0] init_seq[0:15];
@@ -70,125 +69,124 @@ module uc1611(
 	assign lcd_vled = disp_on;
 
 	always @* begin
-		new_state     = state;
-		new_count     = 'bx;
+		state     = r_state;
+		count     = 'bx;
 
-		new_insync    = insync;
-		new_oddpx     = oddpx;
-		new_pxbuf     = pxbuf;
+		insync    = r_insync;
+		oddpx     = r_oddpx;
+		pxbuf     = r_pxbuf;
 
-		new_lcd_data  = lcd_data;
-		new_lcd_cd    = lcd_cd;
-		new_lcd_write = 0;
+		lcd_data  = r_lcd_data;
+		lcd_cd    = r_lcd_cd;
+		lcd_write = 0;
 
-		case (state)
+		case (r_state)
 		`STATE_OFF:
 			if (disp_on) begin
-				new_state     = `STATE_INIT;
-				new_count     = 0;
-				new_lcd_cd    = 0;
-				new_insync    = 1;
-				new_oddpx     = 0;
+				state     = `STATE_INIT;
+				count     = 0;
+				lcd_cd    = 0;
+				insync    = 1;
+				oddpx     = 0;
 			end
 		`STATE_INIT:
 			begin
-				if (&count[15:14]) begin
-					new_lcd_write = !count[0];
-if (new_lcd_write) new_lcd_data = init_seq[count[4:1]];
-					if (count[0] && count[4:1] == 15)
-						new_state  = `STATE_ON;
+				if (&r_count[15:14]) begin
+					lcd_write = !r_count[0];
+if (lcd_write) lcd_data = init_seq[r_count[4:1]];
+					if (r_count[0] && r_count[4:1] == 15)
+						state  = `STATE_ON;
 				end
 				if (vsync)
-					new_insync = 1;
+					insync = 1;
 				else if (hsync || px_out)
-					new_insync = 0;
-				new_count = count + 1;
+					insync = 0;
+				count = r_count + 1;
 			end
 		`STATE_ON:
 			if (!disp_on) begin
-				new_state      = `STATE_UNINIT;
-				new_count[0]   = 0;
-				new_lcd_cd     = 0;
-				new_lcd_data   = 'he2; /* System Reset */
+				state      = `STATE_UNINIT;
+				count[0]   = 0;
+				lcd_cd     = 0;
+				lcd_data   = 'he2; /* System Reset */
 			end else if (vsync) begin
-				new_state      = `STATE_INIT;
-				new_count[15]  = 1;  /* do not wait */
-				new_count[14]  = 1;  /* do not wait */
-				new_count[4:1] = 12; /* start at index 12: only set page&col addresses to zero */
-				new_count[0]   = 0;
-				new_lcd_cd     = 0;
-				new_insync     = 1;
-				new_oddpx      = 0;
+				state      = `STATE_INIT;
+				count[15]  = 1;  /* do not wait */
+				count[14]  = 1;  /* do not wait */
+				count[4:1] = 12; /* start at index 12: only set page&col addresses to zero */
+				count[0]   = 0;
+				lcd_cd     = 0;
+				insync     = 1;
+				oddpx      = 0;
 			end
 		`STATE_UNINIT:
 			begin
-				new_lcd_write = !count[0];
-				if (count[0])
-					new_state = `STATE_OFF;
-				new_count[0] = 1;
+				lcd_write = !r_count[0];
+				if (r_count[0])
+					state = `STATE_OFF;
+				count[0] = 1;
 			end
 		endcase
 
-		if (new_state == `STATE_ON && new_insync) begin /* ready to shift out pixels? */
-			new_lcd_cd    = 1;
+		if (state == `STATE_ON && insync) begin         /* ready to shift out pixels? */
+			lcd_cd = 1;
 			if (px_out) begin                           /* new pixel arrived? */
-				if (!oddpx) begin                       /* pixel 0, 2, 4, ... */
-					new_oddpx = 1;
+				if (!r_oddpx) begin                     /* pixel 0, 2, 4, ... */
+					oddpx = 1;
 					case (px)                           /* store px in pxbuf */
-					0: new_pxbuf = `COLOR0;
-					1: new_pxbuf = `COLOR1;
-					2: new_pxbuf = `COLOR2;
-					3: new_pxbuf = `COLOR3;
+					0: pxbuf = `COLOR0;
+					1: pxbuf = `COLOR1;
+					2: pxbuf = `COLOR2;
+					3: pxbuf = `COLOR3;
 					endcase
 				end else begin                          /* pixel 1, 3, 5, ... */
-					new_oddpx = 0;
-					new_lcd_data[3:0] = pxbuf;          /* store pxbuf in low nibble */
+					oddpx = 0;
+					lcd_data[3:0] = r_pxbuf;            /* store pxbuf in low nibble */
 					case (px)                           /* store px in high nibble */
-					0: new_lcd_data[7:4] = `COLOR0;
-					1: new_lcd_data[7:4] = `COLOR1;
-					2: new_lcd_data[7:4] = `COLOR2;
-					3: new_lcd_data[7:4] = `COLOR3;
+					0: lcd_data[7:4] = `COLOR0;
+					1: lcd_data[7:4] = `COLOR1;
+					2: lcd_data[7:4] = `COLOR2;
+					3: lcd_data[7:4] = `COLOR3;
 					endcase
-					new_lcd_write = 1;                  /* send 2 pixels to the LCD */
+					lcd_write = 1;                      /* send 2 pixels to the LCD */
 				end
 			end
 		end
 
 		if (reset) begin
-			new_state     = `STATE_OFF;
-			new_count     = 'bx;
+			state     = `STATE_OFF;
+			count     = 'bx;
 
-			new_insync    = 'bx;
-			new_oddpx     = 'bx;
-			new_pxbuf     = 'bx;
+			insync    = 'bx;
+			oddpx     = 'bx;
+			pxbuf     = 'bx;
 
-			new_lcd_data  = 'bx;
-			new_lcd_cd    = 'bx;
-			new_lcd_write = 0;
+			lcd_data  = 'bx;
+			lcd_cd    = 'bx;
+			lcd_write = 0;
 		end
 	end
 
 /*
 	reg [7:0] init_lcd_data;
 	always @(negedge clk) begin
-		init_lcd_data  <= init_seq[new_count[4:1]];
+		init_lcd_data  <= init_seq[count[4:1]];
 	end
 */
 
 	always @(posedge clk) begin
-		state     <= new_state;
-		count     <= new_count;
+		r_state     <= state;
+		r_count     <= count;
 
-//		lcd_data  <= init_lcd_data;
-//		if (new_state != `STATE_INIT || !new_lcd_write)
-			lcd_data <= new_lcd_data;
+//		r_lcd_data  <= init_lcd_data;
+//		if (state != `STATE_INIT || !lcd_write)
+			r_lcd_data <= lcd_data;
 
-		insync    <= new_insync;
-		oddpx     <= new_oddpx;
-		pxbuf     <= new_pxbuf;
+		r_insync    <= insync;
+		r_oddpx     <= oddpx;
+		r_pxbuf     <= pxbuf;
 
-		lcd_cd    <= new_lcd_cd;
-		lcd_write <= new_lcd_write;
+		r_lcd_cd    <= lcd_cd;
 	end
 
 endmodule

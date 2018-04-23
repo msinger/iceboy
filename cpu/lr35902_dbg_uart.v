@@ -30,59 +30,63 @@ module lr35902_dbg_uart(
 		input  wire [15:0] sp,
 		input  wire [7:4]  f,
 		input  wire        ime,
-		output reg  [7:0]  data,   /* data driven on the bus when drv is set */
-		output reg         drv,    /* drive debug data on the bus instead of the requested */
-		output reg         halt,   /* halts CPU in instruction fetch state */
-		output reg         no_inc, /* prevent PC from getting incremented */
+		output wire [7:0]  data,   /* data driven on the bus when drv is set */
+		output wire        drv,    /* drive debug data on the bus instead of the requested */
+		output wire        halt,   /* halts CPU in instruction fetch state */
+		output wire        no_inc, /* prevent PC from getting incremented */
 
 		input  wire        uart_clk,
 		input  wire        uart_reset,
 		input  wire        rx,
-		output reg         tx,
-		output reg         cts,
-
-output wire [7:0] dbg,
+		output wire        tx,
+		output wire        cts,
 	);
 
-	reg new_halt, new_no_inc, new_drv;
-	reg [7:0] new_data;
+	reg r_halt, r_no_inc;
 
 	(* mem2reg *)
-	reg [15:0] bp[0:`NUM_BP-1], new_bp[0:`NUM_BP-1];
+	reg [15:0] r_bp[0:`NUM_BP-1]; wire [15:0] bp[0:`NUM_BP-1];
 
-	reg [7:0] drvdata, new_drvdata;
+	reg [7:0] r_drvdata; wire [7:0] drvdata;
 
 	(* mem2reg *)
-	reg [8:0] drvarr[0:3], new_drvarr[0:3];
+	reg [8:0] r_drvarr[0:3]; wire [8:0] drvarr[0:3];
 
-	reg [5:0] cycle, new_cycle;
-	reg [3:0] ret, new_ret;
+	reg [5:0] r_cycle; wire [5:0] cycle;
+	reg [3:0] r_ret;   wire [3:0] ret;
 	wire [3:0] tx_prep;
 
-	reg [1:0] dbg_state, new_dbg_state;
+	reg [1:0] r_dbg_state; wire [1:0] dbg_state;
 
-	reg [2:0] rx_state;
-	reg [2:0] rx_cur_bit;
-	reg [3:0] rx_sub_count;
-	reg [8:0] rx_shift;
+	reg r_tx, r_cts;
 
-	reg [1:0] tx_state;
-	reg [2:0] tx_cur_bit;
-	reg [3:0] tx_sub_count;
-	reg [4:0] tx_cur_byte;
-	reg [7:0] tx_shift;
+	reg [2:0] r_rx_state;
+	reg [2:0] r_rx_cur_bit;
+	reg [3:0] r_rx_sub_count;
+	reg [8:0] r_rx_shift;
 
-	reg rx_seq, rx_ack, new_rx_ack;
-	reg tx_seq, new_tx_seq, tx_ack;
+	reg [1:0] r_tx_state;
+	reg [2:0] r_tx_cur_bit;
+	reg [3:0] r_tx_sub_count;
+	reg [4:0] r_tx_cur_byte;
+	reg [7:0] r_tx_shift;
+
+	reg r_rx_seq;
+	reg r_rx_ack; wire rx_ack;
+	reg r_tx_seq; wire tx_seq;
+	reg r_tx_ack;
 
 	integer i;
 
-	wire stepping, conting;
+	wire stepping;
+
+	assign tx  = r_tx;
+	assign cts = r_cts;
 
 	always @* begin
 		(* fullcase *)
-		case (ret)
-		0:  tx_prep = { ime, 1'b0, no_inc, halt };
+		case (r_ret)
+		0:  tx_prep = { ime, 1'b0, r_no_inc, r_halt };
 		1:  tx_prep = f[7:4];
 		2:  tx_prep = probe[3:0];
 		3:  tx_prep = probe[7:4];
@@ -101,249 +105,243 @@ output wire [7:0] dbg,
 		endcase
 	end
 
-//	assign dbg = { halt, rx_seq, rx_ack, cts, rx, tx, tx_seq, tx_ack };
-	assign dbg = { halt, rx_seq, rx_ack, cts, f[7:4] };
-
 	always @* begin
-		new_halt      = halt;
-		new_no_inc    = no_inc;
-		new_drv       = drv;
-		new_data      = data;
-		new_cycle     = 'bx;
-		new_rx_ack    = rx_ack;
-		new_tx_seq    = tx_seq;
-		new_dbg_state = dbg_state;
-		new_ret       = ret;
-		new_drvdata   = drvdata;
+		halt      = r_halt;
+		no_inc    = r_no_inc;
+		drv       = 0;
+		data      = 'bx;
+		cycle     = 'bx;
+		rx_ack    = r_rx_ack;
+		tx_seq    = r_tx_seq;
+		dbg_state = r_dbg_state;
+		ret       = r_ret;
+		drvdata   = r_drvdata;
 
 		stepping = 0;
-		conting  = 0;
 
 		for (i = 0; i < `NUM_BP; i = i + 1)
-			new_bp[i] = bp[i];
+			bp[i] = r_bp[i];
 
 		for (i = 0; i < 4; i = i + 1)
-			new_drvarr[i] = drvarr[i];
+			drvarr[i] = r_drvarr[i];
 
-		case (dbg_state)
+		case (r_dbg_state)
 		`DBG_IDLE:
-			if (rx_seq != rx_ack) casez (rx_shift)
+			if (r_rx_seq != r_rx_ack) casez (r_rx_shift)
 			'b?00000000: /* halt */
 				begin
-					new_halt      = 1;
-					new_dbg_state = `DBG_HALT;
-					new_cycle     = 0;
+					halt      = 1;
+					dbg_state = `DBG_HALT;
+					cycle     = 0;
 				end
 			'b10000??0?: /* NOP */
 				begin
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end
 			'b10000??11: /* continue */
 				begin
-					new_halt      = 0;
-					new_no_inc    = 0;
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+					halt      = 0;
+					no_inc    = 0;
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end
 			'b10000??10: /* step */
-				if (halt) begin
+				if (r_halt) begin
 					stepping      = 1;
-					new_halt      = 0;
-					new_cycle     = 0;
-					{ new_drv, new_data } = drvarr[0];
-					new_dbg_state = `DBG_STEP;
+					halt          = 0;
+					cycle         = 0;
+					{ drv, data } = r_drvarr[0];
+					dbg_state     = `DBG_STEP;
 				end else
-					new_rx_ack    = rx_seq;
+					rx_ack        = r_rx_seq;
 			'b10001????: /* prep drvdata */
 				begin
-					new_drvdata   = { rx_shift[3:0], drvdata[7:4] };
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+					drvdata   = { r_rx_shift[3:0], r_drvdata[7:4] };
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end
 			'b1001?????: /* set control bits */
 				begin
-					if (halt)
-						new_no_inc = rx_shift[1];
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+					if (r_halt)
+						no_inc = r_rx_shift[1];
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end
 			'b101??????: /* set drvdata */
 				begin
-					new_drvarr[rx_shift[1:0]] = { rx_shift[5], drvdata };
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+					drvarr[r_rx_shift[1:0]] = { r_rx_shift[5], r_drvdata };
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end
 			'b11???????: /* set breakpoint */
-				if (halt) begin
-					new_bp[rx_shift[6:4]] = { rx_shift[3:0], bp[rx_shift[6:4]][15:4] };
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+				if (r_halt) begin
+					bp[r_rx_shift[6:4]] = { r_rx_shift[3:0], r_bp[r_rx_shift[6:4]][15:4] };
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end else
-					new_rx_ack    = rx_seq;
+					rx_ack    = r_rx_seq;
 			default:
-				new_rx_ack = rx_seq;
+				rx_ack = r_rx_seq;
 			endcase
 		`DBG_HALT:
-			if (cycle == 43) begin /* longest instruction is 24; interrupt entry is 20; 24+20=44 */
-				new_dbg_state = `DBG_SEND;
-				new_tx_seq    = !tx_seq;
+			if (r_cycle == 43) begin /* longest instruction is 24; interrupt entry is 20; 24+20=44 */
+				dbg_state = `DBG_SEND;
+				tx_seq    = !r_tx_seq;
 			end else
-				new_cycle     = cycle + 1;
+				cycle     = r_cycle + 1;
 		`DBG_STEP:
 			begin
-				new_halt = 1;
-				if (cycle == 43) begin
-					new_dbg_state = `DBG_SEND;
-					new_tx_seq    = !tx_seq;
+				halt = 1;
+				if (r_cycle == 43) begin
+					dbg_state = `DBG_SEND;
+					tx_seq    = !r_tx_seq;
 				end else
-					new_cycle     = cycle + 1;
-				{ new_drv, new_data } = new_cycle[5:4] ? 'h0xx : drvarr[new_cycle[3:2]];
+					cycle     = r_cycle + 1;
+				{ drv, data } = cycle[5:4] ? 'h0xx : r_drvarr[cycle[3:2]];
 			end
 		`DBG_SEND:
-			if (tx_seq == tx_ack) begin
-				new_rx_ack    = rx_seq;
-				new_dbg_state = `DBG_IDLE;
-				new_ret       = ret + 1;
+			if (r_tx_seq == r_tx_ack) begin
+				rx_ack    = r_rx_seq;
+				dbg_state = `DBG_IDLE;
+				ret       = r_ret + 1;
 			end
 		endcase
 
 		if (!stepping)
 			for (i = 0; i < `NUM_BP; i = i + 1)
-				if (pc == bp[i])
-					new_halt = 1;
+				if (pc == r_bp[i])
+					halt = 1;
 
 		if (reset) begin
-			new_halt      = 0;
-			new_no_inc    = 0;
-			new_drv       = 0;
-			new_data      = 'bx;
-			new_cycle     = 'bx;
-			new_rx_ack    = rx_seq;
-			new_tx_seq    = tx_ack;
-			new_dbg_state = `DBG_IDLE;
-			new_ret       = 'bx;
-			new_drvdata   = 'bx;
+			halt      = 0;
+			no_inc    = 0;
+			drv       = 0;
+			data      = 'bx;
+			cycle     = 'bx;
+			rx_ack    = r_rx_seq;
+			tx_seq    = r_tx_ack;
+			dbg_state = `DBG_IDLE;
+			ret       = 'bx;
+			drvdata   = 'bx;
 
 			for (i = 0; i < `NUM_BP; i = i + 1)
-				new_bp[i] = 'hffff;
+				bp[i] = 'hffff;
 
 			for (i = 0; i < 4; i = i + 1)
-				new_drvarr[i] = 'h0xx;
+				drvarr[i] = 'h0xx;
 		end
 	end
 
 	always @(posedge cpu_clk) begin
-		halt      <= new_halt;
-		no_inc    <= new_no_inc;
-		drv       <= new_drv;
-		data      <= new_data;
-		cycle     <= new_cycle;
-		rx_ack    <= new_rx_ack;
-		tx_seq    <= new_tx_seq;
-		dbg_state <= new_dbg_state;
-		ret       <= new_ret;
-		drvdata   <= new_drvdata;
+		r_halt      <= halt;
+		r_no_inc    <= no_inc;
+		r_cycle     <= cycle;
+		r_rx_ack    <= rx_ack;
+		r_tx_seq    <= tx_seq;
+		r_dbg_state <= dbg_state;
+		r_ret       <= ret;
+		r_drvdata   <= drvdata;
 
 		for (i = 0; i < `NUM_BP; i = i + 1)
-			bp[i] <= new_bp[i];
+			r_bp[i] <= bp[i];
 
 		for (i = 0; i < 4; i = i + 1)
-			drvarr[i] <= new_drvarr[i];
+			r_drvarr[i] <= drvarr[i];
 	end
 
 	always @(posedge uart_clk) begin
-		case (rx_state)
+		case (r_rx_state)
 		`RX_IDLE:
 			if (!rx) begin
-				rx_state     <= `RX_STARTBIT;
-				rx_sub_count <= `BAUD_DIV / 2;
-				rx_cur_bit   <= 0;
+				r_rx_state     <= `RX_STARTBIT;
+				r_rx_sub_count <= `BAUD_DIV / 2;
+				r_rx_cur_bit   <= 0;
 			end
 		`RX_STARTBIT:
-			if (rx_sub_count == `BAUD_DIV - 1) begin
-				rx_state     <= !rx ? `RX_DATABIT : `RX_IDLE;
-				rx_sub_count <= 0;
-				cts          <= !rx;
+			if (r_rx_sub_count == `BAUD_DIV - 1) begin
+				r_rx_state     <= !rx ? `RX_DATABIT : `RX_IDLE;
+				r_rx_sub_count <= 0;
+				r_cts          <= !rx;
 			end else
-				rx_sub_count <= rx_sub_count + 1;
+				r_rx_sub_count <= r_rx_sub_count + 1;
 		`RX_DATABIT:
-			if (rx_sub_count == `BAUD_DIV - 1) begin
-				rx_shift <= { rx, rx_shift[8:1] };
-				if (rx_cur_bit == 7)
-					rx_state <= `RX_STOPBIT;
+			if (r_rx_sub_count == `BAUD_DIV - 1) begin
+				r_rx_shift <= { rx, r_rx_shift[8:1] };
+				if (r_rx_cur_bit == 7)
+					r_rx_state <= `RX_STOPBIT;
 				else
-					rx_cur_bit <= rx_cur_bit + 1;
-				rx_sub_count <= 0;
+					r_rx_cur_bit <= r_rx_cur_bit + 1;
+				r_rx_sub_count <= 0;
 			end else
-				rx_sub_count <= rx_sub_count + 1;
+				r_rx_sub_count <= r_rx_sub_count + 1;
 		`RX_STOPBIT:
-			if (rx_sub_count == `BAUD_DIV - 1) begin
-				rx_shift     <= { rx, rx_shift[8:1] };
-				rx_state     <= `RX_WAIT_ACK;
-				rx_seq       <= !rx_seq;
-				rx_sub_count <= 'bx;
+			if (r_rx_sub_count == `BAUD_DIV - 1) begin
+				r_rx_shift     <= { rx, r_rx_shift[8:1] };
+				r_rx_state     <= `RX_WAIT_ACK;
+				r_rx_seq       <= !r_rx_seq;
+				r_rx_sub_count <= 'bx;
 			end else
-				rx_sub_count <= rx_sub_count + 1;
+				r_rx_sub_count <= r_rx_sub_count + 1;
 		`RX_WAIT_ACK:
-			if (rx_seq == rx_ack)
-				rx_state <= `RX_WAIT_IDL;
+			if (r_rx_seq == r_rx_ack)
+				r_rx_state <= `RX_WAIT_IDL;
 		`RX_WAIT_IDL:
 			if (rx) begin
-				rx_state <= `RX_IDLE;
-				cts      <= 0;
+				r_rx_state <= `RX_IDLE;
+				r_cts      <= 0;
 			end
 		endcase
 
-		if (reset || (uart_reset && rx_state != `RX_WAIT_ACK)) begin
-			cts      <= 0;
-			rx_state <= `RX_WAIT_IDL;
+		if (reset || (uart_reset && r_rx_state != `RX_WAIT_ACK)) begin
+			r_cts      <= 0;
+			r_rx_state <= `RX_WAIT_IDL;
 		end
 	end
 
 	always @(posedge uart_clk) begin
-		case (tx_state)
+		case (r_tx_state)
 		`TX_IDLE:
-			if (tx_seq != tx_ack) begin
-				tx_state     <= `TX_STARTBIT;
-				tx_sub_count <= 0;
-				tx           <= 0;
-				tx_shift     <= { ret, tx_prep };
+			if (r_tx_seq != r_tx_ack) begin
+				r_tx_state     <= `TX_STARTBIT;
+				r_tx_sub_count <= 0;
+				r_tx           <= 0;
+				r_tx_shift     <= { r_ret, tx_prep };
 			end
 		`TX_STARTBIT:
-			if (tx_sub_count == `BAUD_DIV - 1) begin
-				tx_state     <= `TX_DATABIT;
-				tx_sub_count <= 0;
-				tx_cur_bit   <= 0;
-				tx           <= tx_shift[0];
-				tx_shift     <= { 1'bx, tx_shift[7:1] };
+			if (r_tx_sub_count == `BAUD_DIV - 1) begin
+				r_tx_state     <= `TX_DATABIT;
+				r_tx_sub_count <= 0;
+				r_tx_cur_bit   <= 0;
+				r_tx           <= r_tx_shift[0];
+				r_tx_shift     <= { 1'bx, r_tx_shift[7:1] };
 			end else
-				tx_sub_count <= tx_sub_count + 1;
+				r_tx_sub_count <= r_tx_sub_count + 1;
 		`TX_DATABIT:
-			if (tx_sub_count == `BAUD_DIV - 1) begin
-				tx_sub_count <= 0;
-				if (tx_cur_bit == 7) begin
-					tx_state     <= `TX_STOPBIT;
-					tx           <= 1;
+			if (r_tx_sub_count == `BAUD_DIV - 1) begin
+				r_tx_sub_count <= 0;
+				if (r_tx_cur_bit == 7) begin
+					r_tx_state     <= `TX_STOPBIT;
+					r_tx           <= 1;
 				end else begin
-					tx_cur_bit   <= tx_cur_bit + 1;
-					tx           <= tx_shift[0];
-					tx_shift     <= { 1'bx, tx_shift[7:1] };
+					r_tx_cur_bit   <= r_tx_cur_bit + 1;
+					r_tx           <= r_tx_shift[0];
+					r_tx_shift     <= { 1'bx, r_tx_shift[7:1] };
 				end
 			end else
-				tx_sub_count <= tx_sub_count + 1;
+				r_tx_sub_count <= r_tx_sub_count + 1;
 		`TX_STOPBIT:
-			if (tx_sub_count == `BAUD_DIV - 1) begin
-				tx_state     <= `TX_IDLE;
-				tx_ack       <= tx_seq;
-				tx_sub_count <= 'bx;
+			if (r_tx_sub_count == `BAUD_DIV - 1) begin
+				r_tx_state     <= `TX_IDLE;
+				r_tx_ack       <= r_tx_seq;
+				r_tx_sub_count <= 'bx;
 			end else
-				tx_sub_count <= tx_sub_count + 1;
+				r_tx_sub_count <= r_tx_sub_count + 1;
 		endcase
 
 		if (reset) begin
-			tx <= 1;
-			tx_state <= `TX_IDLE;
+			r_tx <= 1;
+			r_tx_state <= `TX_IDLE;
 		end
 	end
 

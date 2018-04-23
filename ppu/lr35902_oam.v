@@ -20,7 +20,7 @@ module lr35902_oam(
 	always @(posedge read)
 		dout <= ram[adr];
 
-	always @(posedge write)
+	always @(negedge write)
 		if (adr < 160)
 			ram[adr] <= din;
 

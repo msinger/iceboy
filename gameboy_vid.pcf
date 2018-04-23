@@ -46,9 +46,6 @@ set_io data[7]   T6
 set_io n_read    T7
 set_io n_write   T10
 
-# Chip Select
-set_io n_cs_vid  T8
-
 # Interrupts
 set_io n_irq_vb  T11
 set_io n_irq_st  M11
@@ -66,10 +63,9 @@ set_io lcd_data[5] H16
 set_io lcd_data[6] H14
 set_io lcd_data[7] J15
 
-# LCD R/W, Reset, Chip Select, C/D, Backlight
+# LCD R/W, Chip Select, C/D, Backlight
 set_io n_lcd_rd    E16
 set_io n_lcd_wr    D15
-set_io n_lcd_rst   D16
 set_io n_lcd_cs    D14
 set_io lcd_cd      C16
 set_io lcd_vled    B16

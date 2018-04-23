@@ -18,6 +18,7 @@ module lr35902_joy(
 	);
 
 	reg [3:0] prev;
+	reg       pwrite;
 
 	always @(posedge read) begin
 		dout <= { 2'b11, p15, p14, p13, p12, p11, p10 };
@@ -29,14 +30,17 @@ module lr35902_joy(
 			irq <= 1;
 		prev <= { p13, p12, p11, p10 };
 
-		if (write)
+		if (pwrite && !write)
 			{ p15, p14 } <= din[5:4];
 
+		pwrite <= write;
+
 		if (reset) begin
-			prev <= 'hf;
-			p14  <= 0;
-			p15  <= 0;
-			irq  <= 0;
+			prev   <= 'hf;
+			pwrite <= 0;
+			p14    <= 0;
+			p15    <= 0;
+			irq    <= 0;
 		end
 	end
 

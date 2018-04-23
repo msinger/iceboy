@@ -14,12 +14,14 @@ module mbc_chip(
 		output wire        sel_ram,
 	);
 
+	reg pwrite;
+
 	reg [6:0] rom_bank;
 	reg [3:0] ram_bank;
 	reg       ena_ram;
 	reg       mode;
 
-	always @(*) begin
+	always @* begin
 		sel_rom = 0;
 		sel_ram = 0;
 		oadr    = iadr;
@@ -47,22 +49,25 @@ module mbc_chip(
 		end
 	end
 
-	always @(posedge write || reset) begin
-		casez ({ mode, iadr })
-		/* M A15....A8 A7.....A0 */
-		'b_?_000?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */
-			ena_ram <= data[3:0] == 'b1010; /* 0x?a enables RAM access */
-		'b_?_001?_????_????_????: /* 0x2000-0x3fff: select ROM bank (bits 0-4) */
-			rom_bank[4:0] <= data;
-		'b_0_010?_????_????_????: /* 0x4000-0x5fff: select ROM bank (bits 5-6) */
-			rom_bank[6:5] <= data;
-		'b_1_010?_????_????_????: /* 0x4000-0x5fff: select RAM bank */
-			ram_bank <= data;
-		'b_?_011?_????_????_????: /* 0x6000-0x7fff: set banking mode */
-			mode <= data;
+	always @(posedge clk) begin
+		if (pwrite && !write) casez ({ mode, iadr })
+			/* M A15....A8 A7.....A0 */
+			'b_?_000?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */
+				ena_ram <= data[3:0] == 'b1010; /* 0x?a enables RAM access */
+			'b_?_001?_????_????_????: /* 0x2000-0x3fff: select ROM bank (bits 0-4) */
+				rom_bank[4:0] <= data[4:0];
+			'b_0_010?_????_????_????: /* 0x4000-0x5fff: select ROM bank (bits 5-6) */
+				rom_bank[6:5] <= data[1:0];
+			'b_1_010?_????_????_????: /* 0x4000-0x5fff: select RAM bank */
+				ram_bank <= data[3:0];
+			'b_?_011?_????_????_????: /* 0x6000-0x7fff: set banking mode */
+				mode <= data[0];
 		endcase
 
+		pwrite <= write;
+
 		if (reset) begin
+			pwrite   <= 0;
 			rom_bank <= 0;
 			ram_bank <= 0;
 			ena_ram  <= 0;
