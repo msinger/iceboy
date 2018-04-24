@@ -561,22 +561,20 @@ module top(
 	gb_bootrom bootrom(
 		.adr(adr_cpu[7:0]),
 		.dout(data_brom_out),
-		.din(data_cpu_out),
-		.read(gbclk),
+		.read(rd_cpu && cscpu_brom),
 		.write_reg(wr_cpu && cs_io_brom),
 		.clk(gbclk),
 		.reset(reset_gb),
-		.r_hide(hide_bootrom),
+		.hide(hide_bootrom),
 	);
 
-	reg r_wr_hram;
-	always @(posedge gbclk) r_wr_hram <= wr_cpu && cs_io_hram;
 	lr35902_hram hram(
+		.clk(gbclk),
 		.adr(adr_cpu[6:0]),
 		.dout(data_hram_out),
 		.din(data_cpu_out),
-		.read(gbclk),
-		.write(r_wr_hram),
+		.read(rd_cpu && cs_io_hram),
+		.write(wr_cpu && cs_io_hram),
 	);
 
 	mbc_chip mbc(

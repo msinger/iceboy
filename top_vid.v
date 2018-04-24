@@ -36,8 +36,8 @@ module top(
 
 	wire rd_ppu;
 	wire rd_dma, wr_dma;
-	wire wr_vram;
-	wire wr_oam;
+	wire rd_vram, wr_vram;
+	wire rd_oam, wr_oam;
 	wire rd_ext, wr_ext, n_read_in, n_write_in;
 	wire cs_ram, cs_cart;
 	wire csext_vram, csext_oam, csext_io, csext_io_ppu;
@@ -198,15 +198,19 @@ module top(
 
 	always @* begin
 		adr_vram     = 'bx;
+		rd_vram      = 0;
 		wr_vram      = 0;
 		data_vram_in = 'bx;
 
-		if (ppu_needs_vram)
+		if (ppu_needs_vram) begin
 			adr_vram     = adr_ppu;
-		else if (csdma_vram)
+			rd_vram      = rd_ppu;
+		end else if (csdma_vram) begin
 			adr_vram     = adr_dma_rd;
-		else if (csext_vram) begin
+			rd_vram      = rd_dma;
+		end else if (csext_vram) begin
 			adr_vram     = adr_ext;
+			rd_vram      = rd_ext;
 			wr_vram      = wr_ext;
 			data_vram_in = data_ext_in;
 		end
@@ -214,17 +218,20 @@ module top(
 
 	always @* begin
 		adr_oam     = 'bx;
+		rd_oam      = 0;
 		wr_oam      = 0;
 		data_oam_in = 'bx;
 
-		if (ppu_needs_oam)
+		if (ppu_needs_oam) begin
 			adr_oam     = adr_ppu;
-		else if (dma_active) begin
+			rd_oam      = rd_ppu;
+		end else if (dma_active) begin
 			adr_oam     = adr_dma_wr;
 			wr_oam      = wr_dma;
 			data_oam_in = data_dma_out;
 		end else if (csext_oam) begin
 			adr_oam     = adr_ext;
+			rd_oam      = rd_ext;
 			wr_oam      = wr_ext;
 			data_oam_in = data_ext_in;
 		end
@@ -299,24 +306,22 @@ module top(
 		.sel_ppu(csext_io_ppu),
 	);
 
-	reg r_wr_vram;
-	always @(posedge gbclk) r_wr_vram <= wr_vram;
 	lr35902_vram vram(
+		.clk(gbclk),
 		.adr(adr_vram),
 		.dout(data_vram_out),
 		.din(data_vram_in),
-		.read(gbclk),
-		.write(r_wr_vram),
+		.read(rd_vram),
+		.write(wr_vram),
 	);
 
-	reg r_wr_oam;
-	always @(posedge gbclk) r_wr_oam <= wr_oam;
 	lr35902_oam oam(
+		.clk(gbclk),
 		.adr(adr_oam),
 		.dout(data_oam_out),
 		.din(data_oam_in),
-		.read(gbclk),
-		.write(r_wr_oam),
+		.read(rd_oam),
+		.write(wr_oam),
 	);
 
 	lr35902_ppu ppu(

@@ -2,6 +2,7 @@
 
 (* nolatches *)
 module lr35902_hram(
+		input  wire       clk,
 		output reg  [7:0] dout,
 		input  wire [7:0] din,
 		input  wire [6:0] adr,
@@ -9,13 +10,20 @@ module lr35902_hram(
 		input  wire       write,
 	);
 
+	reg r_read, r_write;
+
 	reg [7:0] ram[0:127];
 
-	always @(posedge read)
-		dout <= ram[adr];
+	always @(posedge clk) begin
+		if (!r_read && read)
+			dout <= ram[adr];
 
-	always @(negedge write)
-		ram[adr] <= din;
+		if (r_write && !write)
+			ram[adr] <= din;
+
+		r_read  <= read;
+		r_write <= write;
+	end
 
 endmodule
 

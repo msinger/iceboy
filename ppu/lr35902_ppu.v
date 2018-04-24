@@ -55,7 +55,6 @@ module lr35902_ppu(
 
 	reg        r_need_oam, r_need_vram;
 	reg [15:0] r_adr;
-	reg        r_read;
 
 	reg       r_px_out;
 	reg [1:0] r_px;
@@ -152,7 +151,7 @@ module lr35902_ppu(
 		need_oam  = r_need_oam;
 		need_vram = r_need_vram;
 		adr       = r_adr;
-		read      = r_read;
+		read      = 0;
 
 		px_out = 0;
 		px     = 'bx;
@@ -251,39 +250,37 @@ module lr35902_ppu(
 			if (mode == `MODE_PXTRANS) begin
 				fetch_state  = `FETCH_STATE_TILE;
 				read         = 1;
+				adr          = fetch_bg_adr;
 			end
 		`FETCH_STATE_TILE:
 			begin
 				fetch_state  = `FETCH_STATE_PXL0_0;
-				read         = 0;
-				fetch_tile   = data;
 				fetch_bg_adr = r_fetch_bg_adr + 1;
-				adr[15:12]   = 'h8 | (!r_bg_tiles && !r_fetch_tile[7]);
-				adr[11:4]    = r_fetch_tile;
-				adr[3:1]     = r_scy[2:0] + r_ly[2:0];
-				adr[0]       = 0;
+				fetch_tile   = data;
 			end
 		`FETCH_STATE_PXL0_0:
 			begin
 				fetch_state  = `FETCH_STATE_PXL0_1;
 				read         = 1;
+				adr[15:12]   = 'h8 | (!r_bg_tiles && !r_fetch_tile[7]);
+				adr[11:4]    = r_fetch_tile;
+				adr[3:1]     = r_scy[2:0] + r_ly[2:0];
+				adr[0]       = 0;
 			end
 		`FETCH_STATE_PXL0_1:
 			begin
 				fetch_state  = `FETCH_STATE_PXL1_0;
-				read         = 0;
 				fetch0       = data;
-				adr[0]       = 1;
 			end
 		`FETCH_STATE_PXL1_0:
 			begin
 				fetch_state  = `FETCH_STATE_PXL1_1;
 				read         = 1;
+				adr[0]       = 1;
 			end
 		`FETCH_STATE_PXL1_1:
 			begin
 				fetch_state  = `FETCH_STATE_BLOCK;
-				read         = 0;
 				fetch1       = data;
 			end
 		endcase
@@ -337,9 +334,6 @@ module lr35902_ppu(
 
 		if (fetch_state == `FETCH_STATE_BLOCK && fifo_len <= 8)
 			fetch_state = `FETCH_STATE_IDLE;
-
-		if (fetch_state == `FETCH_STATE_IDLE && mode == `MODE_PXTRANS && fetch_src == `SRC_BG)
-			adr = fetch_bg_adr;
 
 		if (reset) begin
 			preg_write = 0;
@@ -404,7 +398,6 @@ module lr35902_ppu(
 		r_need_oam  <= need_oam;
 		r_need_vram <= need_vram;
 		r_adr       <= adr;
-		r_read      <= read;
 
 		r_px_out <= px_out;
 		r_px     <= px;
