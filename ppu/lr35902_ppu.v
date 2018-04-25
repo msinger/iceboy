@@ -109,7 +109,7 @@ module lr35902_ppu(
 
 	wire [7:0] px_pal;
 
-	wire [15:0] bg_map_start_adr;
+	wire [7:0] line;
 
 	assign irq_stat =  ((lyc_eq      && sel_lyc)     ||
 	                    (mode == 0   && sel_mode0)   ||
@@ -126,7 +126,7 @@ module lr35902_ppu(
 	assign hsync   = ppu_ena && lx == 0;
 	assign vsync   = hsync && ly == 0;
 
-	assign bg_map_start_adr = bg_map ? 'h9c00 : 'h9800;
+	assign line = r_scy + r_ly;
 
 	always @(posedge reg_read) begin
 		case (reg_adr)
@@ -241,11 +241,13 @@ module lr35902_ppu(
 			mode = `MODE_PXTRANS;
 
 		if (r_mode == `MODE_OAMSRC && mode == `MODE_PXTRANS) begin
-			fetch_bg_adr = bg_map_start_adr + ((r_scy[7:3] + r_ly[7:3]) & 31) * 32 + r_scx[7:3];
-			fetch_src    = `SRC_BG;
+			fetch_bg_adr[15:10] = { 5'b10011, bg_map };
+			fetch_bg_adr[9:5]   = line[7:3];
+			fetch_bg_adr[4:0]   = r_scx[7:3];
+			fetch_src           = `SRC_BG;
 		end
 
-		case (fetch_state)
+		case (r_fetch_state)
 		`FETCH_STATE_IDLE:
 			if (mode == `MODE_PXTRANS) begin
 				fetch_state  = `FETCH_STATE_TILE;
@@ -254,15 +256,15 @@ module lr35902_ppu(
 			end
 		`FETCH_STATE_TILE:
 			begin
-				fetch_state  = `FETCH_STATE_PXL0_0;
-				fetch_bg_adr = r_fetch_bg_adr + 1;
-				fetch_tile   = data;
+				fetch_state       = `FETCH_STATE_PXL0_0;
+				fetch_tile        = data;
+				fetch_bg_adr[4:0] = r_fetch_bg_adr[4:0] + 1;
 			end
 		`FETCH_STATE_PXL0_0:
 			begin
 				fetch_state  = `FETCH_STATE_PXL0_1;
 				read         = 1;
-				adr[15:12]   = 'h8 | (!r_bg_tiles && !r_fetch_tile[7]);
+				adr[15:12]   = { 3'b100, !r_bg_tiles && !r_fetch_tile[7] };
 				adr[11:4]    = r_fetch_tile;
 				adr[3:1]     = r_scy[2:0] + r_ly[2:0];
 				adr[0]       = 0;
@@ -331,9 +333,6 @@ module lr35902_ppu(
 			fetch_state = `FETCH_STATE_IDLE;
 			read        = 0;
 		end
-
-		if (fetch_state == `FETCH_STATE_BLOCK && fifo_len <= 8)
-			fetch_state = `FETCH_STATE_IDLE;
 
 		if (reset) begin
 			preg_write = 0;
