@@ -130,7 +130,7 @@ module lr35902(
 		if (!r_f[`N]) begin
 			if (r_f[`H] || daa_result[3:0] > 9)
 				daa_result = daa_result + 6;
-			if (r_f[`C] || daa_result[7:0] > 'h9f)
+			if (r_f[`C] || daa_result > 'h9f)
 				daa_result = daa_result + 'h60;
 		end else begin
 			if (r_f[`H]) begin
@@ -744,7 +744,7 @@ module lr35902(
 			'h 0_27: /* DAA (1,4): decimal adjust accumulator */
 				begin
 					a     = daa_result;
-					f[`C] = daa_result[8];
+					f[`C] = r_f[`C] || daa_result[8];
 					f[`H] = 0;
 					f[`Z] = daa_result[7:0] == 0;
 				end
