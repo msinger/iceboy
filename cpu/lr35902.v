@@ -289,7 +289,8 @@ module lr35902(
 				arg16b = { {8{r_imml[7]}}, r_imml };
 			end
 		'hc1, 'hd1, 'he1, 'hf1, 'hc5, 'hd5, 'he5, 'hf5, /* push and pop */
-		'hc0, 'hd0, 'hc4, 'hd4, 'hc8, 'hd8, 'hc9, 'hd9, 'hcc, 'hdc, 'hcd: /* call and ret */
+		'hc0, 'hd0, 'hc4, 'hd4, 'hc8, 'hd8, 'hc9, 'hd9, 'hcc, 'hdc, 'hcd, /* call and ret */
+		'hc7, 'hcf, 'hd7, 'hdf, 'he7, 'hef, 'hf7, 'hff: /* rst */
 			begin
 				arg16a = r_sp;
 				arg16b = r_op[2] ? -1 : 1;
@@ -852,7 +853,7 @@ module lr35902(
 			'h 0_e7, /* RST 20H (1,16): push PC and jump to 0x0020 */
 			'h 0_ef, /* RST 28H (1,16): push PC and jump to 0x0028 */
 			'h 0_f7, /* RST 30H (1,16): push PC and jump to 0x0030 */
-			'h 0_ff: /* RST 38H (1/16): push PC and jump to 0x0038 */
+			'h 0_ff: /* RST 38H (1,16): push PC and jump to 0x0038 */
 				case (r_state)
 				`state_ifetch:
 					begin
