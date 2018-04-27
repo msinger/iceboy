@@ -888,24 +888,22 @@ module lr35902(
 				`state_ifetch,
 				`state_cb_ifetch,
 				`state_indirect_fetch:
-					begin
-						adr    = { r_h, r_l };
+					if (r_state != `state_indirect_fetch && r_op[2:0] == 6) begin
+						adr   = { r_h, r_l };
+						state = `state_indirect_fetch;
+					end else begin
+						case (r_op[2:0])
+						0: b = rot_result; 1: c = rot_result;
+						2: d = rot_result; 3: e = rot_result;
+						4: h = rot_result; 5: l = rot_result;
+						                   7: a = rot_result;
+						6:
+							begin
+								dout  = rot_result;
+								state = `state_indirect_store;
+							end
+						endcase
 						f[7:4] = { r_op_bank && !rot_result, 2'b0, rot_carry };
-						if (r_state != `state_indirect_fetch && r_op[2:0] == 6)
-							state = `state_indirect_fetch;
-						else begin
-							case (r_op[2:0])
-							0: b = rot_result; 1: c = rot_result;
-							2: d = rot_result; 3: e = rot_result;
-							4: h = rot_result; 5: l = rot_result;
-							                   7: a = rot_result;
-							6:
-								begin
-									dout  = rot_result;
-									state = `state_indirect_store;
-								end
-							endcase
-						end
 					end
 				endcase
 			'h 1_4?, /* BIT 0/1,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=12]): test bit 0/1 in reg or indirect (HL) */
