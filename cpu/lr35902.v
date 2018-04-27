@@ -161,13 +161,13 @@ module lr35902(
 		3: /* RR/RRA */
 			{ rot_result, rot_carry } = { r_f[`C], arg };
 		4: /* SLA */
-			{ rot_carry, rot_result } = { arg, 0 };
+			{ rot_carry, rot_result } = { arg, 1'b0 };
 		5: /* SRA */
 			{ rot_result, rot_carry } = { arg[7], arg };
 		6: /* SWAP */
-			{ rot_carry, rot_result } = { 0, arg[3:0], arg[7:4] };
+			{ rot_carry, rot_result } = { 1'b0, arg[3:0], arg[7:4] };
 		7: /* SRL */
-			{ rot_result, rot_carry } = { 0, arg };
+			{ rot_result, rot_carry } = { 1'b0, arg };
 		endcase
 	end
 
