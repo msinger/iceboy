@@ -928,16 +928,16 @@ module lr35902(
 			'h 1_d?, /* SET 2/3,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=16]): set bit 2/3 in reg or indirect (HL) */
 			'h 1_e?, /* SET 4/5,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=16]): set bit 4/5 in reg or indirect (HL) */
 			'h 1_f?: /* SET 6/7,{B,C,D,E,H,L,(HL),A} (2,8[(HL)=16]): set bit 6/7 in reg or indirect (HL) */
-				if (r_state == `state_cb_ifetch && r_op[2:0] == 6)
+				if (r_state == `state_cb_ifetch && r_op[2:0] == 6) begin
+					adr   = { r_h, r_l };
 					state = `state_indirect_fetch;
-				else case (op[2:0])
+				end else case (r_op[2:0])
 				0: b[r_op[5:3]] = r_op[6]; 1: c[r_op[5:3]] = r_op[6];
 				2: d[r_op[5:3]] = r_op[6]; 3: e[r_op[5:3]] = r_op[6];
 				4: h[r_op[5:3]] = r_op[6]; 5: l[r_op[5:3]] = r_op[6];
 				                           7: a[r_op[5:3]] = r_op[6];
 				6:
 					if (r_state != `state_indirect_store) begin
-						adr             = { r_h, r_l };
 						dout            = r_imml;
 						dout[r_op[5:3]] = r_op[6];
 						state           = `state_indirect_store;
