@@ -98,7 +98,9 @@ module lr35902(
 	wire [15:0] arg16b;
 	wire [15:0] result16;
 	wire        carry16;
-	wire        hcarry16;
+	wire        h4carry16;
+	wire        h8carry16;
+	wire        h12carry16;
 
 	wire [8:0] daa_result;
 
@@ -123,7 +125,9 @@ module lr35902(
 	assign dbg_probe = arg;
 
 	assign { carry16, result16 } = arg16a + arg16b;
-	assign hcarry16 = (arg16a[8] == arg16b[8]) == result16[8];
+	assign h4carry16  = (arg16a[4]  == arg16b[4])  == result16[4];
+	assign h8carry16  = (arg16a[8]  == arg16b[8])  == result16[8];
+	assign h12carry16 = (arg16a[12] == arg16b[12]) == result16[12];
 
 	always @* begin
 		daa_result = r_a;
@@ -544,9 +548,11 @@ module lr35902(
 				`state_ifetch:
 					state = `state_imml_fetch;
 				`state_imml_fetch:
+					state = `state_add16;
+				`state_add16:
 					begin
 						{ h, l } = result16;
-						f[7:4] = { hcarry16, carry16 };
+						f[7:4] = { h4carry16, h8carry16 };
 					end
 				endcase
 			'h 0_f9: /* LD SP,HL (1,8): load HL to SP */
@@ -666,7 +672,7 @@ module lr35902(
 					endcase
 				end else begin
 					{ h, l } = result16;
-					f[6:4]   = { hcarry16, carry16 };
+					f[6:4]   = { h12carry16, carry16 };
 				end
 			'h 0_e8: /* ADD SP,a8 (2,16): add immediate signed 8-bit to SP */
 				case (r_state)
@@ -676,8 +682,9 @@ module lr35902(
 					state = `state_add16;
 				`state_add16:
 					begin
+						state = `state_dummy;
 						sp = result16;
-						f[7:4] = { hcarry16, carry16 };
+						f[7:4] = { h4carry16, h8carry16 };
 					end
 				endcase
 			'h 0_04, /* INC B (1,4): increment B */
