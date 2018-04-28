@@ -4,6 +4,7 @@
 (* top *)
 module top(
 		input  wire        gbclk,     /* 4 MiHz clock input */
+		input  wire        clk12m,
 		inout  wire [15:0] adr,
 		inout  wire [7:0]  data,
 		inout  wire        n_read,
@@ -27,12 +28,18 @@ module top(
 
 	wire n_reset_in;
 
+	reg [2:0] r_chk_gbclk = 0; wire [2:0] chk_gbclk;
+	reg       r_gbclk_on  = 0; wire       gbclk_on;
+	reg       r_pgbclk    = 1; wire       pgbclk;
+
 	wire [15:0] adr_ppu;
 	wire [15:0] adr_dma_rd;
 	wire [7:0]  adr_dma_wr;
 	wire [15:0] adr_ext;
 	wire [12:0] adr_vram;
 	wire [7:0]  adr_oam;
+
+	reg r_rd_ext;
 
 	wire rd_ppu;
 	wire rd_dma, wr_dma;
@@ -68,7 +75,7 @@ module top(
 		) data_io [7:0] (
 			.PACKAGE_PIN(data),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(rd_ext),
+			.OUTPUT_ENABLE(rd_ext || r_rd_ext),
 			.D_OUT_0(data_ext_out),
 			.D_IN_0(data_ext_in),
 		);
@@ -237,6 +244,9 @@ module top(
 		end
 	end
 
+	always @(posedge gbclk)
+		r_rd_ext <= rd_ext;
+
 	assign dma_active = 0;
 	assign dma_drvext = 0;
 	assign adr_dma_rd = 0;
@@ -272,6 +282,24 @@ module top(
 		r_initial_reset_ticks <= initial_reset_ticks;
 		r_initial_reset_done  <= initial_reset_done;
 		r_reset_gb            <= reset_gb;
+	end
+
+	always @* begin
+		chk_gbclk = r_chk_gbclk;
+		gbclk_on  = !&r_chk_gbclk;
+		pgbclk    = gbclk;
+
+		if (!&r_chk_gbclk)
+			chk_gbclk = r_chk_gbclk + 1;
+
+		if (r_pgbclk != gbclk)
+			chk_gbclk = 0;
+	end
+
+	always @(posedge clk12m) begin
+		r_chk_gbclk <= chk_gbclk;
+		r_gbclk_on  <= gbclk_on;
+		r_pgbclk    <= pgbclk;
 	end
 
 	gb_memmap ext_map(
@@ -330,7 +358,7 @@ module top(
 		.reg_adr(adr_ext[3:0]),
 		.reg_dout(data_ppu_out),
 		.reg_din(data_ext_in),
-		.reg_read(gbclk),
+		.reg_read(rd_ext && csext_io_ppu),
 		.reg_write(wr_ext && csext_io_ppu),
 		.irq_vblank(irq_ppu_vblank),
 		.irq_stat(irq_ppu_stat),
@@ -348,7 +376,7 @@ module top(
 
 	uc1611 lcd(
 		.clk(gbclk),
-		.reset(!initial_reset_done),
+		.reset(reset_gb),
 		.disp_on(disp_on),
 		.hsync(hsync),
 		.vsync(vsync),

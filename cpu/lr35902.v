@@ -24,7 +24,6 @@ module lr35902(
 		output wire [15:0] adr,
 		input  wire [7:0]  din,
 		output wire [7:0]  dout,
-		output wire        ddrv,
 
 		output wire        read,
 		output wire        write,
@@ -175,7 +174,6 @@ module lr35902(
 		adr     = r_adr;
 		read    = 0;
 		write   = 0;
-		ddrv    = 0;
 		dout    = r_dout;
 
 		state   = r_state;
@@ -335,7 +333,6 @@ module lr35902(
 			case (r_cycle)
 			0: /* address and data already latched by previous state; drive data and request write on next clock */
 				begin
-					ddrv  = 1;
 					write = 1;
 					if (r_int_state == 4) begin
 						pc   = int_vector;  /* interrupt dispatch must not cancel during low byte push */
@@ -343,10 +340,7 @@ module lr35902(
 					end
 				end
 			1:
-				begin
-					ddrv  = 1;
-					write = 1;
-				end
+				write = 1;
 			3:
 				if (r_int_state == 3) begin
 					adr       = result16;
@@ -408,10 +402,7 @@ module lr35902(
 		`state_indirecth_store:
 			case (r_cycle)
 			0, 1: /* address and data already latched by previous state; drive data and request write on next clock */
-				begin
-					ddrv  = 1;
-					write = 1;
-				end
+				write = 1;
 			endcase
 		endcase
 
@@ -948,7 +939,6 @@ module lr35902(
 			adr       = 'bx;
 			read      = 0;
 			write     = 0;
-			ddrv      = 0;
 			dout      = 0;
 
 			state     = `state_ifetch;

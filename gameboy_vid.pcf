@@ -11,6 +11,7 @@ set_io led[6]    B4
 set_io led[7]    B5
 
 # Clock & Reset
+set_io clk12m    J3
 set_io gbclk     R9
 set_io n_reset   T1
 

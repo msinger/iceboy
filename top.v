@@ -49,6 +49,8 @@ module top(
 	wire       pllclk;
 	wire       gbclk_stable;
 	reg  [2:0] r_clkdiv5;
+	reg  [1:0] r_clkdiv4;
+	reg        r_slow = 0;
 
 	wire [15:0] adr_cpu;
 	wire [15:0] adr_dma;
@@ -62,9 +64,13 @@ module top(
 	wire p10_in, p11_in, p12_in, p13_in;
 	wire p14_out, p15_out;
 
+	reg r_wr_ext;
+	reg r_wr_vid;
+
 	wire rd_cpu, wr_cpu;
 	wire rd_dma, n_rd_dma;
 	wire rd_ext, wr_ext;
+	wire rd_vid, wr_vid;
 	wire wr_prog;
 	wire cs_ext, cs_ram, cs_cart, cs_crom, cs_cram, cs_vram, cs_oam;
 	wire cscpu_ext, cscpu_ram, cscpu_cart, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
@@ -86,8 +92,6 @@ module top(
 	wire [7:0] data_prog_out;
 
 	wire irq_ppu_vblank, irq_ppu_stat, irq_timer, irq_serial, irq_joypad;
-
-	wire ddrv_cpu;
 
 	wire [15:0] pc, sp;
 	wire [7:4]  flags;
@@ -111,7 +115,7 @@ module top(
 		) data_io[7:0] (
 			.PACKAGE_PIN(data),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(reset_done && (gb_on ? ddrv_cpu : 1)),
+			.OUTPUT_ENABLE(reset_done && (gb_on ? (wr_ext || r_wr_ext) : 1)),
 			.D_OUT_0(gb_on ? data_cpu_out : data_prog_out),
 			.D_IN_0(data_ext_in),
 		);
@@ -218,7 +222,7 @@ module top(
 		) vdata_io[7:0] (
 			.PACKAGE_PIN(vdata),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(reset_done && (dma_active || ddrv_cpu)),
+			.OUTPUT_ENABLE(reset_done && (dma_active || wr_vid || r_wr_vid)),
 			.D_OUT_0(dma_active ? data_ext_in : data_cpu_out),
 			.D_IN_0(data_vid_in),
 		);
@@ -240,7 +244,7 @@ module top(
 			.PACKAGE_PIN(n_vread),
 			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && !dma_active),
-			.D_OUT_0(!rd_cpu),
+			.D_OUT_0(!rd_vid),
 			.D_IN_0(n_rd_dma),
 		);
 
@@ -316,6 +320,14 @@ module top(
 			.D_OUT_0(p15_out),
 		);
 
+	always @(posedge gbclk) begin
+		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
+		r_wr_vid <= wr_vid;
+
+		if (adr_cpu == 'hff51 && wr_cpu)
+			r_slow <= data_cpu_out[0];
+	end
+
 	always @* begin
 		data_cpu_in = 'hff;
 
@@ -361,10 +373,13 @@ module top(
 	assign irq_ppu_stat   = !n_irq_st_in;
 
 	assign dma_active = !n_dmadrv_in;
-	assign led = { hide_bootrom, r_gb_on };
+	assign led = { r_slow, hide_bootrom, r_gb_on };
+
+	assign wr_vid = (cs_vram || cs_oam || cs_io_ppu) && wr_cpu;
+	assign rd_vid = (cs_vram || cs_oam || cs_io_ppu) && rd_cpu;
 
 	assign rd_dma    = dma_active && !n_rd_dma;
-	assign n_vwrite  = dma_active || !wr_cpu;
+	assign n_vwrite  = dma_active || !wr_vid;
 	assign n_vreset  = !reset_gb;
 
 	assign cs_ext = cs_ram || cs_cart;
@@ -378,11 +393,15 @@ module top(
 
 	assign gbclk = r_clkdiv5[2];
 
-	always @(posedge pllclk)
-		if (r_clkdiv5 == 5)
-			r_clkdiv5 <= 1;
-		else
-			r_clkdiv5 <= r_clkdiv5 + 1;
+	always @(posedge pllclk) begin
+		if (!r_slow || &r_clkdiv4) begin
+			if (r_clkdiv5 == 5)
+				r_clkdiv5 <= 1;
+			else
+				r_clkdiv5 <= r_clkdiv5 + 1;
+		end
+		r_clkdiv4 <= r_clkdiv4 + 1;
+	end
 
 	always @* begin
 		initial_reset_ticks = r_initial_reset_ticks;
@@ -433,7 +452,6 @@ module top(
 		.adr(adr_cpu),
 		.din(data_cpu_in),
 		.dout(data_cpu_out),
-		.ddrv(ddrv_cpu),
 		.write(wr_cpu),
 		.read(rd_cpu),
 		.reset(reset_gb),

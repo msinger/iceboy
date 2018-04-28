@@ -128,7 +128,7 @@ module lr35902_ppu(
 
 	assign line = r_scy + r_ly;
 
-	always @(posedge reg_read) begin
+	always @(posedge clk) begin
 		case (reg_adr)
 		'h0: reg_dout <= { r_ppu_ena, r_win_map, r_win_ena, r_bg_tiles, r_bg_map, r_obj_size, r_obj_ena, r_bg_ena };
 		'h1: reg_dout <= { 1'b1, r_sel_lyc, r_sel_mode2, r_sel_mode1, r_sel_mode0, r_lyc_eq, r_mode };
