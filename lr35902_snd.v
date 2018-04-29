@@ -255,27 +255,23 @@ module lr35902_snd(
 		/* Voice 1 sweep */
 		`NR10: dout <= { 1'b1, voc1_swp_time, voc1_swp_dec, voc1_swp_shift };
 		/* Voice 1 length */
-		`NR11: dout <= { voc1_wave_duty, voc1_len };
+		`NR11: dout <= { voc1_wave_duty, 6'h3f };
 		/* Voice 1 volume */
 		`NR12: dout <= { voc1_vol_init, voc1_vol_inc, voc1_vol_time };
 		/* Voice 1 control */
 		`NR14: dout <= { 1'b1, voc1_cntlen, 6'h3f };
 		/* Voice 2 length */
-		`NR21: dout <= { voc2_wave_duty, voc2_len };
+		`NR21: dout <= { voc2_wave_duty, 6'h3f };
 		/* Voice 2 volume */
 		`NR22: dout <= { voc2_vol_init, voc2_vol_inc, voc2_vol_time };
 		/* Voice 2 control */
 		`NR24: dout <= { 1'b1, voc2_cntlen, 6'h3f };
 		/* Voice 3 enable */
 		`NR30: dout <= { voc3_dacena, 7'h7f };
-		/* Voice 3 length */
-		`NR31: dout <= voc3_len;
 		/* Voice 3 volume */
 		`NR32: dout <= { 1'b1, voc3_vol, 5'h1f };
 		/* Voice 3 control */
 		`NR34: dout <= { 1'b1, voc3_cntlen, 6'h3f };
-		/* Voice 4 length */
-		`NR41: dout <= { 2'h3, voc4_len };
 		/* Voice 4 volume */
 		`NR42: dout <= { voc4_vol_init, voc4_vol_inc, voc4_vol_time };
 		/* Voice 4 frequency */
