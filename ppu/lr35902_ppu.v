@@ -59,6 +59,7 @@ module lr35902_ppu(
 	reg       r_px_out;
 	reg [1:0] r_px;
 	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 160) */
+	reg [2:0] r_px_skp; wire [2:0] px_skp; /* used for counting skipped pixels at beginning of line for X scroll */
 	reg [8:0] r_lx;     wire [8:0] lx;     /* counts 0 .. 455 */
 	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0) */
 
@@ -156,6 +157,7 @@ module lr35902_ppu(
 		px_out = 0;
 		px     = 'bx;
 		px_cnt = r_px_cnt;
+		px_skp = r_px_skp;
 		lx     = r_lx + 1;
 		ly     = r_ly;
 
@@ -319,8 +321,12 @@ module lr35902_ppu(
 		endcase
 
 		if (mode == `MODE_PXTRANS && fifo_len > 8) begin
-			px_out    = 1;
-			px_cnt    = px_cnt + 1;
+			if (|px_cnt || px_skp == r_scx[2:0]) begin
+				px_out = 1;
+				px_cnt = px_cnt + 1;
+				px_skp = 0;
+			end else
+				px_skp = px_skp + 1;
 			fifo_len  = fifo_len - 1;
 			fifo0     = { fifo0[14:0], 1'bx };
 			fifo1     = { fifo1[14:0], 1'bx };
@@ -361,7 +367,7 @@ module lr35902_ppu(
 			wy   = 0;
 		end
 
-		if (!ppu_ena) begin
+		if (!r_ppu_ena) begin
 			need_oam  = 0;
 			need_vram = 0;
 			adr       = 'bx;
@@ -370,6 +376,7 @@ module lr35902_ppu(
 			px_out = 0;
 			px     = 'bx;
 			px_cnt = 0;
+			px_skp = 0;
 			lx     = 0;
 			ly     = 0;
 
@@ -401,6 +408,7 @@ module lr35902_ppu(
 		r_px_out <= px_out;
 		r_px     <= px;
 		r_px_cnt <= px_cnt;
+		r_px_skp <= px_skp;
 		r_lx     <= lx;
 		r_ly     <= ly;
 
