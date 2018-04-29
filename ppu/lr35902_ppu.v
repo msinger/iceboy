@@ -58,10 +58,12 @@ module lr35902_ppu(
 
 	reg       r_px_out;
 	reg [1:0] r_px;
-	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 160) */
+	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
 	reg [2:0] r_px_skp; wire [2:0] px_skp; /* used for counting skipped pixels at beginning of line for X scroll */
 	reg [8:0] r_lx;     wire [8:0] lx;     /* counts 0 .. 455 */
 	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0) */
+
+	reg r_draw_win; wire draw_win;
 
 	/* FF40 (LCDC) */
 	reg r_ppu_ena;  wire ppu_ena;  /* bit 7 */
@@ -110,7 +112,7 @@ module lr35902_ppu(
 
 	wire [7:0] px_pal;
 
-	wire [7:0] line;
+	wire [7:0] line, wline;
 
 	assign irq_stat =  ((lyc_eq      && sel_lyc)     ||
 	                    (mode == 0   && sel_mode0)   ||
@@ -127,7 +129,8 @@ module lr35902_ppu(
 	assign hsync   = ppu_ena && lx == 0;
 	assign vsync   = hsync && ly == 0;
 
-	assign line = r_scy + r_ly;
+	assign line  = r_scy + r_ly;
+	assign wline = r_ly - r_wy;
 
 	always @(posedge clk) begin
 		case (reg_adr)
@@ -160,6 +163,8 @@ module lr35902_ppu(
 		px_skp = r_px_skp;
 		lx     = r_lx + 1;
 		ly     = r_ly;
+
+		draw_win = r_draw_win;
 
 		ppu_ena  = r_ppu_ena;
 		win_map  = r_win_map;
@@ -200,12 +205,14 @@ module lr35902_ppu(
 		fetch_bg_adr = r_fetch_bg_adr;
 
 		if (lx == 456) begin
-			px_cnt = 0;
-			lx     = 0;
-			ly     = r_ly + 1;
+			px_cnt   = 0;
+			px_skp   = 0;
+			draw_win = 0;
+			lx       = 0;
+			ly       = r_ly + 1;
 			if (ly == 154)
-				ly = 0;
-		end else
+				ly    = 0;
+		end
 
 		if (r_preg_write && !reg_write) case (reg_adr)
 		'h0:
@@ -228,7 +235,7 @@ module lr35902_ppu(
 		'hb: wx   = reg_din;
 		endcase
 
-		need_oam  = ly < 144 && px_cnt != 160;
+		need_oam  = ly < 144 && px_cnt != 168;
 		need_vram = need_oam && lx >= 80;
 
 		lyc_eq = ly == lyc;
@@ -237,7 +244,7 @@ module lr35902_ppu(
 			mode = `MODE_VBLANK;
 		else if (lx < 80)
 			mode = `MODE_OAMSRC;
-		else if (px_cnt == 160)
+		else if (px_cnt == 168)
 			mode = `MODE_HBLANK;
 		else
 			mode = `MODE_PXTRANS;
@@ -268,7 +275,7 @@ module lr35902_ppu(
 				read         = 1;
 				adr[15:12]   = { 3'b100, !r_bg_tiles && !r_fetch_tile[7] };
 				adr[11:4]    = r_fetch_tile;
-				adr[3:1]     = r_scy[2:0] + r_ly[2:0];
+				adr[3:1]     = r_draw_win ? wline[2:0] : line[2:0];
 				adr[0]       = 0;
 			end
 		`FETCH_STATE_PXL0_1:
@@ -288,6 +295,17 @@ module lr35902_ppu(
 				fetch1       = data;
 			end
 		endcase
+
+		if (mode == `MODE_PXTRANS && r_win_ena && !r_draw_win && ly >= r_wy && px_cnt == r_wx) begin
+			draw_win            = 1;
+			fetch_bg_adr[15:10] = { 5'b10011, win_map };
+			fetch_bg_adr[9:5]   = wline[7:3];
+			fetch_bg_adr[4:0]   = 0;
+			fetch_src           = `SRC_WD;
+			fetch_state         = `FETCH_STATE_IDLE;
+			fifo_len            = 0;
+			read                = 0;
+		end
 
 		if ((fifo_len == 8 || fifo_len == 0) &&
 		    (fetch_state == `FETCH_STATE_BLOCK)) begin
@@ -321,8 +339,10 @@ module lr35902_ppu(
 		endcase
 
 		if (mode == `MODE_PXTRANS && fifo_len > 8) begin
-			if (|px_cnt || px_skp == r_scx[2:0]) begin
-				px_out = 1;
+			if (|px_cnt || px_skp == r_scx[2:0] || r_draw_win) begin
+				/* don't send the first eight pixels (which are garbage) to the LCD */
+				if (px_cnt >= 8)
+					px_out = 1;
 				px_cnt = px_cnt + 1;
 				px_skp = 0;
 			end else
@@ -334,8 +354,11 @@ module lr35902_ppu(
 			fifo1_src = { fifo1_src[14:0], 1'bx };
 		end
 
-		if (px_cnt == 160) begin
-			fifo_len    = 0;
+		if (px_cnt == 168) begin
+			/* Always start line with eight garbage pixels in the FIFO.
+			 * This is needed for matching sprite or window X coord less than 8. */
+			fifo_len    = 8;
+
 			fetch_state = `FETCH_STATE_IDLE;
 			read        = 0;
 		end
@@ -380,6 +403,8 @@ module lr35902_ppu(
 			lx     = 0;
 			ly     = 0;
 
+			draw_win = 0;
+
 			lyc_eq = 0;
 			mode   = 0;
 
@@ -387,7 +412,7 @@ module lr35902_ppu(
 			fifo1     = 'bx;
 			fifo0_src = 'bx;
 			fifo1_src = 'bx;
-			fifo_len  = 0;
+			fifo_len  = 8;
 
 			fetch_state  = `FETCH_STATE_IDLE;
 			fetch_src    = 'bx;
@@ -411,6 +436,8 @@ module lr35902_ppu(
 		r_px_skp <= px_skp;
 		r_lx     <= lx;
 		r_ly     <= ly;
+
+		r_draw_win <= draw_win;
 
 		r_ppu_ena  <= ppu_ena;
 		r_win_map  <= win_map;
