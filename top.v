@@ -555,7 +555,7 @@ module top(
 		.reset(reset_gb),
 		.dout(data_tim_out),
 		.din(data_cpu_out),
-		.read(gbclk),
+		.read(rd_cpu && cs_io_timer),
 		.write(wr_cpu && cs_io_timer),
 		.clk(gbclk),
 		.adr(adr_cpu[1:0]),
