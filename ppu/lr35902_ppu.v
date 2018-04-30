@@ -51,6 +51,7 @@ module lr35902_ppu(
 		output wire [1:0]  px,         /* The color of the pixel being shifted out. */
 	);
 
+	reg r_preg_read;  wire preg_read;
 	reg r_preg_write; wire preg_write;
 
 	reg        r_need_oam, r_need_vram;
@@ -59,9 +60,9 @@ module lr35902_ppu(
 	reg       r_px_out;
 	reg [1:0] r_px;
 	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
-	reg [2:0] r_px_skp; wire [2:0] px_skp; /* used for counting skipped pixels at beginning of line for X scroll */
 	reg [8:0] r_lx;     wire [8:0] lx;     /* counts 0 .. 455 */
 	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0) */
+	reg       r_scxed;  wire       scxed;  /* set to 1 when r_scx[2:0] pixels got thrown away at beginning of line */
 
 	reg r_draw_win; wire draw_win;
 
@@ -116,11 +117,11 @@ module lr35902_ppu(
 
 	assign irq_stat =  ((lyc_eq      && sel_lyc)     ||
 	                    (mode == 0   && sel_mode0)   ||
-	                    (mode == 1   && sel_mode1)   ||
+	                    (mode == 1   && (sel_mode1 || sel_mode2))   ||
 	                    (mode == 2   && sel_mode2)) &&
 	                  !((r_lyc_eq    && r_sel_lyc)   ||
 	                    (r_mode == 0 && r_sel_mode0) ||
-	                    (r_mode == 1 && r_sel_mode1) ||
+	                    (r_mode == 1 && (r_sel_mode1 || r_sel_mode2)) ||
 	                    (r_mode == 2 && r_sel_mode2));
 
 	assign irq_vblank = lx == 0 && ly == 144;
@@ -133,7 +134,7 @@ module lr35902_ppu(
 	assign wline = r_ly - r_wy;
 
 	always @(posedge clk) begin
-		case (reg_adr)
+		if (!r_preg_read && reg_read) case (reg_adr)
 		'h0: reg_dout <= { r_ppu_ena, r_win_map, r_win_ena, r_bg_tiles, r_bg_map, r_obj_size, r_obj_ena, r_bg_ena };
 		'h1: reg_dout <= { 1'b1, r_sel_lyc, r_sel_mode2, r_sel_mode1, r_sel_mode0, r_lyc_eq, r_mode };
 		'h2: reg_dout <= r_scy;
@@ -150,6 +151,7 @@ module lr35902_ppu(
 	end
 
 	always @* begin
+		preg_read  = reg_read;
 		preg_write = reg_write;
 
 		need_oam  = r_need_oam;
@@ -160,9 +162,9 @@ module lr35902_ppu(
 		px_out = 0;
 		px     = 'bx;
 		px_cnt = r_px_cnt;
-		px_skp = r_px_skp;
 		lx     = r_lx + 1;
 		ly     = r_ly;
+		scxed  = r_scxed;
 
 		draw_win = r_draw_win;
 
@@ -206,8 +208,6 @@ module lr35902_ppu(
 
 		if (lx == 456) begin
 			px_cnt   = 0;
-			px_skp   = 0;
-			draw_win = 0;
 			lx       = 0;
 			ly       = r_ly + 1;
 			if (ly == 154)
@@ -226,7 +226,6 @@ module lr35902_ppu(
 		'h1: { sel_lyc, sel_mode2, sel_mode1, sel_mode0 } = reg_din[6:3];
 		'h2: scy  = reg_din;
 		'h3: scx  = reg_din;
-		'h4: ly   = 0;
 		'h5: lyc  = reg_din;
 		'h7: bgp  = reg_din;
 		'h8: obp0 = reg_din;
@@ -250,7 +249,7 @@ module lr35902_ppu(
 			mode = `MODE_PXTRANS;
 
 		if (r_mode == `MODE_OAMSRC && mode == `MODE_PXTRANS) begin
-			fetch_bg_adr[15:10] = { 5'b10011, bg_map };
+			fetch_bg_adr[15:10] = { 5'b10011, r_bg_map };
 			fetch_bg_adr[9:5]   = line[7:3];
 			fetch_bg_adr[4:0]   = r_scx[7:3];
 			fetch_src           = `SRC_BG;
@@ -296,9 +295,9 @@ module lr35902_ppu(
 			end
 		endcase
 
-		if (mode == `MODE_PXTRANS && r_win_ena && !r_draw_win && ly >= r_wy && px_cnt == r_wx) begin
+		if (mode == `MODE_PXTRANS && r_win_ena && !r_draw_win && r_ly >= r_wy && px_cnt == r_wx + 1) begin
 			draw_win            = 1;
-			fetch_bg_adr[15:10] = { 5'b10011, win_map };
+			fetch_bg_adr[15:10] = { 5'b10011, r_win_map };
 			fetch_bg_adr[9:5]   = wline[7:3];
 			fetch_bg_adr[4:0]   = 0;
 			fetch_src           = `SRC_WD;
@@ -339,14 +338,15 @@ module lr35902_ppu(
 		endcase
 
 		if (mode == `MODE_PXTRANS && fifo_len > 8) begin
-			if (|px_cnt || px_skp == r_scx[2:0] || r_draw_win) begin
-				/* don't send the first eight pixels (which are garbage) to the LCD */
-				if (px_cnt >= 8)
-					px_out = 1;
-				px_cnt = px_cnt + 1;
-				px_skp = 0;
-			end else
-				px_skp = px_skp + 1;
+			/* Don't send r_scx[2:0] (0..7) pixels to the LCD. This is for sub tile X scrolling. */
+			if (!r_scxed && px_cnt == r_scx[2:0]) begin
+				scxed = 1;
+				px_cnt = 0; /* Reset pixel counter if we are done with X scrolling. */
+			end
+			/* Don't send following eight pixels (which are all garbage when r_scx==0) to the LCD. */
+			if (px_cnt >= 8)
+				px_out = 1;
+			px_cnt    = px_cnt + 1;
 			fifo_len  = fifo_len - 1;
 			fifo0     = { fifo0[14:0], 1'bx };
 			fifo1     = { fifo1[14:0], 1'bx };
@@ -356,14 +356,19 @@ module lr35902_ppu(
 
 		if (px_cnt == 168) begin
 			/* Always start line with eight garbage pixels in the FIFO.
-			 * This is needed for matching sprite or window X coord less than 8. */
-			fifo_len    = 8;
+			 * This is needed for matching sprite X coord less than 8 or
+			 * glitchy window X coord less than 7. */
+			fifo_len = 8;
+
+			scxed    = 0;
+			draw_win = 0;
 
 			fetch_state = `FETCH_STATE_IDLE;
 			read        = 0;
 		end
 
 		if (reset) begin
+			preg_read  = 0;
 			preg_write = 0;
 
 			ppu_ena  = 0;
@@ -399,9 +404,9 @@ module lr35902_ppu(
 			px_out = 0;
 			px     = 'bx;
 			px_cnt = 0;
-			px_skp = 0;
 			lx     = 0;
 			ly     = 0;
+			scxed  = 0;
 
 			draw_win = 0;
 
@@ -424,6 +429,7 @@ module lr35902_ppu(
 	end
 
 	always @(posedge clk) begin
+		r_preg_read  <= preg_read;
 		r_preg_write <= preg_write;
 
 		r_need_oam  <= need_oam;
@@ -433,9 +439,9 @@ module lr35902_ppu(
 		r_px_out <= px_out;
 		r_px     <= px;
 		r_px_cnt <= px_cnt;
-		r_px_skp <= px_skp;
 		r_lx     <= lx;
 		r_ly     <= ly;
+		r_scxed  <= scxed;
 
 		r_draw_win <= draw_win;
 
