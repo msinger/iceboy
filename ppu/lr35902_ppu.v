@@ -61,10 +61,15 @@ module lr35902_ppu(
 	reg [1:0] r_px;
 	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
 	reg [8:0] r_lx;     wire [8:0] lx;     /* counts 0 .. 455 */
-	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0) */
+	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0); resets to 0 early in line 153 */
+	reg [7:0] r_ily;    wire [7:0] ily;    /* counts 0 .. 153 (each time lx resets to 0); completes line 153 normally */
 	reg       r_scxed;  wire       scxed;  /* set to 1 when r_scx[2:0] pixels got thrown away at beginning of line */
 
 	reg r_draw_win; wire draw_win;
+
+	reg r_stat_sig; wire stat_sig;
+
+	reg r_mute; wire mute;
 
 	/* FF40 (LCDC) */
 	reg r_ppu_ena;  wire ppu_ena;  /* bit 7 */
@@ -115,19 +120,17 @@ module lr35902_ppu(
 
 	wire [7:0] line, wline;
 
-	assign irq_stat =  ((lyc_eq      && sel_lyc)     ||
-	                    (mode == 0   && sel_mode0)   ||
-	                    (mode == 1   && (sel_mode1 || sel_mode2))   ||
-	                    (mode == 2   && sel_mode2)) &&
-	                  !((r_lyc_eq    && r_sel_lyc)   ||
-	                    (r_mode == 0 && r_sel_mode0) ||
-	                    (r_mode == 1 && (r_sel_mode1 || r_sel_mode2)) ||
-	                    (r_mode == 2 && r_sel_mode2));
+	assign stat_sig = ((r_lyc_eq    && r_sel_lyc)                    ||
+	                   (r_mode == 0 && r_sel_mode0)                  ||
+	                   (r_mode == 1 && (r_sel_mode1 || r_sel_mode2)) ||
+	                   (r_mode == 2 && r_sel_mode2));
+
+	assign irq_stat = stat_sig && !r_stat_sig;
 
 	assign irq_vblank = lx == 0 && ly == 144;
 
-	assign disp_on = ppu_ena;
-	assign hsync   = ppu_ena && lx == 0;
+	assign disp_on = r_ppu_ena;
+	assign hsync   = r_ppu_ena && lx == 0 && !r_mute;
 	assign vsync   = hsync && ly == 0;
 
 	assign line  = r_scy + r_ly;
@@ -164,9 +167,12 @@ module lr35902_ppu(
 		px_cnt = r_px_cnt;
 		lx     = r_lx + 1;
 		ly     = r_ly;
+		ily    = r_ily;
 		scxed  = r_scxed;
 
 		draw_win = r_draw_win;
+
+		mute = r_mute;
 
 		ppu_ena  = r_ppu_ena;
 		win_map  = r_win_map;
@@ -206,23 +212,20 @@ module lr35902_ppu(
 		fetch1       = r_fetch1;
 		fetch_bg_adr = r_fetch_bg_adr;
 
-		if (lx == 456) begin
-			px_cnt   = 0;
-			lx       = 0;
-			ly       = r_ly + 1;
-			if (ly == 154)
-				ly    = 0;
+		if (r_lx == 455) begin
+			px_cnt = 0;
+			lx     = 0;
+			ily    = (r_ily == 153) ? 0 : (r_ily + 1);
+			ly     = ily;
+		end
+
+		if (r_ly == 153 && r_lx == 8) begin
+			ly   = 0;
+			mute = 0;
 		end
 
 		if (r_preg_write && !reg_write) case (reg_adr)
-		'h0:
-			begin
-				{ win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena } = reg_din[6:0];
-				if (reg_din[7])
-					ppu_ena = 1;
-				if (!reg_din[7] && ly >= 144)
-					ppu_ena = 0;
-			end
+		'h0: { ppu_ena, win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena } = reg_din;
 		'h1: { sel_lyc, sel_mode2, sel_mode1, sel_mode0 } = reg_din[6:3];
 		'h2: scy  = reg_din;
 		'h3: scx  = reg_din;
@@ -234,21 +237,23 @@ module lr35902_ppu(
 		'hb: wx   = reg_din;
 		endcase
 
-		need_oam  = ly < 144 && px_cnt != 168;
+		need_oam  = ily < 144 && px_cnt != 168;
 		need_vram = need_oam && lx >= 80;
 
 		lyc_eq = ly == lyc;
 
-		if (ly >= 144)
+		if (ily >= 144)
 			mode = `MODE_VBLANK;
-		else if (lx < 80)
-			mode = `MODE_OAMSRC;
-		else if (px_cnt == 168)
-			mode = `MODE_HBLANK;
-		else
-			mode = `MODE_PXTRANS;
+		else begin
+			if (lx == 0)
+				mode = `MODE_OAMSRC;
+			else if (lx == 80)
+				mode = `MODE_PXTRANS;
+			else if (px_cnt == 168)
+				mode = `MODE_HBLANK;
+		end
 
-		if (r_mode == `MODE_OAMSRC && mode == `MODE_PXTRANS) begin
+		if (r_mode != `MODE_PXTRANS && mode == `MODE_PXTRANS) begin
 			fetch_bg_adr[15:10] = { 5'b10011, r_bg_map };
 			fetch_bg_adr[9:5]   = line[7:3];
 			fetch_bg_adr[4:0]   = r_scx[7:3];
@@ -345,7 +350,7 @@ module lr35902_ppu(
 			end
 			/* Don't send following eight pixels (which are all garbage when r_scx==0) to the LCD. */
 			if (px_cnt >= 8)
-				px_out = 1;
+				px_out = !r_mute;
 			px_cnt    = px_cnt + 1;
 			fifo_len  = fifo_len - 1;
 			fifo0     = { fifo0[14:0], 1'bx };
@@ -395,7 +400,7 @@ module lr35902_ppu(
 			wy   = 0;
 		end
 
-		if (!r_ppu_ena) begin
+		if (!ppu_ena) begin
 			need_oam  = 0;
 			need_vram = 0;
 			adr       = 'bx;
@@ -404,11 +409,14 @@ module lr35902_ppu(
 			px_out = 0;
 			px     = 'bx;
 			px_cnt = 0;
-			lx     = 0;
+			lx     = 8;
 			ly     = 0;
+			ily    = 0;
 			scxed  = 0;
 
 			draw_win = 0;
+
+			mute = 1;
 
 			lyc_eq = 0;
 			mode   = 0;
@@ -441,9 +449,14 @@ module lr35902_ppu(
 		r_px_cnt <= px_cnt;
 		r_lx     <= lx;
 		r_ly     <= ly;
+		r_ily    <= ily;
 		r_scxed  <= scxed;
 
 		r_draw_win <= draw_win;
+
+		r_stat_sig <= stat_sig;
+
+		r_mute <= mute;
 
 		r_ppu_ena  <= ppu_ena;
 		r_win_map  <= win_map;

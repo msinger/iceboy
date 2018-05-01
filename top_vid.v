@@ -252,7 +252,7 @@ module top(
 	assign adr_dma_rd = 0;
 	assign adr_dma_wr = 0;
 
-	assign led = { dma_active, dma_drvext, !r_reset_gb };
+	assign led = { adr_ext[15:10], r_gbclk_on, !r_reset_gb };
 
 	assign rd_ext    = !reset_gb && !n_read_in && !dma_drvext;
 	assign wr_ext    = !reset_gb && !n_write_in && !dma_drvext;
