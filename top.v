@@ -101,6 +101,8 @@ module top(
 	wire dma_active;
 	wire hide_bootrom;
 
+	wire [15:0] div;
+
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
 		) adr_io[20:0] (
@@ -560,6 +562,7 @@ module top(
 		.clk(gbclk),
 		.adr(adr_cpu[1:0]),
 		.irq(irq_timer),
+		.div(div),
 	);
 
 	lr35902_snd snd(
@@ -571,6 +574,7 @@ module top(
 		.clk(gbclk),
 		.pwmclk(pllclk),
 		.adr(adr_cpu[5:0]),
+		.div(div),
 		.chl(chl_out),
 		.chr(chr_out),
 		.chm(chm_out),

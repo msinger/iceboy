@@ -24,17 +24,18 @@
 
 (* nolatches *)
 module lr35902_snd(
-		output reg  [7:0] dout,
-		input  wire [7:0] din,
-		input  wire [5:0] adr,
-		input  wire       read,
-		input  wire       write,
-		input  wire       clk,
-		input  wire       pwmclk,
-		input  wire       reset,
-		output wire       chl,
-		output wire       chr,
-		output wire       chm,
+		output reg  [7:0]  dout,
+		input  wire [7:0]  din,
+		input  wire [5:0]  adr,
+		input  wire        read,
+		input  wire        write,
+		input  wire        clk,
+		input  wire        pwmclk,
+		input  wire        reset,
+		input  wire [15:0] div,
+		output wire        chl,
+		output wire        chr,
+		output wire        chm,
 	);
 
 	reg  [5:0] pwm_count;
@@ -125,8 +126,10 @@ module lr35902_snd(
 	/* NR52 - Sound on/off */
 	reg master_ena;
 
-	reg [12:0] clk_div8192; /* for generating 512 Hz clock from 4 MHz */
-	reg [2:0]  frame;
+	reg        pdiv12;
+	wire [2:0] frame;
+	wire       update;
+
 	/*
 	Frame Sequencer:
 	Step   Length Ctr  Vol Env     Sweep
@@ -189,6 +192,10 @@ module lr35902_snd(
 			pwm_count <= 1; /* skip 0 */
 		else
 			pwm_count <= pwm_count + 1;
+
+	assign frame  = div[15:13];
+	assign update = pdiv12 && !div[12];
+	always @(posedge clk) pdiv12 <= div[12];
 
 	assign so12_sum = so1_compare + so2_compare;
 	assign so12_compare = so12_sum[6:1];
@@ -288,10 +295,6 @@ module lr35902_snd(
 	end
 
 	always @(posedge clk) begin
-		clk_div8192 <= clk_div8192 + 1;
-		if (&clk_div8192)
-			frame <= frame + 1;
-
 		wave_read <= waveram[voc3_ena ? voc3_pos[4:1] : adr[3:0]];
 
 		if (pwrite && !write) begin
@@ -386,7 +389,7 @@ module lr35902_snd(
 			end
 		end
 
-		if (&clk_div8192[1:0]) begin /* frequency counters count with 1 MiHz */
+		if (!div[1:0]) begin /* frequency counters count with 1 MiHz */
 			if (voc1_ena) begin
 				voc1_freq_counter <= voc1_freq_counter + 1;
 				if (&voc1_freq_counter) begin
@@ -415,7 +418,7 @@ module lr35902_snd(
 			end
 		end
 
-		if (clk_div8192[0]) begin /* voice 3 frequency counter counts with 2 MiHz */
+		if (!div[0]) begin /* voice 3 frequency counter counts with 2 MiHz */
 			if (voc3_ena) begin
 				voc3_freq_counter <= voc3_freq_counter + 1;
 				if (&voc3_freq_counter) begin
@@ -431,7 +434,7 @@ module lr35902_snd(
 			end
 		end
 
-		if (&clk_div8192 && !frame[0]) begin /* len counters count with 256 Hz */
+		if (update && !frame[0]) begin /* len counters count with 256 Hz */
 			if (voc1_ena && voc1_cntlen) begin
 				voc1_len_counter <= voc1_len_counter + 1;
 				if (voc1_len_counter[6]) begin
@@ -465,7 +468,7 @@ module lr35902_snd(
 			end
 		end
 
-		if (&clk_div8192 && &frame) begin /* vol counters count with 64 Hz */
+		if (update && &frame) begin /* vol counters count with 64 Hz */
 			if (voc1_ena && voc1_vol_time) begin
 				voc1_vol_counter <= voc1_vol_counter + 1;
 				if (voc1_vol_counter == voc1_vol_time) begin
@@ -509,7 +512,7 @@ module lr35902_snd(
 			end
 		end
 
-		if (&clk_div8192 && !frame[0] && frame[1]) begin /* sweep counter counts with 128 Hz */
+		if (update && !frame[0] && frame[1]) begin /* sweep counter counts with 128 Hz */
 			if (voc1_ena && voc1_swp_time) begin
 				voc1_swp_counter <= voc1_swp_counter + 1;
 				if (voc1_swp_counter == voc1_swp_time) begin
@@ -596,9 +599,6 @@ module lr35902_snd(
 			voc2_so2       <= 0;
 			voc3_so2       <= 0;
 			voc4_so2       <= 0;
-
-			clk_div8192    <= 0;
-			frame          <= 0;
 
 			voc1_trigger   <= 0;
 			voc2_trigger   <= 0;

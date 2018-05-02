@@ -2,14 +2,15 @@
 
 (* nolatches *)
 module lr35902_tim(
-		output reg  [7:0] dout,
-		input  wire [7:0] din,
-		input  wire [1:0] adr,
-		input  wire       read,
-		input  wire       write,
-		input  wire       clk,
-		input  wire       reset,
-		output reg        irq,
+		output reg  [7:0]  dout,
+		input  wire [7:0]  din,
+		input  wire [1:0]  adr,
+		input  wire        read,
+		input  wire        write,
+		input  wire        clk,
+		input  wire        reset,
+		output reg         irq,
+		output wire [15:0] div,
 	);
 
 	reg [7:0] r_tima, r_tma;
@@ -19,12 +20,10 @@ module lr35902_tim(
 
 	reg r_pread, r_pwrite;
 
-	wire [7:0] div;
-
 	reg  r_tbit; wire tbit;
 	wire incr;
 
-	assign div = r_count[15:8];
+	assign div = r_count;
 
 	assign incr = !tbit && r_tbit;
 
@@ -53,7 +52,7 @@ module lr35902_tim(
 		end
 
 		if (!r_pread && read) case (adr)
-		0: dout <= div;
+		0: dout <= r_count[15:8];
 		1: dout <= r_tima;
 		2: dout <= r_tma;
 		3: dout <= { 5'h1f, r_tac };
