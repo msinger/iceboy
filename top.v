@@ -608,7 +608,6 @@ module top(
 		.reset(reset_gb),
 		.sel_rom(cs_crom),
 		.sel_ram(cs_cram),
-		.default_mode(0),
 	);
 
 	prog_loader loader(

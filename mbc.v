@@ -8,7 +8,6 @@ module mbc_chip(
 		input  wire [7:0]  data,
 		input  wire        write,
 		input  wire        reset,
-		input  wire        default_mode,
 
 		output wire        sel_rom,
 		output wire        sel_ram,
@@ -16,8 +15,7 @@ module mbc_chip(
 
 	reg pwrite;
 
-	reg [6:0] rom_bank;
-	reg [3:0] ram_bank;
+	reg [6:0] bank;
 	reg       ena_ram;
 	reg       mode;
 
@@ -33,12 +31,12 @@ module mbc_chip(
 		'b_01??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
 			begin
 				/* banks 0x00, 0x20, 0x40 and 0x60 can't be selected, instead the next one (+1) is selected */
-				oadr    = { rom_bank | !|rom_bank[4:0], iadr[13:0] };
+				oadr    = { !mode ? bank[6:5] : 2'b00, bank[4:0] | !bank[4:0], iadr[13:0] };
 				sel_rom = 1;
 			end
 		'b_101?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#15 */
 			begin
-				oadr    = { ram_bank, iadr[12:0] };
+				oadr    = { mode ? bank[6:5] : 2'b00, iadr[12:0] };
 				sel_ram = ena_ram;
 			end
 		endcase
@@ -50,28 +48,25 @@ module mbc_chip(
 	end
 
 	always @(posedge clk) begin
-		if (pwrite && !write) casez ({ mode, iadr })
-			/* M A15....A8 A7.....A0 */
-			'b_?_000?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */
+		if (pwrite && !write) casez (iadr)
+			/* A15....A8 A7.....A0 */
+			'b_000?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */
 				ena_ram <= data[3:0] == 'b1010; /* 0x?a enables RAM access */
-			'b_?_001?_????_????_????: /* 0x2000-0x3fff: select ROM bank (bits 0-4) */
-				rom_bank[4:0] <= data[4:0];
-			'b_0_010?_????_????_????: /* 0x4000-0x5fff: select ROM bank (bits 5-6) */
-				rom_bank[6:5] <= data[1:0];
-			'b_1_010?_????_????_????: /* 0x4000-0x5fff: select RAM bank */
-				ram_bank <= data[3:0];
-			'b_?_011?_????_????_????: /* 0x6000-0x7fff: set banking mode */
+			'b_001?_????_????_????: /* 0x2000-0x3fff: select bank (bits 0-4) */
+				bank[4:0] <= data[4:0];
+			'b_010?_????_????_????: /* 0x4000-0x5fff: select bank (bits 5-6) */
+				bank[6:5] <= data[1:0];
+			'b_011?_????_????_????: /* 0x6000-0x7fff: set banking mode */
 				mode <= data[0];
 		endcase
 
 		pwrite <= write;
 
 		if (reset) begin
-			pwrite   <= 0;
-			rom_bank <= 0;
-			ram_bank <= 0;
-			ena_ram  <= 0;
-			mode     <= default_mode;
+			pwrite  <= 0;
+			bank    <= 0;
+			ena_ram <= 0;
+			mode    <= 0;
 		end
 	end
 
