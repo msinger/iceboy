@@ -59,7 +59,8 @@ module top(
 
 	wire irq_ppu_vblank, irq_ppu_stat;
 
-	wire dma_active, dma_drvext;
+	wire dma_active;
+	reg  r_dma_drvext; wire dma_drvext;
 
 	wire ppu_needs_oam, ppu_needs_vram;
 
@@ -75,7 +76,7 @@ module top(
 		) data_io [7:0] (
 			.PACKAGE_PIN(data),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(rd_ext || r_rd_ext),
+			.OUTPUT_ENABLE((rd_ext || r_rd_ext) && !dma_drvext),
 			.D_OUT_0(data_ext_out),
 			.D_IN_0(data_ext_in),
 		);
@@ -85,7 +86,7 @@ module top(
 		) adr_io [15:0] (
 			.PACKAGE_PIN(adr),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(dma_drvext),
+			.OUTPUT_ENABLE(dma_drvext && r_dma_drvext),
 			.D_OUT_0(adr_dma_rd),
 			.D_IN_0(adr_ext),
 		);
@@ -96,7 +97,7 @@ module top(
 		) n_read_io (
 			.PACKAGE_PIN(n_read),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(dma_drvext),
+			.OUTPUT_ENABLE(dma_drvext && r_dma_drvext),
 			.D_OUT_0(!rd_dma),
 			.D_IN_0(n_read_in),
 		);
@@ -172,7 +173,7 @@ module top(
 		case (1)
 		csext_io_ppu:
 			data_ext_out = data_ppu_out;
-		csext_vram && !csdma_vram && !ppu_needs_vram:
+		csext_vram && (!dma_active || !csdma_vram) && !ppu_needs_vram:
 			data_ext_out = data_vram_out;
 		csext_oam && !dma_active && !ppu_needs_oam:
 			data_ext_out = data_oam_out;
@@ -196,7 +197,7 @@ module top(
 
 		(* parallelcase *)
 		case (1)
-		csdma_vram:
+		csdma_vram && !ppu_needs_vram:
 			data_dma_in = data_vram_out;
 		cs_ram || cs_cart:
 			data_dma_in = data_ext_in;
@@ -212,7 +213,7 @@ module top(
 		if (ppu_needs_vram) begin
 			adr_vram     = adr_ppu;
 			rd_vram      = rd_ppu;
-		end else if (csdma_vram) begin
+		end else if (dma_active && csdma_vram) begin
 			adr_vram     = adr_dma_rd;
 			rd_vram      = rd_dma;
 		end else if (csext_vram) begin
@@ -247,18 +248,15 @@ module top(
 	always @(posedge gbclk)
 		r_rd_ext <= rd_ext;
 
-	assign dma_active = 0;
-	assign dma_drvext = 0;
-	assign adr_dma_rd = 0;
-	assign adr_dma_wr = 0;
+	assign dma_drvext = dma_active && (cs_ram || cs_cart);
+
+	always @(posedge gbclk)
+		r_dma_drvext <= dma_drvext;
 
 	assign led = { adr_ext[15:10], r_gbclk_on, !r_reset_gb };
 
-	assign rd_ext    = !reset_gb && !n_read_in && !dma_drvext;
-	assign wr_ext    = !reset_gb && !n_write_in && !dma_drvext;
-
-	assign rd_dma    = 0;
-	assign wr_dma    = 0;
+	assign rd_ext    = !reset_gb && !n_read_in;
+	assign wr_ext    = !reset_gb && !n_write_in;
 
 	assign n_irq_vb = !irq_ppu_vblank;
 	assign n_irq_st = !irq_ppu_stat;
@@ -304,7 +302,7 @@ module top(
 
 	gb_memmap ext_map(
 		.adr(adr_ext),
-		.reset(dma_drvext),
+		.reset(0),
 		.enable_bootrom(0),
 		.sel_vram(csext_vram),
 		.sel_oam(csext_oam),
@@ -313,7 +311,7 @@ module top(
 
 	gb_memmap ppu_map(
 		.adr(adr_ppu),
-		.reset(!ppu_needs_oam && !ppu_needs_vram),
+		.reset(0),
 		.enable_bootrom(0),
 		.sel_vram(csppu_vram),
 		.sel_oam(csppu_oam),
@@ -321,7 +319,7 @@ module top(
 
 	gb_memmap dma_map(
 		.adr(adr_dma_rd),
-		.reset(!dma_active),
+		.reset(0),
 		.enable_bootrom(0),
 		.sel_vram(csdma_vram),
 		.sel_ram(cs_ram),
@@ -388,6 +386,20 @@ module top(
 		.lcd_cs(lcd_cs_out),
 		.lcd_cd(lcd_cd_out),
 		.lcd_vled(lcd_vled_out),
+	);
+
+	lr35902_oam_dma dma(
+		.clk(gbclk),
+		.reset(reset_gb),
+		.reg_din(data_ext_in),
+		.reg_write(wr_ext && csext_io_ppu && adr_ext[4:0] == 6),
+		.adr(adr_dma_rd),
+		.adr_oam(adr_dma_wr),
+		.dout(data_dma_out),
+		.din(data_dma_in),
+		.read(rd_dma),
+		.write(wr_dma),
+		.active(dma_active),
 	);
 
 endmodule

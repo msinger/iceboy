@@ -98,7 +98,8 @@ module top(
 	wire [7:0]  dbg_probe;
 	wire        ddrv_dbg, halt, no_inc, ime;
 
-	wire dma_active;
+	reg r_dmadrv; wire dmadrv;
+
 	wire hide_bootrom;
 
 	wire [15:0] div;
@@ -224,8 +225,8 @@ module top(
 		) vdata_io[7:0] (
 			.PACKAGE_PIN(vdata),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(reset_done && (dma_active || wr_vid || r_wr_vid)),
-			.D_OUT_0(dma_active ? data_ext_in : data_cpu_out),
+			.OUTPUT_ENABLE(reset_done && (dmadrv || wr_vid || r_wr_vid)),
+			.D_OUT_0(dmadrv ? data_ext_in : data_cpu_out),
 			.D_IN_0(data_vid_in),
 		);
 
@@ -234,7 +235,7 @@ module top(
 		) vadr_io[15:0] (
 			.PACKAGE_PIN(vadr),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(reset_done && !dma_active),
+			.OUTPUT_ENABLE(reset_done && !dmadrv && !r_dmadrv),
 			.D_OUT_0(adr_cpu),
 			.D_IN_0(adr_dma),
 		);
@@ -245,7 +246,7 @@ module top(
 		) n_vread_io (
 			.PACKAGE_PIN(n_vread),
 			.OUTPUT_CLK(gbclk),
-			.OUTPUT_ENABLE(reset_done && !dma_active),
+			.OUTPUT_ENABLE(reset_done && !dmadrv && !r_dmadrv),
 			.D_OUT_0(!rd_vid),
 			.D_IN_0(n_rd_dma),
 		);
@@ -349,7 +350,7 @@ module top(
 			data_cpu_in = data_cpureg_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
-		(cs_vram || cs_oam || cs_io_ppu) && !dma_active:
+		(cs_vram || cs_oam || cs_io_ppu) && !dmadrv:
 			data_cpu_in = data_vid_in;
 		cscpu_ext && !csdma_ext:
 			data_cpu_in = data_ext_in;
@@ -374,14 +375,18 @@ module top(
 	assign irq_ppu_vblank = !n_irq_vb_in;
 	assign irq_ppu_stat   = !n_irq_st_in;
 
-	assign dma_active = !n_dmadrv_in;
+	assign dmadrv = !n_dmadrv_in;
+
+	always @(posedge gbclk)
+		r_dmadrv <= dmadrv;
+
 	assign led = { r_slow, hide_bootrom, r_gb_on };
 
 	assign wr_vid = (cs_vram || cs_oam || cs_io_ppu) && wr_cpu;
 	assign rd_vid = (cs_vram || cs_oam || cs_io_ppu) && rd_cpu;
 
-	assign rd_dma    = dma_active && !n_rd_dma;
-	assign n_vwrite  = dma_active || !wr_vid;
+	assign rd_dma    = dmadrv && !n_rd_dma;
+	assign n_vwrite  = dmadrv || !wr_vid;
 	assign n_vreset  = !reset_gb;
 
 	assign cs_ext = cs_ram || cs_cart;
@@ -506,7 +511,7 @@ module top(
 
 	gb_memmap dma_map(
 		.adr(adr_dma),
-		.reset(!dma_active),
+		.reset(!dmadrv),
 		.enable_bootrom(0),
 		.sel_ram(csdma_ram),
 		.sel_cartridge(csdma_cart),

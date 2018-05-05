@@ -21,7 +21,8 @@ iomap.v \
 ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \
-ppu/lcd_uc1611.v
+ppu/lcd_uc1611.v \
+ppu/lr35902_oam_dma.v
 
 all: gameboy.bin gameboy_vid.bin
 
