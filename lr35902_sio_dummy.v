@@ -30,8 +30,9 @@ module lr35902_sio_dummy(
 	always @(posedge clk) begin
 		irq <= 0;
 
+		clk_count <= clk_count + 1;
+
 		if (tstart && sclk) begin
-			clk_count <= clk_count + 1;
 
 			if (&clk_count)
 				bit_count <= bit_count + 1;
@@ -50,7 +51,6 @@ module lr35902_sio_dummy(
 				sclk <= din[0];
 				if (!tstart && din[7]) begin
 					tstart <= 1;
-					clk_count <= 0;
 					bit_count <= 0;
 				end else if (tstart && !din[7])
 					tstart <= 0;
