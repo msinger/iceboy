@@ -13,11 +13,6 @@
 `define FETCH_STATE_PXL1_1 5
 `define FETCH_STATE_BLOCK  6
 
-`define SRC_BG 0
-`define SRC_WD 1
-`define SRC_O0 2
-`define SRC_O1 3
-
 /* From higan:
 auto PPU::coincidence() -> bool {
   uint ly = status.ly;
@@ -116,8 +111,10 @@ module lr35902_ppu(
 	wire [7:0]  fetch1, fetch0;
 	reg  [15:0] r_fetch_bg_adr;
 	wire [15:0] fetch_bg_adr;
-	reg         r_fetch_obj;
-	wire        fetch_obj;
+	reg         r_fetch_flip;
+	wire        fetch_flip;
+	reg         r_fetch_prio;
+	wire        fetch_prio;
 
 	wire [7:0] px_pal;
 
@@ -222,7 +219,8 @@ module lr35902_ppu(
 		fetch0       = r_fetch0;
 		fetch1       = r_fetch1;
 		fetch_bg_adr = r_fetch_bg_adr;
-		fetch_obj    = r_fetch_obj;
+		fetch_flip   = r_fetch_flip;
+		fetch_prio   = r_fetch_prio;
 
 		for (i = 0; i < 10; i = i + 1)
 			obj[i] = r_obj[i];
@@ -274,11 +272,11 @@ module lr35902_ppu(
 
 		if (mode == `MODE_OAMSRC) begin
 			read = 1;
-			adr  = { 8'hfe, lx };
+			adr  = { 8'hfe, lx[6:0], 1'b0 };
 		end
 
 		if (r_mode == `MODE_OAMSRC && r_nobj < 10) begin
-			if (!r_lx[0]) begin
+			if (!r_lx[0] && r_obj_ena) begin
 				if (r_ly + 16 >= data16[7:0] && r_ly + 16 < data16[7:0] + (r_obj_size ? 16 : 8)) begin
 					obj[r_nobj][15:0] = data16;
 					lobj              = 1;
@@ -293,7 +291,7 @@ module lr35902_ppu(
 			fetch_bg_adr[15:10] = { 5'b10011, r_bg_map };
 			fetch_bg_adr[9:5]   = line[7:3];
 			fetch_bg_adr[4:0]   = r_scx[7:3];
-			fetch_src           = `SRC_BG;
+			fetch_src           = 'b0x;
 		end
 
 		case (r_fetch_state)
@@ -313,7 +311,7 @@ module lr35902_ppu(
 				fetch_state = `FETCH_STATE_PXL0_1;
 				read        = 1;
 				adr[0]      = 0;
-				if (!r_fetch_obj) begin
+				if (!r_fetch_src[1]) begin
 					adr[15:12] = { 3'b100, !r_bg_tiles && !r_fetch_tile[7] };
 					adr[11:4]  = r_fetch_tile;
 					adr[3:1]   = r_draw_win ? wline[2:0] : line[2:0];
@@ -342,19 +340,24 @@ module lr35902_ppu(
 			fetch_bg_adr[15:10] = { 5'b10011, r_win_map };
 			fetch_bg_adr[9:5]   = wline[7:3];
 			fetch_bg_adr[4:0]   = 0;
-			fetch_src           = `SRC_WD;
+			fetch_src           = 'b0x;
 			fetch_state         = `FETCH_STATE_IDLE;
 			fifo_len            = 0;
 			read                = 0;
 		end
 
-		if (r_fetch_obj && fetch_state == `FETCH_STATE_BLOCK) begin
+		if (r_fetch_src[1] && fetch_state == `FETCH_STATE_BLOCK) begin
 			fetch_state     = `FETCH_STATE_IDLE;
-			fetch_obj       = 0;
-			fifo0[15:8]     = fetch0;
-			fifo1[15:8]     = fetch1;
+			if (r_fetch_flip) begin
+				fifo0[15:8] = { fetch0[0], fetch0[1], fetch0[2], fetch0[3], fetch0[4], fetch0[5], fetch0[6], fetch0[7] };
+				fifo1[15:8] = { fetch1[0], fetch1[1], fetch1[2], fetch1[3], fetch1[4], fetch1[5], fetch1[6], fetch1[7] };
+			end else begin
+				fifo0[15:8] = fetch0;
+				fifo1[15:8] = fetch1;
+			end
 			fifo0_src[15:8] = { 8{fetch_src[0]} };
 			fifo1_src[15:8] = { 8{fetch_src[1]} };
+			fetch_src       = 'b0x;
 		end
 
 		if ((fifo_len == 8 || fifo_len == 0) &&
@@ -377,9 +380,9 @@ module lr35902_ppu(
 		end
 
 		case ({ fifo1_src[15], fifo0_src[15] })
-		`SRC_BG, `SRC_WD: px_pal = bgp;
-		`SRC_O0:          px_pal = obp0;
-		`SRC_O1:          px_pal = obp1;
+		'b10:    px_pal = obp0;
+		'b11:    px_pal = obp1;
+		default: px_pal = bgp;
 		endcase
 
 		case ({ fifo1[15], fifo0[15] })
@@ -389,7 +392,7 @@ module lr35902_ppu(
 		3: px = px_pal[7:6];
 		endcase
 
-		if (mode == `MODE_PXTRANS && fifo_len > 8) begin
+		if (mode == `MODE_PXTRANS && fifo_len > 8 && !fetch_src[1]) begin
 			/* Don't send r_scx[2:0] (0..7) pixels to the LCD. This is for sub tile X scrolling. */
 			if (!r_scxed && px_cnt == r_scx[2:0]) begin
 				scxed = 1;
@@ -410,13 +413,17 @@ module lr35902_ppu(
 			default: mobj[28] = 0;
 			endcase
 
-			if (scxed && mobj[28] && !r_fetch_obj) begin
+			if (scxed && mobj[28]) begin
 				fetch_state = `FETCH_STATE_PXL0_0;
-				fetch_src   = mobj[24] ? `SRC_O1 : `SRC_O0;
-				fetch_obj   = 1;
+				fetch_src   = mobj[24] ? 'b11 : 'b10;
+				fetch_flip  = mobj[25];
+				fetch_prio  = mobj[27];
 				adr[15:12]  = 'h8;
 				adr[11:4]   = mobj[23:16];
-				adr[3:1]    = 0;
+				if (r_obj_size)
+					adr[4:1] = mobj[26] ? (15 - (r_ly[3:0] - mobj[3:0])) : (r_ly[3:0] - mobj[3:0]);
+				else
+					adr[3:1] = mobj[26] ? (7 - (r_ly[2:0] - mobj[2:0])) : (r_ly[2:0] - mobj[2:0]);
 				case (1)
 				r_obj[0][28] && r_obj[0][15:8] == px_cnt: obj[0][28] = 0;
 				r_obj[1][28] && r_obj[1][15:8] == px_cnt: obj[1][28] = 0;
@@ -452,7 +459,7 @@ module lr35902_ppu(
 			draw_win = 0;
 
 			fetch_state = `FETCH_STATE_IDLE;
-			fetch_obj   = 0;
+			fetch_src   = 'b0x;
 			read        = 0;
 
 			for (i = 0; i < 10; i = i + 1)
@@ -517,12 +524,13 @@ module lr35902_ppu(
 			fifo_len  = 8;
 
 			fetch_state  = `FETCH_STATE_IDLE;
-			fetch_src    = 'bx;
+			fetch_src    = 'b0x;
 			fetch_tile   = 'bx;
 			fetch0       = 'bx;
 			fetch1       = 'bx;
 			fetch_bg_adr = 'bx;
-			fetch_obj    = 0;
+			fetch_flip   = 'bx;
+			fetch_prio   = 'bx;
 
 			for (i = 0; i < 10; i = i + 1)
 				obj[i] = 'h0xxxxxxx;
@@ -590,7 +598,8 @@ module lr35902_ppu(
 		r_fetch0       <= fetch0;
 		r_fetch1       <= fetch1;
 		r_fetch_bg_adr <= fetch_bg_adr;
-		r_fetch_obj    <= fetch_obj;
+		r_fetch_flip   <= fetch_flip;
+		r_fetch_prio   <= fetch_prio;
 
 		for (i = 0; i < 10; i = i + 1)
 			r_obj[i] <= obj[i];

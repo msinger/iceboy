@@ -30,7 +30,7 @@ module lr35902_oam_dma(
 	reg r_active;
 
 	assign dout    = din;
-	assign adr     = { sadr, pos };
+	assign adr     = { r_sadr, pos };
 	assign adr_oam = pos;
 	assign read    = state == `state_busy && cycle < 2;
 	assign write   = state == `state_busy && cycle < 2;
