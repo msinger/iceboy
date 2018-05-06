@@ -349,14 +349,40 @@ module lr35902_ppu(
 		if (r_fetch_src[1] && fetch_state == `FETCH_STATE_BLOCK) begin
 			fetch_state     = `FETCH_STATE_IDLE;
 			if (r_fetch_flip) begin
-				fifo0[15:8] = { fetch0[0], fetch0[1], fetch0[2], fetch0[3], fetch0[4], fetch0[5], fetch0[6], fetch0[7] };
-				fifo1[15:8] = { fetch1[0], fetch1[1], fetch1[2], fetch1[3], fetch1[4], fetch1[5], fetch1[6], fetch1[7] };
+				if (!fifo1_src[8]  && (!r_fetch_prio || !fifo0[8]  && !fifo1[8])  && (fetch0[7] || fetch1[7]))
+					{ fifo1_src[8],  fifo0_src[8],  fifo1[8],  fifo0[8]  } = { fetch_src, fetch1[7], fetch0[7] };
+				if (!fifo1_src[9]  && (!r_fetch_prio || !fifo0[9]  && !fifo1[9])  && (fetch0[6] || fetch1[6]))
+					{ fifo1_src[9],  fifo0_src[9],  fifo1[9],  fifo0[9]  } = { fetch_src, fetch1[6], fetch0[6] };
+				if (!fifo1_src[10] && (!r_fetch_prio || !fifo0[10] && !fifo1[10]) && (fetch0[5] || fetch1[5]))
+					{ fifo1_src[10], fifo0_src[10], fifo1[10], fifo0[10] } = { fetch_src, fetch1[5], fetch0[5] };
+				if (!fifo1_src[11] && (!r_fetch_prio || !fifo0[11] && !fifo1[11]) && (fetch0[4] || fetch1[4]))
+					{ fifo1_src[11], fifo0_src[11], fifo1[11], fifo0[11] } = { fetch_src, fetch1[4], fetch0[4] };
+				if (!fifo1_src[12] && (!r_fetch_prio || !fifo0[12] && !fifo1[12]) && (fetch0[3] || fetch1[3]))
+					{ fifo1_src[12], fifo0_src[12], fifo1[12], fifo0[12] } = { fetch_src, fetch1[3], fetch0[3] };
+				if (!fifo1_src[13] && (!r_fetch_prio || !fifo0[13] && !fifo1[13]) && (fetch0[2] || fetch1[2]))
+					{ fifo1_src[13], fifo0_src[13], fifo1[13], fifo0[13] } = { fetch_src, fetch1[2], fetch0[2] };
+				if (!fifo1_src[14] && (!r_fetch_prio || !fifo0[14] && !fifo1[14]) && (fetch0[1] || fetch1[1]))
+					{ fifo1_src[14], fifo0_src[14], fifo1[14], fifo0[14] } = { fetch_src, fetch1[1], fetch0[1] };
+				if (!fifo1_src[15] && (!r_fetch_prio || !fifo0[15] && !fifo1[15]) && (fetch0[0] || fetch1[0]))
+					{ fifo1_src[15], fifo0_src[15], fifo1[15], fifo0[15] } = { fetch_src, fetch1[0], fetch0[0] };
 			end else begin
-				fifo0[15:8] = fetch0;
-				fifo1[15:8] = fetch1;
+				if (!fifo1_src[8]  && (!r_fetch_prio || !fifo0[8]  && !fifo1[8])  && (fetch0[0] || fetch1[0]))
+					{ fifo1_src[8],  fifo0_src[8],  fifo1[8],  fifo0[8]  } = { fetch_src, fetch1[0], fetch0[0] };
+				if (!fifo1_src[9]  && (!r_fetch_prio || !fifo0[9]  && !fifo1[9])  && (fetch0[1] || fetch1[1]))
+					{ fifo1_src[9],  fifo0_src[9],  fifo1[9],  fifo0[9]  } = { fetch_src, fetch1[1], fetch0[1] };
+				if (!fifo1_src[10] && (!r_fetch_prio || !fifo0[10] && !fifo1[10]) && (fetch0[2] || fetch1[2]))
+					{ fifo1_src[10], fifo0_src[10], fifo1[10], fifo0[10] } = { fetch_src, fetch1[2], fetch0[2] };
+				if (!fifo1_src[11] && (!r_fetch_prio || !fifo0[11] && !fifo1[11]) && (fetch0[3] || fetch1[3]))
+					{ fifo1_src[11], fifo0_src[11], fifo1[11], fifo0[11] } = { fetch_src, fetch1[3], fetch0[3] };
+				if (!fifo1_src[12] && (!r_fetch_prio || !fifo0[12] && !fifo1[12]) && (fetch0[4] || fetch1[4]))
+					{ fifo1_src[12], fifo0_src[12], fifo1[12], fifo0[12] } = { fetch_src, fetch1[4], fetch0[4] };
+				if (!fifo1_src[13] && (!r_fetch_prio || !fifo0[13] && !fifo1[13]) && (fetch0[5] || fetch1[5]))
+					{ fifo1_src[13], fifo0_src[13], fifo1[13], fifo0[13] } = { fetch_src, fetch1[5], fetch0[5] };
+				if (!fifo1_src[14] && (!r_fetch_prio || !fifo0[14] && !fifo1[14]) && (fetch0[6] || fetch1[6]))
+					{ fifo1_src[14], fifo0_src[14], fifo1[14], fifo0[14] } = { fetch_src, fetch1[6], fetch0[6] };
+				if (!fifo1_src[15] && (!r_fetch_prio || !fifo0[15] && !fifo1[15]) && (fetch0[7] || fetch1[7]))
+					{ fifo1_src[15], fifo0_src[15], fifo1[15], fifo0[15] } = { fetch_src, fetch1[7], fetch0[7] };
 			end
-			fifo0_src[15:8] = { 8{fetch_src[0]} };
-			fifo1_src[15:8] = { 8{fetch_src[1]} };
 			fetch_src       = 'b0x;
 		end
 
