@@ -54,8 +54,8 @@ module top(
 	wire [7:0] data_dma_out, data_dma_in;
 	wire [7:0] data_ext_out, data_ext_in;
 	wire [7:0] data_vram_out, data_vram_in;
-	wire [7:0] data_oam_out, data_oam_in;
-	wire [7:0] data_ppu_out, data_ppu_in;
+	wire [7:0] data_oam_out, data_oam_in;   wire [15:0] data_oam_out16;
+	wire [7:0] data_ppu_out;
 
 	wire irq_ppu_vblank, irq_ppu_stat;
 
@@ -177,18 +177,6 @@ module top(
 			data_ext_out = data_vram_out;
 		csext_oam && !dma_active && !ppu_needs_oam:
 			data_ext_out = data_oam_out;
-		endcase
-	end
-
-	always @* begin
-		data_ppu_in = 'hff;
-
-		(* parallelcase *)
-		case (1)
-		csppu_vram:
-			data_ppu_in = data_vram_out;
-		csppu_oam:
-			data_ppu_in = data_oam_out;
 		endcase
 	end
 
@@ -345,6 +333,7 @@ module top(
 		.clk(gbclk),
 		.adr(adr_oam),
 		.dout(data_oam_out),
+		.dout16(data_oam_out16),
 		.din(data_oam_in),
 		.read(rd_oam),
 		.write(wr_oam),
@@ -368,7 +357,8 @@ module top(
 		.need_oam(ppu_needs_oam),
 		.need_vram(ppu_needs_vram),
 		.adr(adr_ppu),
-		.data(data_ppu_in),
+		.data(data_vram_out),
+		.data16(data_oam_out16),
 		.read(rd_ppu),
 	);
 

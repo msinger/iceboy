@@ -42,6 +42,7 @@ module lr35902_ppu(
 		output wire        need_oam,
 		output wire        need_vram,
 		input  wire [7:0]  data,
+		input  wire [15:0] data16,
 		output wire [15:0] adr,
 		output wire        read,
 		output wire        disp_on,
@@ -115,10 +116,20 @@ module lr35902_ppu(
 	wire [7:0]  fetch1, fetch0;
 	reg  [15:0] r_fetch_bg_adr;
 	wire [15:0] fetch_bg_adr;
+	reg         r_fetch_obj;
+	wire        fetch_obj;
 
 	wire [7:0] px_pal;
 
 	wire [7:0] line, wline;
+
+	(* mem2reg *)
+	reg [28:0] r_obj[0:9]; wire [28:0] obj[0:9];
+	reg [3:0]  r_nobj;     wire [3:0]  nobj;
+	reg        r_lobj;     wire        lobj;
+	                       wire [28:0] mobj;
+
+	integer i;
 
 	assign stat_sig = ((r_lyc_eq    && r_sel_lyc)                    ||
 	                   (r_mode == 0 && r_sel_mode0)                  ||
@@ -211,6 +222,14 @@ module lr35902_ppu(
 		fetch0       = r_fetch0;
 		fetch1       = r_fetch1;
 		fetch_bg_adr = r_fetch_bg_adr;
+		fetch_obj    = r_fetch_obj;
+
+		for (i = 0; i < 10; i = i + 1)
+			obj[i] = r_obj[i];
+
+		nobj = r_nobj;
+		lobj = 0;
+		mobj = 'bx;
 
 		if (r_lx == 455) begin
 			px_cnt = 0;
@@ -253,6 +272,23 @@ module lr35902_ppu(
 				mode = `MODE_HBLANK;
 		end
 
+		if (mode == `MODE_OAMSRC) begin
+			read = 1;
+			adr  = { 8'hfe, lx };
+		end
+
+		if (r_mode == `MODE_OAMSRC && r_nobj < 10) begin
+			if (!r_lx[0]) begin
+				if (r_ly + 16 >= data16[7:0] && r_ly + 16 < data16[7:0] + (r_obj_size ? 16 : 8)) begin
+					obj[r_nobj][15:0] = data16;
+					lobj              = 1;
+				end
+			end else if (r_lobj) begin
+				obj[r_nobj][28:16] = { 1'b1, data16[15:12], data16[7:0] };
+				nobj               = r_nobj + 1;
+			end
+		end
+
 		if (r_mode != `MODE_PXTRANS && mode == `MODE_PXTRANS) begin
 			fetch_bg_adr[15:10] = { 5'b10011, r_bg_map };
 			fetch_bg_adr[9:5]   = line[7:3];
@@ -263,40 +299,41 @@ module lr35902_ppu(
 		case (r_fetch_state)
 		`FETCH_STATE_IDLE:
 			if (mode == `MODE_PXTRANS) begin
-				fetch_state  = `FETCH_STATE_TILE;
-				read         = 1;
-				adr          = fetch_bg_adr;
+				fetch_state = `FETCH_STATE_TILE;
+				read        = 1;
+				adr         = fetch_bg_adr;
 			end
 		`FETCH_STATE_TILE:
 			begin
-				fetch_state       = `FETCH_STATE_PXL0_0;
-				fetch_tile        = data;
-				fetch_bg_adr[4:0] = r_fetch_bg_adr[4:0] + 1;
+				fetch_state = `FETCH_STATE_PXL0_0;
+				fetch_tile  = data;
 			end
 		`FETCH_STATE_PXL0_0:
 			begin
-				fetch_state  = `FETCH_STATE_PXL0_1;
-				read         = 1;
-				adr[15:12]   = { 3'b100, !r_bg_tiles && !r_fetch_tile[7] };
-				adr[11:4]    = r_fetch_tile;
-				adr[3:1]     = r_draw_win ? wline[2:0] : line[2:0];
-				adr[0]       = 0;
+				fetch_state = `FETCH_STATE_PXL0_1;
+				read        = 1;
+				adr[0]      = 0;
+				if (!r_fetch_obj) begin
+					adr[15:12] = { 3'b100, !r_bg_tiles && !r_fetch_tile[7] };
+					adr[11:4]  = r_fetch_tile;
+					adr[3:1]   = r_draw_win ? wline[2:0] : line[2:0];
+				end
 			end
 		`FETCH_STATE_PXL0_1:
 			begin
-				fetch_state  = `FETCH_STATE_PXL1_0;
-				fetch0       = data;
+				fetch_state = `FETCH_STATE_PXL1_0;
+				fetch0      = data;
 			end
 		`FETCH_STATE_PXL1_0:
 			begin
-				fetch_state  = `FETCH_STATE_PXL1_1;
-				read         = 1;
-				adr[0]       = 1;
+				fetch_state = `FETCH_STATE_PXL1_1;
+				read        = 1;
+				adr[0]      = 1;
 			end
 		`FETCH_STATE_PXL1_1:
 			begin
-				fetch_state  = `FETCH_STATE_BLOCK;
-				fetch1       = data;
+				fetch_state = `FETCH_STATE_BLOCK;
+				fetch1      = data;
 			end
 		endcase
 
@@ -311,9 +348,19 @@ module lr35902_ppu(
 			read                = 0;
 		end
 
+		if (r_fetch_obj && fetch_state == `FETCH_STATE_BLOCK) begin
+			fetch_state     = `FETCH_STATE_IDLE;
+			fetch_obj       = 0;
+			fifo0[15:8]     = fetch0;
+			fifo1[15:8]     = fetch1;
+			fifo0_src[15:8] = { 8{fetch_src[0]} };
+			fifo1_src[15:8] = { 8{fetch_src[1]} };
+		end
+
 		if ((fifo_len == 8 || fifo_len == 0) &&
 		    (fetch_state == `FETCH_STATE_BLOCK)) begin
-			fetch_state = `FETCH_STATE_IDLE;
+			fetch_state       = `FETCH_STATE_IDLE;
+			fetch_bg_adr[4:0] = r_fetch_bg_adr[4:0] + 1;
 			if (!fifo_len) begin
 				fifo0[15:8]     = fetch0;
 				fifo1[15:8]     = fetch1;
@@ -348,15 +395,51 @@ module lr35902_ppu(
 				scxed = 1;
 				px_cnt = 0; /* Reset pixel counter if we are done with X scrolling. */
 			end
-			/* Don't send following eight pixels (which are all garbage when r_scx==0) to the LCD. */
-			if (px_cnt >= 8)
-				px_out = !r_mute;
-			px_cnt    = px_cnt + 1;
-			fifo_len  = fifo_len - 1;
-			fifo0     = { fifo0[14:0], 1'bx };
-			fifo1     = { fifo1[14:0], 1'bx };
-			fifo0_src = { fifo0_src[14:0], 1'bx };
-			fifo1_src = { fifo1_src[14:0], 1'bx };
+
+			case (1)
+			r_obj[0][28] && r_obj[0][15:8] == px_cnt: mobj = r_obj[0];
+			r_obj[1][28] && r_obj[1][15:8] == px_cnt: mobj = r_obj[1];
+			r_obj[2][28] && r_obj[2][15:8] == px_cnt: mobj = r_obj[2];
+			r_obj[3][28] && r_obj[3][15:8] == px_cnt: mobj = r_obj[3];
+			r_obj[4][28] && r_obj[4][15:8] == px_cnt: mobj = r_obj[4];
+			r_obj[5][28] && r_obj[5][15:8] == px_cnt: mobj = r_obj[5];
+			r_obj[6][28] && r_obj[6][15:8] == px_cnt: mobj = r_obj[6];
+			r_obj[7][28] && r_obj[7][15:8] == px_cnt: mobj = r_obj[7];
+			r_obj[8][28] && r_obj[8][15:8] == px_cnt: mobj = r_obj[8];
+			r_obj[9][28] && r_obj[9][15:8] == px_cnt: mobj = r_obj[9];
+			default: mobj[28] = 0;
+			endcase
+
+			if (scxed && mobj[28] && !r_fetch_obj) begin
+				fetch_state = `FETCH_STATE_PXL0_0;
+				fetch_src   = mobj[24] ? `SRC_O1 : `SRC_O0;
+				fetch_obj   = 1;
+				adr[15:12]  = 'h8;
+				adr[11:4]   = mobj[23:16];
+				adr[3:1]    = 0;
+				case (1)
+				r_obj[0][28] && r_obj[0][15:8] == px_cnt: obj[0][28] = 0;
+				r_obj[1][28] && r_obj[1][15:8] == px_cnt: obj[1][28] = 0;
+				r_obj[2][28] && r_obj[2][15:8] == px_cnt: obj[2][28] = 0;
+				r_obj[3][28] && r_obj[3][15:8] == px_cnt: obj[3][28] = 0;
+				r_obj[4][28] && r_obj[4][15:8] == px_cnt: obj[4][28] = 0;
+				r_obj[5][28] && r_obj[5][15:8] == px_cnt: obj[5][28] = 0;
+				r_obj[6][28] && r_obj[6][15:8] == px_cnt: obj[6][28] = 0;
+				r_obj[7][28] && r_obj[7][15:8] == px_cnt: obj[7][28] = 0;
+				r_obj[8][28] && r_obj[8][15:8] == px_cnt: obj[8][28] = 0;
+				r_obj[9][28] && r_obj[9][15:8] == px_cnt: obj[9][28] = 0;
+				endcase
+			end else begin
+				/* Don't send eight pixels following the scroll (which are all garbage when r_scx==0) to the LCD. */
+				if (px_cnt >= 8)
+					px_out = !r_mute;
+				px_cnt    = px_cnt + 1;
+				fifo_len  = fifo_len - 1;
+				fifo0     = { fifo0[14:0], 1'bx };
+				fifo1     = { fifo1[14:0], 1'bx };
+				fifo0_src = { fifo0_src[14:0], 1'bx };
+				fifo1_src = { fifo1_src[14:0], 1'bx };
+			end
 		end
 
 		if (px_cnt == 168) begin
@@ -369,7 +452,13 @@ module lr35902_ppu(
 			draw_win = 0;
 
 			fetch_state = `FETCH_STATE_IDLE;
+			fetch_obj   = 0;
 			read        = 0;
+
+			for (i = 0; i < 10; i = i + 1)
+				obj[i] = 'h0xxxxxxx;
+
+			nobj = 0;
 		end
 
 		if (reset) begin
@@ -433,6 +522,12 @@ module lr35902_ppu(
 			fetch0       = 'bx;
 			fetch1       = 'bx;
 			fetch_bg_adr = 'bx;
+			fetch_obj    = 0;
+
+			for (i = 0; i < 10; i = i + 1)
+				obj[i] = 'h0xxxxxxx;
+
+			nobj = 0;
 		end
 	end
 
@@ -495,6 +590,13 @@ module lr35902_ppu(
 		r_fetch0       <= fetch0;
 		r_fetch1       <= fetch1;
 		r_fetch_bg_adr <= fetch_bg_adr;
+		r_fetch_obj    <= fetch_obj;
+
+		for (i = 0; i < 10; i = i + 1)
+			r_obj[i] <= obj[i];
+
+		r_nobj <= nobj;
+		r_lobj <= lobj;
 	end
 
 endmodule

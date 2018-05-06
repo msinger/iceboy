@@ -10,18 +10,17 @@ module lr35902_vram(
 		input  wire        write,
 	);
 
-	reg r_read, r_write;
+	reg r_write;
 
 	reg [7:0] ram[0:8191];
 
 	always @(posedge clk) begin
-		if (!r_read && read)
+		if (read)
 			dout <= ram[adr];
 
 		if (r_write && !write)
 			ram[adr] <= din;
 
-		r_read  <= read;
 		r_write <= write;
 	end
 
