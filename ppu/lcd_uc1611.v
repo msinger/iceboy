@@ -28,7 +28,7 @@ module uc1611(
 	);
 
 	reg [1:0]  r_state; wire [1:0]  state;
-	reg [15:0] r_count; wire [15:0] count;
+	reg [16:0] r_count; wire [16:0] count;
 
 	reg       r_insync; wire       insync;
 	reg       r_oddpx;  wire       oddpx;
@@ -37,7 +37,6 @@ module uc1611(
 	reg [7:0] r_lcd_data;
 	reg       r_lcd_cd;
 
-	(* mem2reg *)
 	reg [7:0] init_seq[0:15];
 	initial begin
 //		init_seq[0]  <= 'hc0; /* Set LCD Mapping Control: MY=0 MX=0 MSF=0 */
@@ -86,14 +85,25 @@ module uc1611(
 				state     = `STATE_INIT;
 				count     = 0;
 				lcd_cd    = 0;
+				lcd_data  = 'he2; /* System Reset */
 				insync    = 1;
 				oddpx     = 0;
 			end
 		`STATE_INIT:
 			begin
-				if (&r_count[15:14]) begin
+				if (r_count[16:1] == 0)
 					lcd_write = !r_count[0];
-if (lcd_write) lcd_data = init_seq[r_count[4:1]];
+				else if (r_count[16:1] == 1) begin
+					lcd_cd    = 1;
+					lcd_data  = 0;
+				end else if (!&r_count[16:15])
+					lcd_write = !r_count[0];
+				if (r_count[16:12] == 5'b11100)
+					lcd_cd    = 0;
+				if (&r_count[16:13]) begin
+					lcd_write = !r_count[0];
+					if (lcd_write)
+						lcd_data = init_seq[r_count[4:1]];
 					if (r_count[0] && r_count[4:1] == 15)
 						state  = `STATE_ON;
 				end
@@ -111,9 +121,8 @@ if (lcd_write) lcd_data = init_seq[r_count[4:1]];
 				lcd_data   = 'he2; /* System Reset */
 			end else if (vsync) begin
 				state      = `STATE_INIT;
-				count[15]  = 1;  /* do not wait */
-				count[14]  = 1;  /* do not wait */
-				count[4:1] = 12; /* start at index 12: only set page&col addresses to zero */
+				count[16:13] = 4'b1111; /* do not reset/clear/wait */
+				count[4:1] = 12; /* start at index 12: only set page&col addresses to upper left corner */
 				count[0]   = 0;
 				lcd_cd     = 0;
 				insync     = 1;
@@ -167,25 +176,15 @@ if (lcd_write) lcd_data = init_seq[r_count[4:1]];
 		end
 	end
 
-/*
-	reg [7:0] init_lcd_data;
-	always @(negedge clk) begin
-		init_lcd_data  <= init_seq[count[4:1]];
-	end
-*/
-
 	always @(posedge clk) begin
 		r_state     <= state;
 		r_count     <= count;
-
-//		r_lcd_data  <= init_lcd_data;
-//		if (state != `STATE_INIT || !lcd_write)
-			r_lcd_data <= lcd_data;
 
 		r_insync    <= insync;
 		r_oddpx     <= oddpx;
 		r_pxbuf     <= pxbuf;
 
+		r_lcd_data  <= lcd_data;
 		r_lcd_cd    <= lcd_cd;
 	end
 
