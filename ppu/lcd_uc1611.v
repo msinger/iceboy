@@ -60,7 +60,7 @@ module uc1611(
 		init_seq[12] <= 'h60; /* Set Page Address LSB: PA[3:0]=0 */
 		init_seq[13] <= 'h70; /* Set Page Address MSB: PA[6:4]=0 */
 		init_seq[14] <= 'h00; /* Set Column Address LSB: CA[3:0]=0 */
-		init_seq[15] <= 'h10; /* Set Column Address MSB: CA[7:4]=0 */
+		init_seq[15] <= 'h13; /* Set Column Address MSB: CA[7:4]=3 */
 	end
 
 	assign lcd_cs   = 1;
