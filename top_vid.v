@@ -337,6 +337,7 @@ module top(
 		.din(data_oam_in),
 		.read(rd_oam),
 		.write(wr_oam),
+		.reset(reset_gb),
 	);
 
 	lr35902_ppu ppu(
