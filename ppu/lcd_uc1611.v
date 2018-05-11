@@ -6,8 +6,8 @@
 `define STATE_UNINIT 3
 
 `define COLOR0  0
-`define COLOR1  5
-`define COLOR2 10
+`define COLOR1  2
+`define COLOR2  7
 `define COLOR3 15
 
 (* nolatches *)
