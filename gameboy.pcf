@@ -55,9 +55,7 @@ set_io n_cs_cram C16
 
 # Clock & Reset
 set_io clk12m    J3
-set_io gbclk     R9
 set_io n_reset   D15
-set_io n_vreset  R16
 
 # Config
 set_io n_emu_mbc A11
@@ -80,42 +78,20 @@ set_io p13       R3
 set_io p14       R4
 set_io p15       R2
 
-# Video Address Bus
-set_io vadr[0]   R1
-set_io vadr[1]   P1
-set_io vadr[2]   P2
-set_io vadr[3]   N3
-set_io vadr[4]   N2
-set_io vadr[5]   M2
-set_io vadr[6]   M1
-set_io vadr[7]   L3
-set_io vadr[8]   L1
-set_io vadr[9]   K3
-set_io vadr[10]  K1
-set_io vadr[11]  J2
-set_io vadr[12]  J1
-set_io vadr[13]  H2
-set_io vadr[14]  G2
-set_io vadr[15]  H1
+# LCD Data Bus
+set_io lcd_data[0] N12
+set_io lcd_data[1] P13
+set_io lcd_data[2] N10
+set_io lcd_data[3] M11
+set_io lcd_data[4] T11
+set_io lcd_data[5] P10
+set_io lcd_data[6] T10
+set_io lcd_data[7] R10
 
-# Video Data Bus
-set_io vdata[0]  T15
-set_io vdata[1]  T16
-set_io vdata[2]  T13
-set_io vdata[3]  T14
-set_io vdata[4]  N12
-set_io vdata[5]  P13
-set_io vdata[6]  N10
-set_io vdata[7]  M11
-
-# Video R/W
-set_io n_vread   P10
-set_io n_vwrite  T10
-
-# Video Interrupts
-set_io n_irq_vb  T8
-set_io n_irq_st  T6
-
-# DMA Bus Master Select
-set_io n_dmadrv  R10
+# LCD R/W, Chip Select, C/D, Backlight
+set_io n_lcd_rd    R16
+set_io n_lcd_wr    T15
+set_io n_lcd_cs    T16
+set_io lcd_cd      T13
+set_io lcd_vled    T14
 
