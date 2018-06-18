@@ -79,19 +79,19 @@ set_io p14       R4
 set_io p15       R2
 
 # LCD Data Bus
-set_io lcd_data[0] N12
-set_io lcd_data[1] P13
-set_io lcd_data[2] N10
-set_io lcd_data[3] M11
-set_io lcd_data[4] T11
-set_io lcd_data[5] P10
-set_io lcd_data[6] T10
-set_io lcd_data[7] R10
+set_io lcd_data[0] T15
+set_io lcd_data[1] T16
+set_io lcd_data[2] T13
+set_io lcd_data[3] T14
+set_io lcd_data[4] N12
+set_io lcd_data[5] P13
+set_io lcd_data[6] N10
+set_io lcd_data[7] M11
 
 # LCD R/W, Chip Select, C/D, Backlight
-set_io n_lcd_rd    R16
-set_io n_lcd_wr    T15
-set_io n_lcd_cs    T16
-set_io lcd_cd      T13
-set_io lcd_vled    T14
+set_io n_lcd_rd    P10
+set_io n_lcd_wr    T10
+set_io n_lcd_cs    T11
+set_io lcd_cd      R10
+set_io lcd_vled    P8
 
