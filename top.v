@@ -43,8 +43,8 @@ module top(
 	reg        r_reset_ld            = 1; wire       reset_ld;
 	reg        r_gb_on               = 0; wire       gb_on;
 
-	wire       pllclk;
-	wire       gbclk;
+	wire       pllclk;       /* 21 MHz     47 ns */
+	wire       gbclk;        /* 4.2 MHz   238 ns    (if r_slow, then 1.05 MHz) */
 	wire       gbclk_stable;
 	reg  [2:0] r_clkdiv5;
 	reg  [1:0] r_clkdiv4;
@@ -333,8 +333,8 @@ module top(
 	always @(posedge gbclk) begin
 		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
 
-		if (adr_cpu == 'hff51 && wr_cpu)
-			r_slow <= data_cpu_out == 'ha5;
+//		if (adr_cpu == 'hff51 && wr_cpu)
+//			r_slow <= data_cpu_out == 'ha5;
 	end
 
 	always @* begin
