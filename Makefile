@@ -54,7 +54,7 @@ pll.v:
 	icepll -q -i 12 -o 20.97152 -mf $@
 
 view: gameboy.asc
-	../ice40_viewer/iceview_html.py -s firefox $< viewer.html
+	ice40_viewer/iceview_html.py -s firefox $< viewer.html
 
 .PHONY: all prog run json clean view
 
