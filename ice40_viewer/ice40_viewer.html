@@ -1,0 +1,1000 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICE40 layout viewer</title>
+
+<style>
+html {
+  background-color: white;
+  color: black;
+}
+#canvas1 {
+  display: block;
+  width: 70%;
+  height: 100%;
+  border: 1px solid #000000;
+}
+#sidebar {
+    padding: 0.5em;
+    position: absolute;
+    box-sizing: border-box;
+    right: 0;
+    top: 0;
+    width: 30%;
+}
+#nettext {
+    white-space: nowrap;
+}
+#netname {
+    background-color: white;
+    color: #cc0000;
+}
+
+#netselector {
+    width: 100%;
+}
+</style>
+
+  <script type="text/javascript" src="myutil.js"></script>
+  <script type="text/javascript" src="gfx.js"></script>
+  <script type="text/javascript" src="ice40.js"></script>
+  <script type="text/javascript" src="lutfunction.js"></script>
+  <script type="text/javascript" src="chipdbs.txt.js"></script>
+</head>
+<body>
+
+  <canvas id="canvas1"> </canvas>
+  <div id="sidebar">
+    <h1>ICE40 floorplan</h1>
+    <div id="statustext">Loading...</div>
+    <h2> <span id="nettext">Net: </span> </h2>
+      <hr/>
+      <div>
+	<select id="netselector" name="notused" size=5 onchange="select_net();">
+	<option value="-1">No nets loaded</option>
+	</select>
+      </div>
+      <div id="netfilter_div"><span id="netfilter_span"
+        >Filter nets:&nbsp;<input id="netfilter" type="text" name="notused" value="" oninput="netfilter_update();"/>
+      </span></div>
+    </h2>
+    <hr/>
+    <!-- Start skip in standalone mode -->
+    <div><h2>Load .asc: <input type="file" id="ascfileinput"/></h2></div>
+    <hr/>
+    <div><h2>Try example:</h2>
+    <select id="exampleselector" name="notused" size=1 onchange="load_example();">
+      <option value="examples/icestick.asc">icestick</option>
+      <option value="examples/blinky.asc">blinky</option>
+      <option value="examples/buttons.asc">buttons</option>
+      <option value="examples/fsm.asc">fsm</option>
+      <option value="examples/uart.asc">uart</option>
+      <option value="examples/vga.asc" selected>vga</option>
+    </select>
+    </div>
+    <hr/>
+    <!-- End skip in standalone mode -->
+    <div><table border="0">
+	<tr><td><h2> Zoom level:</h2></td><td>
+        <input id="zoomlevel" type="range" min=0 max=1000 value=0
+           oninput="zoom_change();" onchange="zoom_change();" style="vertical-align: middle;"/>
+        </td></tr>
+	<tr><td><h2> Detail level:</h2></td><td>
+        <input id="detaillevel" type="range" min=0 max=1000 value=500
+           oninput="detail_change();" onchange="detail_change();" style="vertical-align: middle;"/>
+        </td></tr>
+    </table></div>
+    <div><input id="cb_netnums" type="checkbox" onchange="input_redraw();"/>Show net numbers</div>
+    <div><input id="cb_spans" type="checkbox" checked onchange="input_redraw();"/>Show spans</div>
+    <div><input id="cb_locals" type="checkbox" checked onchange="input_redraw();"/>Show locals</div>
+    <div><input id="cb_drawall" type="checkbox" onchange="input_reset();"/>Draw all spans</div>
+    <hr/>
+    <p>See below for notes and links.</p>
+  </div>
+
+  <h1>ICE40 floorplan/layout viewer</h1>
+
+  <p>This is a Javascript application to view the floorplan/layout of an
+    ICE40 FPGA configuration generated
+    by <a href="http://www.clifford.at/icestorm/">project Icestorm</a>.
+    Particular focus is on drawing all span4 and span12 wires, to give an
+  idea of how the actual routing of signals looks down on the chip.
+  </p>
+
+  <p>Upload the target *.asc file using the file upload widget on the right.
+  HX1K and HX8K designs are both supported.
+  After a few seconds to process the input file, the result will be
+  displayed on the main canvas. For a quick demonstration, try selecting one
+  of the pre-defined examples.</p>
+
+  <p>Zooming is available using the
+     mouse wheel, or with the "+" and "-" keys, or the slider to the right.
+     Click+drag left mouse to pan, or use the arrow keys.
+  </p>
+
+  <p>More detail is shown at deeper zoom levels. Use the detail level slider
+     on the right to adjust the level of detail shown at a given zoom level
+    (more detail is slower).
+  </p>
+
+  <p>By hovering over a wire (on a zoom level where wires are visible), the
+    connected nets will be high-lighted, and the name of the net will be
+    displayed in the sidebar on the right, if a symbol was available in the
+    *.asc file. This is very useful to see how individual signals are routed
+    across the FPGA.
+  </p>
+
+  <p>Left-clicking a wire (or pressing SPACE) will do a perma-selection of
+    the wire under the mouse, where the selection is kept until cancelled by
+    clicking away from any wire (or pressing the ESC key).Perma-selection is
+    useful for large connected nets, allowing to zoom and pan while keeping
+    the selection active. Multiple clicks/keypresses in succession will
+    cycle through nearby wires, useful when multiple nets are really close
+    together.
+  </p>
+
+  <p>Perma-selection can also be done by selecting the desired net in the
+     listbox on the right, if the loaded .asc file contains symbols. The
+     filter below the listbox allows to show only symbols that contain a
+     specified string
+  </p>
+
+  <p>Tiles that contain active cells are high-lighted. LUT functions are
+    shown as boolean expression in A, B, C, D, or as a truth-table.</p>
+  <p>Tiles are colour-coded as
+    <span style="background-color: #EEAAEE; color: black">Logic tile</span>,
+    <span style="background-color: #EEEEAA; color: black">Block ram</span>, or
+    <span style="background-color: #AAEEEE; color: black">IO tile</span>.
+  </p>
+
+  <p>Keyboard shortcut summary:
+    <div><table border=1><tr><th>key</th><th>Function</th></tr>
+	<tr><td>HOME</td><td>Reset zoom to default (fit entire FPGA in window)</td></tr>
+	<tr><td>+ (plus-sign)</td><td>Zoom in</td></tr>
+	<tr><td>- (minus-sign)</td><td>Zoom out</td></tr>
+	<tr><td>Left arrow</td><td>Pan left</td></tr>
+	<tr><td>Right arrow</td><td>Pan right</td></tr>
+	<tr><td>Down arrow</td><td>Pan down</td></tr>
+	<tr><td>Up arrow</td><td>Pan up</td></tr>
+	<tr><td>Space</td><td>Cycle perma-selection (same as single-click)</td></tr>
+	<tr><td>ESC</td><td>Clear perma-selection (same as clicking outside any wire)</td></tr>
+  </table></div></p>
+
+  <p>This is work in progress, currently not all connections are shown (like global nets).</p>
+
+  <p>This program is Free Software, licensed under an <a href="LICENSE">ISC
+  License</a>. Source code is available on
+  the <a href="https://github.com/knielsen/ice40_viewer">Github
+  page</a>.</p>
+
+  <p>The examples (except "vga" and "icestick") are taken from
+  <a href="https://github.com/nesl/ice40_examples">ice40_examples</a> on
+  GitHub, and are licensed under GPLv3. The "icetick" example is from
+  project Icestorm. Source code for the examples, for reference:</p>
+    <ul>
+    <li>blinky: <a href="examples/icestick.v">icestick.v</a></li>
+    <li>blinky: <a href="examples/blinky.v">blinky.v</a></li>
+    <li>buttons: <a href="examples/buttons.v">buttons.v</a></li>
+    <li>fsm: <a href="examples/fsm_top.v">fsm_top.v</a>
+             <a href="examples/fsm_button.v">fsm_button.v</a></li>
+    <li>uart: <a href="examples/uart_top.v">uart_top.v</a>
+              <a href="examples/uart_trx.v">uart_trx.v</a></li>
+    <li>vga: <a href="examples/vga_top.v">vga_top.v</a>
+             <a href="examples/vga_vga.v">vga_vga.v</a>
+             <a href="examples/vga_char_buf.v">vga_char_buf.v</a>
+             <a href="examples/vga_font.v">vga_font.v</a></li>
+    </ul>
+  <p>Contact: Kristian Nielsen &lt;knielsen@knielsen-hq.org&gt;</p>
+
+  <script>
+
+"use strict";
+
+// In standalone mode, this variable is rewritten to be true.
+var standalone_mode = false;
+
+var ascfilename = [ "examples/vga.asc" ];
+
+var chipdb_1k, chipdb_8k, chipdb;
+var g_asc_data = { };
+var g_symtable = { };
+var g_tiles;
+var g_net_connection;
+var g_supernets;
+
+var dataLoadComplete = false;
+var mouseDown = false;
+var draggingMouse = false;
+var dragStartX, dragStartY;
+var dragStartViewX0, dragStartViewX1, dragStartViewY0, dragStartViewY1;
+// Detection of single-click (as opposed to mouse drag) for perma-select.
+var singleClickStartX, singleClickStartY;
+var singleClick = false;
+var permaSelectIdx = -1;
+var permaSelectX, permaSelectY;
+// Keep track of mouse position, for use when handling key events.
+var currentMouseX = 0, currentMouseY = 0;
+
+var view_x0, view_x1, view_y0, view_y1
+var detailLevelFactor = 1;
+
+
+function setZoomFromSlider() {
+    var slider = document.getElementById("zoomlevel");
+    var sliderValue = slider.value;
+    // Normalise to 0..1.
+    sliderValue = (sliderValue - slider.min)/(slider.max - slider.min);
+    // Min zoom is when everything is visible, -1..width.
+    // Max zoom is set at 1/10 of a tile.
+    // Make an exponential zoom, VISIBLE = A*exp(-B*sliderValue)
+    // VISIBLE(0) = SIZE+1 => A=SIZE+1
+    // VISIBLE(1) = 0.1    => B=log(A/0.1)
+    var A = chipdb.device.width+1;
+    var B = Math.log(A/0.1);
+    var visibleX = A*Math.exp(-B*sliderValue);
+    A = chipdb.device.height+1;
+    B = Math.log(A/0.1);
+    var visibleY = A*Math.exp(-B*sliderValue);
+    // Update zoom, keeping center of canvas the same.
+    var midX = 0.5*(view_x0 + view_x1);
+    var midY = 0.5*(view_y0 + view_y1);
+    view_x0 = midX - 0.5*visibleX;
+    view_x1 = midX + 0.5*visibleX;
+    view_y0 = midY - 0.5*visibleY;
+    view_y1 = midY + 0.5*visibleY
+    scheduleRedraw();
+}
+
+
+// Update zoom slider to match current zoom level.
+// Basically computes the inverse function from setZoomFromSlider().
+function updateZoomSlider() {
+    var visibleX = view_x1 - view_x0;
+    var A = chipdb.device.width+1;
+    var B = Math.log(A/0.1);
+    var sliderValue = Math.log(A/visibleX)/B;
+    if (sliderValue < 0)
+	sliderValue = 0;
+    else if (sliderValue > 1)
+	sliderValue = 1;
+    var slider = document.getElementById("zoomlevel");
+    slider.value = slider.min + (slider.max - slider.min)*sliderValue;
+}
+
+
+function resetZoom() {
+    // Initialise zoom to have all tiles visible.
+    view_x0 = -1;
+    view_x1 = chipdb.device.width;
+    view_y0 = -1;
+    view_y1 = chipdb.device.height;
+    updateZoomSlider();
+}
+
+
+function mouseMoveExceedsThreshold(mx, my, sx, sy, wx, wy) {
+    var moveThreshold = (wx*wx + wy*wy)/(500*500);
+    if (moveThreshold < 2*2)
+	moveThreshold = 2*2;
+    var moveX = sx - mx;
+    var moveY = sy - my;
+    var moveDist2 = moveX*moveX + moveY*moveY;
+    return moveDist2 > moveThreshold;
+}
+
+
+function updateHighLight(newHighlight) {
+    if (newHighlight != highLightSupernet) {
+	highLightSupernet = newHighlight;
+	document.getElementById("nettext").innerHTML =
+	    "Net: <span id='netname'>" + getHighlightedNetLabel() + "</span>";
+	scheduleRedraw();
+    }
+}
+
+
+function permaSelect(mouseX, mouseY) {
+    var canvas = document.getElementById("canvas1");
+    var wx = canvas.width;
+    var wy = canvas.height;
+
+    if (mouseX >= 0 && mouseX < wx && mouseY >= 0 && mouseY < wy) {
+	var idx = permaSelectIdx;
+	if (idx == -1 ||
+	    (idx > 0 &&
+	     mouseMoveExceedsThreshold(mouseX, mouseY, permaSelectX, permaSelectY, wx, wy))) {
+	    idx = 0;
+	    // Reset the point of last PermaSelect when a new select
+	    // cycle is started.
+	    permaSelectX = mouseX;
+	    permaSelectY = mouseY;
+	}
+	var tc = canvas2TileXY(canvas, permaSelectX, permaSelectY);
+	var newHighlight = checkWireHighlight(tc[0], tc[1], tc[2], tc[3], idx);
+	if (newHighlight != undefined) {
+	    permaSelectIdx = idx + 1;
+	    updateHighLight(newHighlight);
+	    net_selector_set(highLightSupernet);
+	    return;
+	}
+    }
+
+    // No net found, so clear any permaSelect.
+    if (highLightSupernet != undefined) {
+	permaSelectIdx = -1;
+	highLightSupernet = undefined;
+	net_selector_set(undefined);
+	scheduleRedraw();
+    }
+}
+
+
+function wheelHandler(event) {
+    // Zoom the view.
+
+    if (!dataLoadComplete)
+	return true;
+
+    var canvas = document.getElementById("canvas1");
+    var cx = event.pageX - canvas.offsetLeft;
+    var cy = event.pageY - canvas.offsetTop;
+    var wld = canvas2world(canvas, cx, cy);
+    var wx = wld[0];
+    var wy = wld[1];
+    zoomStep(event.deltaY, wx, wy);
+    event.preventDefault();
+    return false;
+}
+
+
+// Zoom a given number of steps (negative to zoom in, positive out).
+// The center-of-zoom is (wx, wy), in world coordinates.
+function zoomStep(step, wx, wy) {
+    var del = Math.pow(1.023, step);
+    var a1 = wx - view_x0;
+    var a2 = view_x1 - wx;
+    var b1 = wy - view_y0;
+    var b2 = view_y1 - wy;
+    view_x0 = wx - del*a1;
+    view_x1 = wx + del*a2;
+    view_y0 = wy - del*b1;
+    view_y1 = wy + del*b2;
+    updateZoomSlider();
+    scheduleRedraw();
+}
+
+
+function keyHandler(event) {
+    if (!dataLoadComplete)
+	return true;
+    // Do not steal bindings with modifiers.
+    if (event.ctrlKey || event.altKey || event.metaKey)
+	return true;
+    var has_key = ('key' in event);
+    var key = event.key;
+    var code = event.keyCode;
+
+    if (key == "Home" || (!has_key && code == 36)) {
+	resetZoom();
+	scheduleRedraw();
+	event.preventDefault();
+	return false;
+    }
+    if (key == "+" || (!has_key && (code == 61 || code == 107))) {
+	zoomStep(-10, 0.5*(view_x0 + view_x1), 0.5*(view_y0 + view_y1));
+	event.preventDefault();
+	return false;
+    }
+    if (key == "-" || (!has_key && (code == 173 || code == 109))) {
+	zoomStep(10, 0.5*(view_x0 + view_x1), 0.5*(view_y0 + view_y1));
+	event.preventDefault();
+	return false;
+    }
+    if (key == " " || (!has_key && code == 32)) {
+	permaSelect(currentMouseX, currentMouseY);
+	event.preventDefault();
+	return false;
+    }
+    if (key == "Escape" || key == "Esc" || (!has_key && code == 27)) {
+	// Clear any current perma-selection.
+	permaSelect(-1, -1);
+	event.preventDefault();
+	return false;
+    }
+    if (key == "ArrowLeft" || key == "ArrowRight" || (!has_key && (code == 37 || code == 39))) {
+	// Pan left/right.
+	var del = 0.05*(view_x1 - view_x0);
+	if (key == "ArrowLeft" || (!has_key && code == 37))
+	    del = -del;
+	view_x0 += del;
+	view_x1 += del;
+	scheduleRedraw();
+	event.preventDefault();
+	return false;
+    }
+    if (key == "ArrowUp" || key == "ArrowDown" || (!has_key && (code == 38 || code == 40))) {
+	// Pan up/down.
+	var del = 0.05*(view_y1 - view_y0);
+	if (key == "ArrowDown" || (!has_key && code == 40))
+	    del = -del;
+	view_y0 += del;
+	view_y1 += del;
+	scheduleRedraw();
+	event.preventDefault();
+	return false;
+    }
+    return true;
+}
+
+
+function mouseDownHandler(event) {
+    if (!dataLoadComplete)
+	return true;
+
+    var canvas = document.getElementById("canvas1");
+    var cx = event.pageX - canvas.offsetLeft;
+    var cy = event.pageY - canvas.offsetTop;
+    mouseDown = true;
+    dragStartX = cx;
+    dragStartY = cy;
+    dragStartViewX0 = view_x0;
+    dragStartViewX1 = view_x1;
+    dragStartViewY0 = view_y0;
+    dragStartViewY1 = view_y1;
+
+    singleClickStartX = cx;
+    singleClickStartY = cy;
+    singleClick = true;
+    draggingMouse = false;
+
+    return true;
+}
+
+
+function mouseUpHandler(event) {
+    mouseDown = false;
+    draggingMouse = false;
+
+    if (!dataLoadComplete)
+	return true;
+
+    if (singleClick) {
+	var canvas = document.getElementById("canvas1");
+	var cx = event.pageX - canvas.offsetLeft;
+	var cy = event.pageY - canvas.offsetTop;
+	permaSelect(cx, cy);
+    }
+    singleClick = false;
+
+    return true;
+}
+
+
+function mouseMoveHandler(event) {
+    if (!dataLoadComplete)
+	return true;
+
+    var canvas = document.getElementById("canvas1");
+    var wx = canvas.width;
+    var wy = canvas.height;
+    var cx = event.pageX - canvas.offsetLeft;
+    var cy = event.pageY - canvas.offsetTop;
+
+    // Keeping track of mouse position and state.
+    currentMouseX = cx;
+    currentMouseY = cy;
+    if (singleClick &&
+	mouseMoveExceedsThreshold(cx, cy, singleClickStartX, singleClickStartY, wx, wy)) {
+	singleClick = false;
+	draggingMouse = true;
+    }
+
+    if (permaSelectIdx < 0) {
+	// Handle mouse-over highlighting.
+	if (cx >= 0 && cx < wx && cy >= 0 && cy < wy) {
+	    var tc = canvas2TileXY(canvas, cx, cy);
+	    updateHighLight(checkWireHighlight(tc[0], tc[1], tc[2], tc[3], 0));
+	} else {
+	    if (highLightSupernet != undefined) {
+		highLightSupernet = undefined;
+		net_selector_set(undefined);
+		scheduleRedraw();
+	    }
+	}
+    }
+
+    // Handle mouse drag, for panning.
+    if (!mouseDown)
+	return true;
+
+    var dx = cx - dragStartX;
+    var dy = cy - dragStartY;
+    if (draggingMouse) {
+	var delx = dx/wx*(dragStartViewX1-dragStartViewX0);
+	var dely = dy/wy*(dragStartViewY1-dragStartViewY0);
+	view_x0 = dragStartViewX0 - delx;
+	view_x1 = dragStartViewX1 - delx;
+	view_y0 = dragStartViewY0 + dely;
+	view_y1 = dragStartViewY1 + dely;
+	scheduleRedraw();
+    }
+
+    return true;
+}
+
+
+function focusOutHandler(event) {
+    mouseDown = false;
+    draggingMouse = false;
+    return true;
+}
+
+
+function setupEventHandlers() {
+    var canvas = document.getElementById("canvas1");
+    canvas.addEventListener("wheel", wheelHandler, false);
+    document.addEventListener("keydown", keyHandler, true);
+    canvas.addEventListener("mousedown", mouseDownHandler, false);
+    document.addEventListener("mouseup", mouseUpHandler, false);
+    document.addEventListener("mousemove", mouseMoveHandler, false);
+    document.addEventListener("focusout", focusOutHandler, false);
+
+    var fileinput = document.getElementById("ascfileinput");
+    // Fileinput is omitted in standalone mode.
+    if (fileinput != undefined)
+	fileinput.addEventListener("change", readDotAsc, false);
+}
+
+
+function zoom_change() {
+    setZoomFromSlider();
+}
+
+
+function detail_change() {
+    var slider = document.getElementById("detaillevel");
+    var sliderValue = slider.value;
+    // Normalise to 0..1.
+    sliderValue = (sliderValue - slider.min)/(slider.max - slider.min);
+    // Map 0..1 to adjustment factor between 1/10 and 10.
+    var B = 0.1;
+    var A = -Math.log(B*B);
+    var factor = B*Math.exp(A*sliderValue);
+    detailLevelFactor = 1/factor;
+    scheduleRedraw();
+}
+
+
+function input_redraw() {
+    scheduleRedraw();
+}
+
+
+function input_reset() {
+    reparseFileData();
+}
+
+
+function set_status_text(text) {
+    document.getElementById("statustext").textContent = text;
+}
+
+
+function set_status_html(html) {
+    document.getElementById("statustext").innerHTML = html;
+}
+
+
+// Redrawing management.
+
+var needRedraw = false;
+
+function redrawIfNeeded() {
+    if (needRedraw && !load_in_progress) {
+	redraw();
+	needRedraw = false;
+    }
+}
+
+// Do redraws asynchroneously. This way, if a slow redraw causes multiple updates
+// to queue up meanwhile, we only need a single extra redraw to handle all pending
+// updates, and we avoid updates getting too lagged.
+function scheduleRedraw() {
+    needRedraw = true;
+    set_status_text("Redrawing...");
+    setTimeout(redrawIfNeeded, 0);
+}
+
+
+function redraw() {
+    var canvas = document.getElementById("canvas1");
+    var c = canvas.getContext("2d");
+    var wx = canvas.width;
+    var wy = canvas.height;
+    var cliw = canvas.clientWidth;
+    var clih = canvas.clientHeight;
+    if (wx != cliw || wy != clih) {
+	canvas.width = wx = cliw;
+	canvas.height = wy = clih;
+    }
+
+    c.fillStyle = "#FFFFFF";
+    c.fillRect(0, 0, wx, wy);
+    c.strokeStyle = "#000000";
+    c.lineWidth = 1;
+
+    var showNetNumbers = document.getElementById("cb_netnums").checked;
+    var drawSpans = document.getElementById("cb_spans").checked;
+    var drawLocals = document.getElementById("cb_locals").checked;
+    drawTiles(canvas, showNetNumbers, drawSpans, drawLocals);
+
+    // Flash any high-lighted net.
+    if (highLightSupernet != undefined)
+	setTimeout(scheduleRedraw, 250);
+
+    set_status_text("Ready");
+}
+
+
+// Simple helper to invoke to schedule a function to run when
+// we are idle next time.
+function after_yield(f) {
+    setTimeout(f, 0);
+}
+
+
+function populate_net_selector() {
+    var selector = document.getElementById("netselector");
+    var options = [];
+    var i;
+    var filter = document.getElementById("netfilter").value;
+
+    for (i = 0; i < g_supernets.length; ++i) {
+	var label = supernet_to_label(i);
+	if (label != "?" &&
+	    (filter == undefined || filter == "" || label.indexOf(filter) >= 0))
+	    options.push({idx: i, label: label});
+    }
+    options.sort(function(opta, optb) {
+	var a = opta.label;
+	var b = optb.label;
+	if (a < b)
+	    return -1;
+	else if (a == b)
+	    return 0;
+	else
+	    return 1;
+    });
+
+    // Clear out any old options.
+    for (i = selector.options.length-1; i >= 0; --i)
+	selector.remove(i);
+    // Populate with supernets.
+    for (i = 0; i < options.length; ++i) {
+	var opt = document.createElement("option");
+	opt.value = options[i].idx.toString();
+	opt.text = options[i].label;
+	selector.add(opt);
+    }
+}
+
+
+function net_selector_set(supernet) {
+    var selector = document.getElementById("netselector");
+    var options = selector.options;
+    var i;
+
+    if (supernet != undefined) {
+	var ss = supernet.toString();
+	for (i = 0; i < options.length; ++i) {
+	    var opt = options[i];
+	    if (opt.value == ss) {
+		selector.selectedIndex = i;
+		return;
+	    }
+	}
+    }
+    // Not found, so clear selection.
+    selector.selectedIndex = -1;
+}
+
+
+function netfilter_update() {
+    populate_net_selector();
+}
+
+
+// When a perma-selection has been made, check if the net is visible at the
+// current zoom level. If not, automatically adjust the zoom to make the
+// newly selected net visible.
+function auto_zoom_supernet() {
+    var i, j;
+    var min_x = undefined, max_x, min_y = undefined, max_y;
+    var visible_x = undefined, visible_y;
+    var vis_x0 = Math.floor(view_x0 + 0.5);
+    var vis_x1 = Math.ceil(view_x1 - 0.5);
+    var vis_y0 = Math.floor(view_y0 + 0.5);
+    var vis_y1 = Math.ceil(view_y1 - 0.5);
+    var currently_visible = false;
+    var canvas = document.getElementById("canvas1");
+    var wx = canvas.width;
+    var wy = canvas.height;
+    var tile_pixels = get_tile_pixels(wx, wy);
+    var min_tile_pixels = wire_min_tile_pixels();
+    var wires_visible = tile_pixels >= min_tile_pixels;
+
+    if (highLightSupernet == undefined || highLightSupernet < 0)
+	return;
+
+    // Search out all tiles where the supernet is visible.
+    var nets = g_supernets[highLightSupernet].nets;
+    for (i = 0; i < nets.length; ++i) {
+	var net = nets[i];
+	var names = chipdb.nets[i].names
+	for (j = 0; j < names.length; ++j) {
+	    var entry = names[j];
+	    var x = entry.tile_x;
+	    var y = entry.tile_y;
+	    if ((min_x != undefined && min_x < x && max_x > x) &&
+		(min_y != undefined && min_y < y && max_y > y))
+		continue;
+	    var tile = g_tiles[y][x];
+	    if (!tile.active)
+		continue;
+	    if (!(net in tile.nets))
+		continue;
+	    // Ok, the net is visible in this tile. Update min/max and
+	    // visible coordinates.
+	    if (min_x == undefined) {
+		min_x = x;
+		max_x = x;
+	    } else if (x < min_x)
+		min_x = x;
+	    else if (x > max_x)
+		max_x = x;
+	    if (min_y == undefined) {
+		min_y = y;
+		max_y = y;
+	    } else if (y < min_y)
+		min_y = y;
+	    else if (y > max_y)
+		max_y = y;
+	    if (!currently_visible) {
+		if ((vis_x0 <= x && x <= vis_x1) && (vis_y0 <= y && y <= vis_y1)) {
+		    currently_visible = 1;
+		    if (wires_visible)
+			return;	// Already visible at current zoom.
+		    visible_x = x;
+		    visible_y = y;
+		} else if (visible_x == undefined) {
+		    // One tile where we know net is visible, in case we need
+		    // to zoom in further than min/max x/y.
+		    visible_x = x;
+		    visible_y = y;
+		}
+	    }
+	}
+    }
+    if (visible_x == undefined)
+	return;			// Nothing found to zoom to.
+
+    // First try to zoom to show all of the net.
+    var new_x0 = min_x - 0.5;
+    var new_x1 = max_x + 0.5;
+    var new_y0 = min_y - 0.5;
+    var new_y1 = max_y + 0.5;
+    var x_frac = (new_x1 - new_x0)/(view_x1 - view_x0);
+    var y_frac = (new_y1 - new_y0)/(view_y1 - view_y0);
+    if (x_frac >= y_frac) {
+	var tmp = (view_y1 - view_y0) * x_frac
+	view_x0 = new_x0;
+	view_x1 = new_x1;
+	view_y0 = 0.5*(new_y0 + new_y1 - tmp);
+	view_y1 = 0.5*(new_y0 + new_y1 + tmp);
+    } else {
+	var tmp = (view_x1 - view_x0) * y_frac
+	view_x0 = 0.5*(new_x0 + new_x1 - tmp);
+	view_x1 = 0.5*(new_x0 + new_x1 + tmp);
+	view_y0 = new_y0;
+	view_y1 = new_y1;
+    }
+    updateZoomSlider();
+    scheduleRedraw();
+
+    // Check again if wires are visible at this new zoom.
+    tile_pixels = get_tile_pixels(wx, wy);
+    wires_visible = tile_pixels >= min_tile_pixels;
+    if (wires_visible)
+	return;
+
+    // We need to zoom in more to see any wires.
+    var needed_width = wx / min_tile_pixels;
+    var needed_height = wy / min_tile_pixels;
+    var cur_width = view_x1 - view_x0;
+    var cur_height = view_y1 - view_y0;
+    var zoom_factor_x = needed_width/cur_width;
+    var zoom_factor_y = needed_height/cur_height;
+    var zoom_factor = 0.49*(zoom_factor_x <= zoom_factor_y ? zoom_factor_x : zoom_factor_y);
+    // Zoom in to make wires visible, centering on some tile in which
+    // the supernet is active.
+    view_x0 = visible_x - zoom_factor*cur_width;
+    view_x1 = visible_x + zoom_factor*cur_width;
+    view_y0 = visible_y - zoom_factor*cur_height;
+    view_y1 = visible_y + zoom_factor*cur_height;
+    updateZoomSlider();
+}
+
+
+function select_net() {
+    var newHighlight;
+    var selector = document.getElementById("netselector");
+    if (selector.selectedIndex < 0)
+	return;
+    var selected_opt = selector.options[selector.selectedIndex];
+    var supernet = parseInt(selected_opt.value);
+    if (supernet == undefined || supernet < 0)
+	return;
+    updateHighLight(supernet);
+    permaSelectIdx = 1;
+    // Hack to reset cycle index on next perma-selection.
+    permaSelectX = -1000;
+    permaSelectY = -1000;
+
+    auto_zoom_supernet();
+}
+
+
+var chipdb_loaded = false;
+var asc_file_fetched = false;
+var asc_file_parser;
+var load_in_progress;
+
+function maybe_parse_asc() {
+    if (!chipdb_loaded || !asc_file_fetched)
+	return;
+    set_status_text("Parsing .asc...");
+    after_yield(function() {
+	drawAll = document.getElementById("cb_drawall").checked;
+	g_asc_data = { };
+	var get_chipdb = function(device_name) {
+	    if (device_name == "1k")
+		chipdb = chipdb_1k;
+	    else if (device_name = "8k")
+		chipdb = chipdb_8k;
+	    else
+		alert("Failed\nCurrently only ICE40 HX1K and HX8K are supported");
+	    resetZoom();
+	    g_tiles = mk_tiles(chipdb);
+	    g_symtable = new Array(chipdb.device.num_nets);
+	    return [chipdb, g_tiles, g_symtable];
+	};
+	asc_parse_step(asc_file_parser, get_chipdb, g_asc_data, function() {
+	    set_status_text("Computing net connections...");
+	    after_yield(function() {
+		asc_file_parser = null;
+		asc_postprocess(chipdb, g_tiles, g_asc_data);
+		calcTiles(g_tiles);
+		highLightSupernet = undefined;
+		permaSelectIdx = -1;
+		document.getElementById("nettext").innerHTML = "Net: ";
+		dataLoadComplete = true;
+		populate_net_selector();
+		set_status_text("Ready");
+		load_in_progress = false;
+		scheduleRedraw();
+	    });
+	});
+    });
+}
+
+
+var g_fileData;
+
+function reparseFileData() {
+    load_in_progress = true;
+    asc_file_parser = getLineParser(g_fileData);
+    maybe_parse_asc();
+}
+
+
+function readDotAsc(event) {
+    if (!chipdb_loaded || !asc_file_fetched)
+	return;
+    var file = event.target.files[0];
+    if (!file)
+	return;
+    set_status_text("Loading .asc");
+    load_in_progress = true;
+    var fr = new FileReader();
+    fr.onload = function (dataEvent) {
+	g_fileData = dataEvent.target.result;
+	reparseFileData();
+    }
+    fr.readAsText(file);
+}
+
+
+function do_after_load_asc() {
+    asc_file_fetched = true;
+    asc_file_parser = getLineParser(g_fileData);
+    maybe_parse_asc();
+}
+
+
+function read_example() {
+    load_in_progress = true;
+    if (standalone_mode)
+	return after_yield(do_after_load_asc());
+
+    var xhr2 = new XMLHttpRequest();
+    xhr2.onreadystatechange = function() {
+	if (xhr2.readyState == 4) {
+	    if (xhr2.status == 200) {
+		g_fileData = xhr2.responseText;
+		do_after_load_asc();
+	    } else {
+		set_status_html("<b>Error loading .asc data (HTTP code: " +
+				xhr2.status + "</b>");
+	    }
+	}
+    };
+    xhr2.open("GET", ascfilename, true);
+    xhr2.responseType = "text";
+    xhr2.send();
+}
+
+
+// Handler for when user selects an example .asc.
+function load_example() {
+    var selector = document.getElementById("exampleselector");
+    var idx = selector.selectedIndex;
+    if (idx == undefined || idx < 0)
+	return;
+    ascfilename = selector.options[idx].value;
+    set_status_text("Loading example...");
+    read_example();
+}
+
+
+// Parse the two chipdbs for 1k and 8k.
+// ToDo: we could do this lazily, only after loading the .asc and seeing
+// in the header which of the chipdbs is needed. This would speed up in
+// particular the 1k case.
+function do_parse_chipdb(chipdb_text) {
+    chipdb_1k = { };
+    var parser = getLineParser(chipdb1k_text);
+    chipdb1k_text = undefined;	// To try and free some memory
+    chipdb_parse_step(parser, chipdb_1k, function (loaded_chipdb) {
+	console.log("Loaded: " + loaded_chipdb.device.device + " size " +
+		    loaded_chipdb.device.width + "x" + loaded_chipdb.device.height +
+		    " @ " + loaded_chipdb.device.num_nets + " nets.");
+	chipdb_8k = { };
+	parser = getLineParser(chipdb8k_text);
+	chipdb8k_text = undefined;
+	chipdb_parse_step(parser, chipdb_8k, function (loaded_chipdb) {
+	    console.log("Loaded: " + loaded_chipdb.device.device + " size " +
+			loaded_chipdb.device.width + "x" + loaded_chipdb.device.height +
+			" @ " + loaded_chipdb.device.num_nets + " nets.");
+	    chipdb_loaded = true;
+	    maybe_parse_asc();
+	});
+    });
+}
+
+
+function loaddata() {
+    after_yield(do_parse_chipdb);
+    read_example();
+}
+
+setupEventHandlers();
+set_status_text("Parsing chipdb...");
+after_yield(loaddata);
+
+// Standalone file data goes here.
+
+  </script>
+
+</body>
+</html>
