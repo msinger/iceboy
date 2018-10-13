@@ -1,15 +1,5 @@
 # For the iCE40HX-8K Breakout Board
 
-# LEDs
-set_io led[0]    C3
-set_io led[1]    B3
-set_io led[2]    C4
-set_io led[3]    C5
-set_io led[4]    A1
-set_io led[5]    A2
-set_io led[6]    B4
-set_io led[7]    B5
-
 # Ext. Address Bus
 set_io adr[0]    R15
 set_io adr[1]    P16
@@ -77,21 +67,3 @@ set_io p12       R5
 set_io p13       R3
 set_io p14       R4
 set_io p15       R2
-
-# LCD Data Bus
-set_io lcd_data[0] T15
-set_io lcd_data[1] T16
-set_io lcd_data[2] T13
-set_io lcd_data[3] T14
-set_io lcd_data[4] N12
-set_io lcd_data[5] P13
-set_io lcd_data[6] N10
-set_io lcd_data[7] M11
-
-# LCD R/W, Chip Select, C/D, Backlight
-set_io n_lcd_rd    P10
-set_io n_lcd_wr    T10
-set_io n_lcd_cs    T11
-set_io lcd_cd      R10
-set_io lcd_vled    P8
-

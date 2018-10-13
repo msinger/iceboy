@@ -1,0 +1,11 @@
+# For the iCE40HX-8K Breakout Board
+
+# LEDs
+set_io led[0]    C3
+set_io led[1]    B3
+set_io led[2]    C4
+set_io led[3]    C5
+set_io led[4]    A1
+set_io led[5]    A2
+set_io led[6]    B4
+set_io led[7]    B5

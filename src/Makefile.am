@@ -13,24 +13,60 @@ ppu/lr35902_oam_dma.v \
 bootrom.v \
 lr35902_tim.v \
 lr35902_snd.v \
-lr35902_sio_dummy.v \
 lr35902_joy.v \
-prog_loader.v \
-ppu/lcd_uc1611.v
+prog_loader.v
 
-NODIST_SRC = pll.v
+NODIST_SRC = \
+pll.v
 
-EXTRA_DIST = $(SRC) gameboy.pcf
+COND_SRC = \
+sio/lr35902_sio_dummy.v \
+lcds/lcd_uc1611.v
+
+HDR =
+
+NODIST_HDR = \
+config.vh
+
+COND_HDR = \
+lcds/lcd_uc1611-args.vh \
+lcds/lcd_uc1611-glue.vh \
+lcds/lcd_uc1611-pins.vh
+
+PCF_FILES = \
+boards/hx8k_brk.pcf \
+leds/leds-hx8k_brk.pcf \
+lcds/lcd_uc1611-hx8k_brk.pcf
+
+EXTRA_DIST = $(SRC) $(COND_SRC) $(HDR) $(COND_HDR) $(PCF_FILES)
 
 CLEANFILES = \
 $(NODIST_SRC) \
 bootrom.hex \
 gameboy.asc \
 gameboy.bin \
+gameboy.pcf \
 gameboy.blif \
 gameboy.post.blif \
 gameboy.post.blif.json \
 viewer.html
+
+DISTCLEANFILES = \
+$(NODIST_HDR)
+
+USED_COND_SRC = \
+sio/lr35902_sio_@SIO_TYPE@.v \
+$(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v)
+
+USED_COND_HDR = \
+$(if @HAS_SIO@,$(foreach suf,args glue pins,sio/lr35902_sio_@SIO_TYPE@-$(suf).vh)) \
+$(if @HAS_LCD@,$(foreach suf,args glue pins,lcds/lcd_@LCD_TYPE@-$(suf).vh))
+
+USED_PCF_FILES = \
+boards/@BOARD@.pcf \
+$(if @HAS_LEDS@,leds/leds-@BOARD@.pcf) \
+$(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \
+$(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@-@BOARD@.pcf)
 
 all: gameboy.bin
 
@@ -47,8 +83,11 @@ view: gameboy.asc
 
 .PHONY: all prog run json view
 
-gameboy.blif: Makefile $(SRC) $(NODIST_SRC) bootrom.hex
-	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -blif $@" $(SRC) $(NODIST_SRC)
+gameboy.blif: Makefile $(SRC) $(NODIST_SRC) $(USED_COND_SRC) bootrom.hex $(HDR) $(NODIST_HDR) $(USED_COND_HDR)
+	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -blif $@" $(SRC) $(NODIST_SRC) $(USED_COND_SRC)
+
+gameboy.pcf: Makefile $(USED_PCF_FILES)
+	cat $(USED_PCF_FILES) >$@
 
 gameboy.asc gameboy.post.blif: gameboy.blif gameboy.pcf Makefile
 	$(ARACHNE) $(ARACHNEFLAGS) -m 800 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif

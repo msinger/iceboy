@@ -1,0 +1,6 @@
+output wire [7:0] lcd_data,
+output wire       n_lcd_rd,
+output wire       n_lcd_wr,
+output wire       n_lcd_cs,
+output wire       lcd_cd,
+output wire       lcd_vled,

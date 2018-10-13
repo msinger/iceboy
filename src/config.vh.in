@@ -1,0 +1,16 @@
+`define BOARD @BOARD@
+
+`@LEDS_DEF@ HAS_LEDS
+`define NUM_LEDS @NUM_LEDS@
+
+`@LCD_DEF@ HAS_LCD
+`define LCD_TYPE @LCD_TYPE@
+`define LCD_PIN_HEADER "lcds/lcd_@LCD_TYPE@-pins.vh"
+`define LCD_ARG_HEADER "lcds/lcd_@LCD_TYPE@-args.vh"
+`define LCD_GLUE_HEADER "lcds/lcd_@LCD_TYPE@-glue.vh"
+
+`@SIO_DEF@ HAS_SIO
+`define SIO_TYPE @SIO_TYPE@
+`define SIO_PIN_HEADER "sio/lr35902_sio_@SIO_TYPE@-pins.vh"
+`define SIO_ARG_HEADER "sio/lr35902_sio_@SIO_TYPE@-args.vh"
+`define SIO_GLUE_HEADER "sio/lr35902_sio_@SIO_TYPE@-glue.vh"

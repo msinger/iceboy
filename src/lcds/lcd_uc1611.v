@@ -11,7 +11,7 @@
 `define COLOR3 15
 
 (* nolatches *)
-module uc1611(
+module lcd_uc1611(
 		input  wire       clk,
 		input  wire       reset,
 		input  wire       disp_on,

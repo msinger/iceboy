@@ -1,4 +1,5 @@
 `default_nettype none
+`include "config.vh"
 
 (* nolatches *)
 (* top *)
@@ -17,7 +18,6 @@ module top(
 		input  wire        rx,        /* UART RX for prog loader and debugger */
 		output wire        tx,        /* UART TX for debugger */
 		output wire        cts,       /* UART CTS for debugger */
-		output wire [7:0]  led,
 		output wire        chl,       /* left audio PWM channel */
 		output wire        chr,       /* right audio PWM channel */
 		output wire        chm,       /* mono audio PWM channel */
@@ -27,12 +27,15 @@ module top(
 		input  wire        p13,
 		output wire        p14,
 		output wire        p15,
-		output wire [7:0]  lcd_data,
-		output wire        n_lcd_rd,
-		output wire        n_lcd_wr,
-		output wire        n_lcd_cs,
-		output wire        lcd_cd,
-		output wire        lcd_vled,
+`ifdef HAS_LEDS
+		output wire [`NUM_LEDS-1:0] led,
+`endif
+`ifdef HAS_SIO
+`include `SIO_PIN_HEADER
+`endif
+`ifdef HAS_LCD
+`include `LCD_PIN_HEADER
+`endif
 	);
 
 	reg  [3:0] r_reset_ticks         = 0; wire [3:0] reset_ticks;
@@ -108,9 +111,6 @@ module top(
 	wire dma_active;
 
 	wire ppu_needs_oam, ppu_needs_vram;
-
-	wire [7:0] lcd_data_out;
-	wire       lcd_rd_out, lcd_wr_out, lcd_cs_out, lcd_cd_out, lcd_vled_out;
 
 	wire       disp_on, hsync, vsync, px_out;
 	wire [1:0] px;
@@ -282,54 +282,6 @@ module top(
 			.D_OUT_0(p15_out),
 		);
 
-	SB_IO #(
-			.PIN_TYPE('b 0101_01),
-		) lcd_data_io [7:0] (
-			.PACKAGE_PIN(lcd_data),
-			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(lcd_data_out),
-		);
-
-	SB_IO #(
-			.PIN_TYPE('b 0101_01),
-		) n_lcd_rd_io (
-			.PACKAGE_PIN(n_lcd_rd),
-			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!lcd_rd_out),
-		);
-
-	SB_IO #(
-			.PIN_TYPE('b 0101_01),
-		) n_lcd_wr_io (
-			.PACKAGE_PIN(n_lcd_wr),
-			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!lcd_wr_out),
-		);
-
-	SB_IO #(
-			.PIN_TYPE('b 0101_01),
-		) n_lcd_cs_io (
-			.PACKAGE_PIN(n_lcd_cs),
-			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!lcd_cs_out),
-		);
-
-	SB_IO #(
-			.PIN_TYPE('b 0101_01),
-		) lcd_cd_io (
-			.PACKAGE_PIN(lcd_cd),
-			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(lcd_cd_out),
-		);
-
-	SB_IO #(
-			.PIN_TYPE('b 0101_01),
-		) lcd_vled_io (
-			.PACKAGE_PIN(lcd_vled),
-			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(lcd_vled_out),
-		);
-
 	always @(posedge gbclk) begin
 		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
 
@@ -433,7 +385,9 @@ module top(
 		end
 	end
 
+`ifdef HAS_LEDS
 	assign led = { r_slow, hide_bootrom, r_gb_on };
+`endif
 
 	assign cscpu_ext = cscpu_ram || cscpu_cart;
 	assign csdma_ext = csdma_ram || csdma_cart;
@@ -599,7 +553,11 @@ module top(
 		.p15(p15_out),
 	);
 
-	lr35902_sio_dummy sio(
+`ifdef HAS_SIO
+`include `SIO_GLUE_HEADER
+`endif
+
+	lr35902_sio_`SIO_TYPE sio(
 		.reset(reset_gb),
 		.dout(data_sio_out),
 		.din(data_cpu_out),
@@ -608,6 +566,9 @@ module top(
 		.clk(gbclk),
 		.adr(adr_cpu[0]),
 		.irq(irq_serial),
+`ifdef HAS_SIO
+`include `SIO_ARG_HEADER
+`endif
 	);
 
 	lr35902_tim tim(
@@ -699,7 +660,10 @@ module top(
 		.read(rd_ppu),
 	);
 
-	uc1611 lcd(
+`ifdef HAS_LCD
+`include `LCD_GLUE_HEADER
+
+	lcd_`LCD_TYPE lcd(
 		.clk(gbclk),
 		.reset(reset_gb),
 		.disp_on(disp_on),
@@ -707,13 +671,9 @@ module top(
 		.vsync(vsync),
 		.px_out(px_out),
 		.px(px),
-		.lcd_data(lcd_data_out),
-		.lcd_read(lcd_rd_out),
-		.lcd_write(lcd_wr_out),
-		.lcd_cs(lcd_cs_out),
-		.lcd_cd(lcd_cd_out),
-		.lcd_vled(lcd_vled_out),
+`include `LCD_ARG_HEADER
 	);
+`endif
 
 	lr35902_oam_dma dma(
 		.clk(gbclk),

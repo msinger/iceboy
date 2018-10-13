@@ -1,4 +1,6 @@
+/config.vh
 /bootrom.hex
+/gameboy.pcf
 /pll.v
 *.asc
 *.bin

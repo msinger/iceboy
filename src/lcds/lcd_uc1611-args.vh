@@ -1,0 +1,6 @@
+.lcd_data(lcd_data_out),
+.lcd_read(lcd_rd_out),
+.lcd_write(lcd_wr_out),
+.lcd_cs(lcd_cs_out),
+.lcd_cd(lcd_cd_out),
+.lcd_vled(lcd_vled_out),
