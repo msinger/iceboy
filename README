@@ -1,0 +1,9 @@
+iceboy
+------
+
+https://sourceforge.net/projects/iceboy/
+
+The goal of this project is to implement a GameBoy in Verilog using the open
+source IceStorm tools for Lattice iCE40HX-8K FPGAs. You can get the tools from
+here:
+  http://www.clifford.at/icestorm/

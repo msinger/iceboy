@@ -1,0 +1,7 @@
+/bootrom.hex
+/pll.v
+*.asc
+*.bin
+*.blif
+/*.json
+/viewer.html
