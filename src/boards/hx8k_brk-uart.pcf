@@ -1,0 +1,10 @@
+# For the iCE40HX-8K Breakout Board
+
+# UART for Debugger & Prog Loader
+set_io rx        B10
+set_io tx        B12
+set_io rts       B13
+set_io cts       A15
+set_io dtr       A16
+set_io dsr       B14
+set_io dcd       B15

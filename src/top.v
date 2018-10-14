@@ -15,9 +15,6 @@ module top(
 		output wire        n_cs_crom, /* chip select for cartridge ROM (only when emulating MBC chip) */
 		output wire        n_cs_cram, /* chip select for cartridge RAM (only when emulating MBC chip) */
 		input  wire        n_reset,   /* Reset input */
-		input  wire        rx,        /* UART RX for prog loader and debugger */
-		output wire        tx,        /* UART TX for debugger */
-		output wire        cts,       /* UART CTS for debugger */
 		output wire        chl,       /* left audio PWM channel */
 		output wire        chr,       /* right audio PWM channel */
 		output wire        chm,       /* mono audio PWM channel */
@@ -27,6 +24,15 @@ module top(
 		input  wire        p13,
 		output wire        p14,
 		output wire        p15,
+`ifdef HAS_UART
+		input  wire        rx,        /* UART RX for prog loader and debugger */
+		output wire        tx,        /* UART TX for debugger */
+		input  wire        rts,       /* UART RTS */
+		output wire        cts,       /* UART CTS for debugger */
+		input  wire        dtr,       /* UART DTR for additional reset input */
+		output wire        dsr = 0,   /* UART DSR */
+		output wire        dcd = 0,   /* UART DCD */
+`endif
 `ifdef HAS_LEDS
 		output wire [`NUM_LEDS-1:0] led,
 `endif
@@ -43,7 +49,9 @@ module top(
 	reg        r_reset_done          = 0; wire       reset_done;
 	reg        r_initial_reset_done  = 0; wire       initial_reset_done;
 	reg        r_reset_gb            = 1; wire       reset_gb;
+`ifdef USE_LOADER
 	reg        r_reset_ld            = 1; wire       reset_ld;
+`endif
 	reg        r_gb_on               = 0; wire       gb_on;
 
 	wire       pllclk;       /* 21 MHz     47 ns */
@@ -60,9 +68,15 @@ module top(
 	wire [7:0]  adr_dma_wr;
 	wire [12:0] adr_vram;
 	wire [7:0]  adr_oam;
-	wire [20:0] adr21, adr21_prog;
+	wire [20:0] adr21;
+`ifdef USE_LOADER
+	wire [20:0] adr21_prog;
+`endif
 
-	wire n_emu_mbc_in, n_reset_in, rx_in;
+`ifdef HAS_UART
+	wire rx_in, rts_in, dtr_in;
+`endif
+	wire n_emu_mbc_in, n_reset_in;
 	wire chl_out, chr_out, chm_out;
 
 	wire n_dmadrv_in, n_irq_vb_in, n_irq_st_in;
@@ -77,7 +91,9 @@ module top(
 	wire rd_vram, wr_vram;
 	wire rd_oam, wr_oam;
 	wire rd_ppu;
+`ifdef USE_LOADER
 	wire wr_prog;
+`endif
 	wire cs_ram, cs_cart, cs_crom, cs_cram;
 	wire cscpu_ext, cscpu_ram, cscpu_cart, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
 	wire csdma_ext, csdma_ram, csdma_cart, csdma_vram;
@@ -98,15 +114,21 @@ module top(
 	wire [7:0] data_brom_out;
 	wire [7:0] data_hram_out;
 	wire [7:0] data_cpureg_out;
+`ifdef USE_DEBUGGER
 	wire [7:0] data_dbg_out;
+`endif
+`ifdef USE_LOADER
 	wire [7:0] data_prog_out;
+`endif
 
 	wire irq_ppu_vblank, irq_ppu_stat, irq_timer, irq_serial, irq_joypad;
 
+`ifdef USE_DEBUGGER
 	wire [15:0] pc, sp;
 	wire [7:4]  flags;
 	wire [7:0]  dbg_probe;
 	wire        ddrv_dbg, halt, no_inc, ime;
+`endif
 
 	wire dma_active;
 
@@ -124,7 +146,11 @@ module top(
 		) adr_io[20:0] (
 			.PACKAGE_PIN(adr),
 			.OUTPUT_CLK(gbclk),
+`ifdef USE_LOADER
 			.D_OUT_0(gb_on ? adr21 : adr21_prog),
+`else
+			.D_OUT_0(adr21),
+`endif
 		);
 
 	SB_IO #(
@@ -134,7 +160,11 @@ module top(
 			.PACKAGE_PIN(data),
 			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && (gb_on ? (wr_ext || r_wr_ext) : 1)),
+`ifdef USE_LOADER
 			.D_OUT_0(gb_on ? data_cpu_out : data_prog_out),
+`else
+			.D_OUT_0(data_cpu_out),
+`endif
 			.D_IN_0(data_ext_in),
 		);
 
@@ -151,7 +181,12 @@ module top(
 		) n_write_io (
 			.PACKAGE_PIN(n_write),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!reset_done || (gb_on ? (cs_crom || !wr_ext) : !wr_prog)), /* suppress outgoing n_write if rom is selected */
+			.D_OUT_0(!reset_done || (gb_on ? (cs_crom || !wr_ext) :      /* suppress outgoing n_write if rom is selected */
+`ifdef USE_LOADER
+			                                 !wr_prog)),
+`else
+			                                 1)),
+`endif
 		);
 
 	SB_IO #(
@@ -200,14 +235,6 @@ module top(
 		) n_reset_io (
 			.PACKAGE_PIN(n_reset),
 			.D_IN_0(n_reset_in),
-		);
-
-	SB_IO #(
-			.PIN_TYPE('b 0000_01),
-			.PULLUP(1),
-		) rx_io (
-			.PACKAGE_PIN(rx),
-			.D_IN_0(rx_in),
 		);
 
 	SB_IO #(
@@ -282,6 +309,32 @@ module top(
 			.D_OUT_0(p15_out),
 		);
 
+`ifdef HAS_UART
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) rx_io (
+			.PACKAGE_PIN(rx),
+			.D_IN_0(rx_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) rts_io (
+			.PACKAGE_PIN(rts),
+			.D_IN_0(rts_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) dtr_io (
+			.PACKAGE_PIN(dtr),
+			.D_IN_0(dtr_in),
+		);
+`endif
+
 	always @(posedge gbclk) begin
 		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
 
@@ -318,8 +371,10 @@ module top(
 			data_cpu_in = data_ext_in;
 		endcase
 
+`ifdef USE_DEBUGGER
 		if (ddrv_dbg)
 			data_cpu_in = data_dbg_out;
+`endif
 	end
 
 	always @* begin
@@ -413,8 +468,14 @@ module top(
 		reset_ticks         = r_reset_ticks;
 		reset_done          = r_reset_done;
 		reset_gb            = r_reset_gb;
+`ifdef USE_LOADER
 		reset_ld            = r_reset_ld;
+`endif
+`ifdef HAS_UART
+		gb_on               = n_reset_in && dtr_in;
+`else
 		gb_on               = n_reset_in;
+`endif
 
 		if (!r_initial_reset_done && gbclk_stable)
 			initial_reset_ticks = r_initial_reset_ticks + 1;
@@ -432,7 +493,9 @@ module top(
 			reset_done = 1;
 
 		reset_gb = !reset_done || !gb_on;
+`ifdef USE_LOADER
 		reset_ld = !reset_done || gb_on;
+`endif
 	end
 
 	always @(posedge gbclk) begin
@@ -441,7 +504,9 @@ module top(
 		r_reset_ticks         <= reset_ticks;
 		r_reset_done          <= reset_done;
 		r_reset_gb            <= reset_gb;
+`ifdef USE_LOADER
 		r_reset_ld            <= reset_ld;
+`endif
 		r_gb_on               <= gb_on;
 	end
 
@@ -459,13 +524,6 @@ module top(
 		.write(wr_cpu),
 		.read(rd_cpu),
 		.reset(reset_gb),
-		.r_pc(pc),
-		.r_sp(sp),
-		.r_f(flags[7:4]),
-		.r_ime(ime),
-		.dbg_probe(dbg_probe),
-		.dbg_halt(halt),
-		.dbg_no_inc(no_inc),
 		.cs_iflag(cs_io_int_flag),
 		.cs_iena(cs_io_int_ena),
 		.din_reg(data_cpu_out),
@@ -473,8 +531,21 @@ module top(
 		.write_reg(wr_cpu),
 		.read_reg(rd_cpu),
 		.irq({ irq_joypad, irq_serial, irq_timer, irq_ppu_stat, irq_ppu_vblank }),
+`ifdef USE_DEBUGGER
+		.r_pc(pc),
+		.r_sp(sp),
+		.r_f(flags[7:4]),
+		.r_ime(ime),
+		.dbg_probe(dbg_probe),
+		.dbg_halt(halt),
+		.dbg_no_inc(no_inc),
+`else
+		.dbg_halt(0),
+		.dbg_no_inc(0),
+`endif
 	);
 
+`ifdef USE_DEBUGGER
 	lr35902_dbg_uart debugger(
 		.cpu_clk(gbclk),
 		.reset(!initial_reset_done),
@@ -493,6 +564,12 @@ module top(
 		.tx(tx),
 		.cts(cts),
 	);
+`else
+`ifdef HAS_UART
+	assign tx = 1;
+	assign cts = 0;
+`endif
+`endif
 
 	gb_memmap cpu_map(
 		.adr(adr_cpu),
@@ -700,6 +777,7 @@ module top(
 		.sel_ram(cs_cram),
 	);
 
+`ifdef USE_LOADER
 	prog_loader loader(
 		.clk(gbclk),
 		.write(wr_prog),
@@ -709,6 +787,7 @@ module top(
 		.uart_clk(clk12m),
 		.rx(rx_in),
 	);
+`endif
 
 endmodule
 

@@ -35,6 +35,7 @@ lcds/lcd_uc1611-pins.vh
 
 PCF_FILES = \
 boards/hx8k_brk.pcf \
+boards/hx8k_brk-uart.pcf \
 leds/leds-hx8k_brk.pcf \
 lcds/lcd_uc1611-hx8k_brk.pcf
 
@@ -64,6 +65,7 @@ $(if @HAS_LCD@,$(foreach suf,args glue pins,lcds/lcd_@LCD_TYPE@-$(suf).vh))
 
 USED_PCF_FILES = \
 boards/@BOARD@.pcf \
+$(if @HAS_UART@,boards/@BOARD@-uart.pcf) \
 $(if @HAS_LEDS@,leds/leds-@BOARD@.pcf) \
 $(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@-@BOARD@.pcf)

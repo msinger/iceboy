@@ -14,3 +14,7 @@
 `define SIO_PIN_HEADER "sio/lr35902_sio_@SIO_TYPE@-pins.vh"
 `define SIO_ARG_HEADER "sio/lr35902_sio_@SIO_TYPE@-args.vh"
 `define SIO_GLUE_HEADER "sio/lr35902_sio_@SIO_TYPE@-glue.vh"
+
+`@UART_DEF@ HAS_UART
+`@DEBUGGER_DEF@ USE_DEBUGGER
+`@LOADER_DEF@ USE_LOADER

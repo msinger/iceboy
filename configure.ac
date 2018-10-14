@@ -42,6 +42,27 @@ MY_ARG_ENABLE(
 	[no]
 )
 
+MY_ARG_ENABLE(
+	uart,
+	auto,
+	[Build with UART (for debugger and program loader) enabled.],
+	[yes, no, auto]
+)
+
+MY_ARG_ENABLE(
+	debugger,
+	auto,
+	[Build with debugger enabled. Needs UART.],
+	[yes, no, auto]
+)
+
+MY_ARG_ENABLE(
+	loader,
+	auto,
+	[Build with program loader enabled. Needs UART and MBC emulation.],
+	[yes, no, auto]
+)
+
 AC_SUBST(BOARD, $enable_board)
 
 _enable_leds="$enable_leds"
@@ -67,6 +88,30 @@ AC_SUBST(HAS_SIO, $(test "x$enable_sio" != "xno" && echo y))
 AC_SUBST(SIO_DEF, $(test "x$enable_sio" != "xno" && echo define || echo undef))
 AC_SUBST(SIO_TYPE, $(test "x$enable_sio" != "xno" && echo $enable_sio || echo dummy))
 
+_enable_uart="$enable_uart"
+if test "x$enable_uart" = "xauto"; then
+	_enable_uart=no
+	if test "x$enable_board" = "xhx8k_brk"; then
+		_enable_uart=yes
+	fi
+fi
+AC_SUBST(HAS_UART, $(test "x$_enable_uart" = "xyes" && echo y))
+AC_SUBST(UART_DEF, $(test "x$_enable_uart" = "xyes" && echo define || echo undef))
+
+_enable_debugger="$enable_debugger"
+if test "x$enable_debugger" = "xauto"; then
+	_enable_debugger="$_enable_uart"
+fi
+AC_SUBST(USE_DEBUGGER, $(test "x$_enable_debugger" = "xyes" && echo y))
+AC_SUBST(DEBUGGER_DEF, $(test "x$_enable_debugger" = "xyes" && echo define || echo undef))
+
+_enable_loader="$enable_loader"
+if test "x$enable_loader" = "xauto"; then
+	_enable_loader="$_enable_uart"
+fi
+AC_SUBST(USE_LOADER, $(test "x$_enable_loader" = "xyes" && echo y))
+AC_SUBST(LOADER_DEF, $(test "x$_enable_loader" = "xyes" && echo define || echo undef))
+
 AC_CONFIG_FILES([
 src/config.vh
 src/Makefile
@@ -91,3 +136,4 @@ echo "Board:                              $enable_board"
 echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" = "xyes" && echo " ($NUM_LEDS)")"
 echo "LCD:                                $enable_lcd"
 echo "Serial I/O (link cable):            $enable_sio"
+echo "UART:                               $_enable_uart$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
