@@ -85,11 +85,11 @@ view: gameboy.asc
 
 .PHONY: all prog run json view
 
-gameboy.blif: Makefile $(SRC) $(NODIST_SRC) $(USED_COND_SRC) bootrom.hex $(HDR) $(NODIST_HDR) $(USED_COND_HDR)
-	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -blif $@" $(SRC) $(NODIST_SRC) $(USED_COND_SRC)
+gameboy.blif: Makefile $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC) $(HDR) $(USED_COND_HDR)) $(NODIST_SRC) $(NODIST_HDR) $(if @HAS_BOOTROM@,bootrom.hex)
+	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -blif $@" $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC)) $(NODIST_SRC)
 
-gameboy.pcf: Makefile $(USED_PCF_FILES)
-	cat $(USED_PCF_FILES) >$@
+gameboy.pcf: Makefile $(addprefix $(srcdir)/,$(USED_PCF_FILES))
+	cat $(addprefix $(srcdir)/,$(USED_PCF_FILES)) >$@
 
 gameboy.asc gameboy.post.blif: gameboy.blif gameboy.pcf Makefile
 	$(ARACHNE) $(ARACHNEFLAGS) -m 800 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif
@@ -100,7 +100,9 @@ gameboy.bin: gameboy.asc Makefile
 gameboy.post.json: gameboy.post.blif Makefile
 	$(YOSYS) $(YOSYSFLAGS) -o $@ $<
 
-bootrom.hex: bootrom.bin Makefile
+bootrom.hex: @BOOTROM@ Makefile
+	$(if @HAS_BOOTROM@,,$(error --without-bootrom was used))
+	@test "$$(wc -c <$<)" -eq 256 || (echo ERROR: size of boot ROM must be 256 bytes; exit 1)
 	od -An -v -tx1 -w16 $< >$@
 
 pll.v: Makefile

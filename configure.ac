@@ -63,6 +63,13 @@ MY_ARG_ENABLE(
 	[yes, no, auto]
 )
 
+MY_ARG_WITH(
+	bootrom,
+	./DMG_ROM.bin,
+	[Select 256 byte boot ROM.],
+	[path to boot ROM file]
+)
+
 AC_SUBST(BOARD, $enable_board)
 
 _enable_leds="$enable_leds"
@@ -112,6 +119,13 @@ fi
 AC_SUBST(USE_LOADER, $(test "x$_enable_loader" = "xyes" && echo y))
 AC_SUBST(LOADER_DEF, $(test "x$_enable_loader" = "xyes" && echo define || echo undef))
 
+if test "x$with_bootrom" != "xno" && ! test -f "$with_bootrom"; then
+	AC_MSG_ERROR([$with_bootrom not found])
+fi
+AC_SUBST(HAS_BOOTROM, $(test "x$with_bootrom" != "xno" && echo y))
+AC_SUBST(BOOTROM_DEF, $(test "x$with_bootrom" != "xno" && echo define || echo undef))
+AC_SUBST(BOOTROM, $(test "x$with_bootrom" != "xno" && cd $(dirname $with_bootrom) && echo $(pwd)/$(basename $with_bootrom)))
+
 AC_CONFIG_FILES([
 src/config.vh
 src/Makefile
@@ -137,3 +151,6 @@ echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" =
 echo "LCD:                                $enable_lcd"
 echo "Serial I/O (link cable):            $enable_sio"
 echo "UART:                               $_enable_uart$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
+echo
+echo "--- Files ---"
+echo "Boot ROM:                           $with_bootrom"

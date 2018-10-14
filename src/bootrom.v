@@ -1,4 +1,5 @@
 `default_nettype none
+`include "config.vh"
 
 (* nolatches *)
 module gb_bootrom(
@@ -14,7 +15,12 @@ module gb_bootrom(
 	reg r_read, r_write_reg;
 
 	reg [7:0] rom[0:255];
+`ifdef HAS_BOOTROM
 	initial $readmemh("bootrom.hex", rom, 0, 255);
+`else
+	integer i;
+	initial for (i = 0; i < 256; i = i + 1) rom[i] <= 0;
+`endif
 
 	always @(posedge clk) begin
 		if (r_write_reg && !write_reg)

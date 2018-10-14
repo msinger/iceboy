@@ -14,3 +14,5 @@ $(sub_targets):
 DISTCLEANFILES = \
 $(builddir)/test_out.* \
 $(builddir)/test_in.*
+
+DISTCHECK_CONFIGURE_FLAGS = --without-bootrom
