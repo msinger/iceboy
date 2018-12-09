@@ -73,6 +73,62 @@ fi
 AC_ARG_VAR(ARACHNEFLAGS, [Additional arguments passed to arachne-pnr])
 ])dnl
 dnl
+AC_DEFUN([MY_PROG_NEXTPNR],
+[dnl
+# nextpnr
+AC_ARG_VAR(NEXTPNR, [nextpnr-ice40 place and route (overrides auto detection)])
+if test -z "$NEXTPNR"; then
+	AC_PATH_PROG(NEXTPNR, nextpnr-ice40, [])
+	if test -z "$NEXTPNR"; then
+		AC_MSG_ERROR([nextpnr-ice40 not found])
+	fi
+fi
+AC_MSG_CHECKING([whether the placing and routing works for iCE40 FPGAs])
+cat >test_in.json <<"EOF"
+{
+ "modules": {
+  "top": {
+   "attributes": {
+    "top": 1
+   },
+   "ports": {
+    "pi": {
+     "direction": "input",
+     "bits": [[ 2 ]]
+    },
+    "po": {
+     "direction": "output",
+     "bits": [[ 2 ]]
+    }
+   },
+   "netnames": {
+    "pi": {
+     "bits": [[ 2 ]]
+    },
+    "po": {
+     "bits": [[ 2 ]]
+    }
+   }
+  }
+ }
+}
+EOF
+cat >test_in.pcf <<"EOF"
+set_io pi C3
+set_io po B3
+EOF
+$NEXTPNR --hx8k --package ct256 --pcf test_in.pcf --json test_in.json --asc test_out.asc >/dev/null 2>&1
+nextpnr_ret=${?}
+rm -f test_out.blif test_out.asc test_in.json test_in.pcf
+if test "x$nextpnr_ret" = "x0"; then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+	AC_MSG_ERROR(['$NEXTPNR --hx8k --package ct256 --pcf test_in.pcf --json test_in.json --asc test_out.asc' failed with exit code $nextpnr_ret])
+fi
+AC_ARG_VAR(NEXTPNRFLAGS, [Additional arguments passed to nextpnr])
+])dnl
+dnl
 AC_DEFUN([MY_PROG_ICEPACK],
 [dnl
 # IcePack

@@ -5,5 +5,5 @@
 *.asc
 *.bin
 *.blif
-/*.json
+*.json
 /viewer.html

@@ -9,7 +9,7 @@ AM_MAINTAINER_MODE
 MY_CHECK_WS
 
 MY_PROG_YOSYS
-MY_PROG_ARACHNE
+MY_PROG_NEXTPNR
 MY_PROG_ICEPACK
 MY_PROG_ICEPLL
 MY_PROG_ICEPROG
@@ -140,7 +140,7 @@ echo "=== CONFIGURATION SUMMARY ==="
 echo
 echo "--- Tools ---"
 echo "Yosys:                              $YOSYS"
-echo "arachne-pnr:                        $ARACHNE"
+echo "nextpnr:                            $NEXTPNR"
 echo "IcePack:                            $ICEPACK"
 echo "IcePLL:                             $ICEPLL"
 echo "IceProg:                            $ICEPROG"

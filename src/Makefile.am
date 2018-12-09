@@ -47,9 +47,7 @@ bootrom.hex \
 gameboy.asc \
 gameboy.bin \
 gameboy.pcf \
-gameboy.blif \
-gameboy.post.blif \
-gameboy.post.blif.json \
+gameboy.json \
 viewer.html
 
 DISTCLEANFILES = \
@@ -78,27 +76,22 @@ prog: gameboy.bin
 run: gameboy.bin
 	$(ICEPROG) -S $<
 
-json: gameboy.post.json
-
 view: gameboy.asc
 	$(top_srcdir)/ice40_viewer/iceview_html.py -s firefox $< viewer.html
 
-.PHONY: all prog run json view
+.PHONY: all prog run view
 
-gameboy.blif: Makefile $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC) $(HDR) $(USED_COND_HDR)) $(NODIST_SRC) $(NODIST_HDR) $(if @HAS_BOOTROM@,bootrom.hex)
-	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -blif $@" $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC)) $(NODIST_SRC)
+gameboy.json: Makefile $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC) $(HDR) $(USED_COND_HDR)) $(NODIST_SRC) $(NODIST_HDR) $(if @HAS_BOOTROM@,bootrom.hex)
+	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -json $@" $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC)) $(NODIST_SRC)
 
 gameboy.pcf: Makefile $(addprefix $(srcdir)/,$(USED_PCF_FILES))
 	cat $(addprefix $(srcdir)/,$(USED_PCF_FILES)) >$@
 
-gameboy.asc gameboy.post.blif: gameboy.blif gameboy.pcf Makefile
-	$(ARACHNE) $(ARACHNEFLAGS) -m 800 -d 8k -p gameboy.pcf $< -o gameboy.asc --post-place-blif gameboy.post.blif
+gameboy.asc: gameboy.json gameboy.pcf Makefile
+	$(NEXTPNR) $(NEXTPNRFLAGS) --hx8k --package ct256 --pcf gameboy.pcf --json $< --asc $@
 
 gameboy.bin: gameboy.asc Makefile
 	$(ICEPACK) $(ICEPACKFLAGS) $< $@
-
-gameboy.post.json: gameboy.post.blif Makefile
-	$(YOSYS) $(YOSYSFLAGS) -o $@ $<
 
 bootrom.hex: @BOOTROM@ Makefile
 	$(if @HAS_BOOTROM@,,$(error --without-bootrom was used))
