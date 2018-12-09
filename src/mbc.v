@@ -11,6 +11,9 @@ module mbc_chip(
 
 		output reg         sel_rom,
 		output reg         sel_ram,
+
+		input  wire [2:0]  rom_size, /* encoded in byte 0x148 from cartridge */
+		input  wire [1:0]  ram_size, /* encoded in byte 0x149 from cartridge */
 	);
 
 	reg pwrite;
@@ -19,28 +22,48 @@ module mbc_chip(
 	reg       ena_ram;
 	reg       mode;
 
+	reg [20:0] rom_mask;
+	reg [14:0] ram_mask;
+
 	always @* begin
 		sel_rom  = 0;
 		sel_ram  = 0;
 		oadr     = 'bx;
+		rom_mask = 'bx;
+		ram_mask = 'bx;
+
+		case (rom_size)
+		'h00: rom_mask = 'h007fff; /*  32kB */
+		'h01: rom_mask = 'h00ffff; /*  64kB */
+		'h02: rom_mask = 'h01ffff; /* 128kB */
+		'h03: rom_mask = 'h03ffff; /* 256kB */
+		'h04: rom_mask = 'h07ffff; /* 512kB */
+		'h05: rom_mask = 'h0fffff; /*   1MB */
+		'h06: rom_mask = 'h1fffff; /*   2MB */
+		endcase
+
+		case (ram_size)
+		'h02: ram_mask = 'h1fff; /*  8kB */
+		'h03: ram_mask = 'h7fff; /* 32kB */
+		endcase
 
 		casez (iadr)
 		/* A15....A8 A7.....A0 */
 		'b_00??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
 			begin
-				oadr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] };
+				oadr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] } & rom_mask;
 				sel_rom = 1;
 			end
 		'b_01??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
 			begin
 				/* banks #0, #32, #64 and #96 can't be selected, instead the next one (+1) is selected */
-				oadr    = { bank[6:0] | !bank[4:0], iadr[13:0] };
+				oadr    = { bank[6:0] | !bank[4:0], iadr[13:0] } & rom_mask;
 				sel_rom = 1;
 			end
 		'b_101?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
 			begin
-				oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] };
-				sel_ram    = ena_ram;
+				oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
+				sel_ram    = ena_ram & |ram_size;
 			end
 		endcase
 

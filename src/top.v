@@ -778,6 +778,8 @@ module top(
 		.reset(reset_gb),
 		.sel_rom(cs_crom),
 		.sel_ram(cs_cram),
+		.rom_size('h04),
+		.ram_size('h02),
 	);
 
 `ifdef USE_LOADER
