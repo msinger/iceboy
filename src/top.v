@@ -197,8 +197,9 @@ module top(
 			.PULLUP(1),
 		) n_emu_mbc_io (
 			.PACKAGE_PIN(n_emu_mbc),
-			.D_IN_0(n_emu_mbc_in),
+			/* .D_IN_0(n_emu_mbc_in), */
 		);
+	assign n_emu_mbc_in = 0;
 
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
@@ -370,7 +371,7 @@ module top(
 			data_cpu_in = data_vram_out;
 		cscpu_oam && !dma_active && !ppu_needs_oam:
 			data_cpu_in = data_oam_out;
-		cscpu_ext && (!dma_active || !csdma_ext):
+		cscpu_ext && (!dma_active || !csdma_ext) /* HACK: pull-ups on data lines seem to be not strong enough: */ && (cscpu_ram || n_emu_mbc_in || cs_crom || cs_cram):
 			data_cpu_in = data_ext_in;
 		endcase
 
@@ -399,7 +400,7 @@ module top(
 		case (1)
 		csdma_vram && !ppu_needs_vram:
 			data_dma_in = data_vram_out;
-		csdma_ram || csdma_cart:
+		csdma_ext /* HACK: pull-ups on data lines seem to be not strong enough: */ && (csdma_ram || n_emu_mbc_in || cs_crom || cs_cram):
 			data_dma_in = data_ext_in;
 		endcase
 	end
