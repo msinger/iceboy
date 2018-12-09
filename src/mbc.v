@@ -20,24 +20,27 @@ module mbc_chip(
 	reg       mode;
 
 	always @* begin
-		sel_rom = 0;
-		sel_ram = 0;
-		oadr    = iadr;
+		sel_rom  = 0;
+		sel_ram  = 0;
+		oadr     = 'bx;
 
 		casez (iadr)
 		/* A15....A8 A7.....A0 */
-		'b_00??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0 */
-			sel_rom = 1;
-		'b_01??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
+		'b_00??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
 			begin
-				/* banks 0x00, 0x20, 0x40 and 0x60 can't be selected, instead the next one (+1) is selected */
-				oadr    = { !mode ? bank[6:5] : 2'b00, bank[4:0] | !bank[4:0], iadr[13:0] };
+				oadr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] };
 				sel_rom = 1;
 			end
-		'b_101?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#15 */
+		'b_01??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
 			begin
-				oadr    = { mode ? bank[6:5] : 2'b00, iadr[12:0] };
-				sel_ram = ena_ram;
+				/* banks #0, #32, #64 and #96 can't be selected, instead the next one (+1) is selected */
+				oadr    = { bank[6:0] | !bank[4:0], iadr[13:0] };
+				sel_rom = 1;
+			end
+		'b_101?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
+			begin
+				oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] };
+				sel_ram    = ena_ram;
 			end
 		endcase
 
