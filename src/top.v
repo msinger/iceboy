@@ -79,7 +79,6 @@ module top(
 	wire n_emu_mbc_in, n_reset_in;
 	wire chl_out, chr_out, chm_out;
 
-	wire n_dmadrv_in, n_irq_vb_in, n_irq_st_in;
 	wire p10_in, p11_in, p12_in, p13_in;
 	wire p14_out, p15_out;
 
