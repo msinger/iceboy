@@ -30,10 +30,10 @@ module lr35902_dbg_uart(
 		input  wire [15:0] sp,
 		input  wire [7:4]  f,
 		input  wire        ime,
-		output wire [7:0]  data,   /* data driven on the bus when drv is set */
-		output wire        drv,    /* drive debug data on the bus instead of the requested */
-		output wire        halt,   /* halts CPU in instruction fetch state */
-		output wire        no_inc, /* prevent PC from getting incremented */
+		output reg  [7:0]  data,   /* data driven on the bus when drv is set */
+		output reg         drv,    /* drive debug data on the bus instead of the requested */
+		output reg         halt,   /* halts CPU in instruction fetch state */
+		output reg         no_inc, /* prevent PC from getting incremented */
 
 		input  wire        uart_clk,
 		input  wire        uart_reset,
@@ -45,18 +45,18 @@ module lr35902_dbg_uart(
 	reg r_halt, r_no_inc;
 
 	(* mem2reg *)
-	reg [15:0] r_bp[0:`NUM_BP-1]; wire [15:0] bp[0:`NUM_BP-1];
+	reg [15:0] r_bp[0:`NUM_BP-1], bp[0:`NUM_BP-1];
 
-	reg [7:0] r_drvdata; wire [7:0] drvdata;
+	reg [7:0] r_drvdata, drvdata;
 
 	(* mem2reg *)
-	reg [8:0] r_drvarr[0:3]; wire [8:0] drvarr[0:3];
+	reg [8:0] r_drvarr[0:3], drvarr[0:3];
 
-	reg [5:0] r_cycle; wire [5:0] cycle;
-	reg [3:0] r_ret;   wire [3:0] ret;
-	wire [3:0] tx_prep;
+	reg [5:0] r_cycle, cycle;
+	reg [3:0] r_ret,   ret;
+	reg [3:0]          tx_prep;
 
-	reg [1:0] r_dbg_state; wire [1:0] dbg_state;
+	reg [1:0] r_dbg_state, dbg_state;
 
 	reg r_tx, r_cts;
 
@@ -72,13 +72,13 @@ module lr35902_dbg_uart(
 	reg [7:0] r_tx_shift;
 
 	reg r_rx_seq;
-	reg r_rx_ack; wire rx_ack;
-	reg r_tx_seq; wire tx_seq;
+	reg r_rx_ack, rx_ack;
+	reg r_tx_seq, tx_seq;
 	reg r_tx_ack;
 
 	integer i;
 
-	wire stepping;
+	reg stepping;
 
 	assign tx  = r_tx;
 	assign cts = r_cts;

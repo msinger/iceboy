@@ -34,97 +34,91 @@ module lr35902_ppu(
 		input  wire        reg_write,
 		output wire        irq_vblank,
 		output wire        irq_stat,
-		output wire        need_oam,
-		output wire        need_vram,
+		output reg         need_oam,
+		output reg         need_vram,
 		input  wire [7:0]  data,
 		input  wire [15:0] data16,
-		output wire [15:0] adr,
-		output wire        read,
+		output reg  [15:0] adr,
+		output reg         read,
 		output wire        disp_on,
 		output wire        hsync,
 		output wire        vsync,
-		output wire        px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
-		output wire [1:0]  px,         /* The color of the pixel being shifted out. */
+		output reg         px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
+		output reg  [1:0]  px,         /* The color of the pixel being shifted out. */
 	);
 
-	reg r_preg_read;  wire preg_read;
-	reg r_preg_write; wire preg_write;
+	reg r_preg_read,  preg_read;
+	reg r_preg_write, preg_write;
 
 	reg        r_need_oam, r_need_vram;
 	reg [15:0] r_adr;
 
 	reg       r_px_out;
 	reg [1:0] r_px;
-	reg [7:0] r_px_cnt; wire [7:0] px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
-	reg [8:0] r_lx;     wire [8:0] lx;     /* counts 0 .. 455 */
-	reg [7:0] r_ly;     wire [7:0] ly;     /* counts 0 .. 153 (each time lx resets to 0); resets to 0 early in line 153 */
-	reg [7:0] r_ily;    wire [7:0] ily;    /* counts 0 .. 153 (each time lx resets to 0); completes line 153 normally */
-	reg       r_scxed;  wire       scxed;  /* set to 1 when r_scx[2:0] pixels got thrown away at beginning of line */
+	reg [7:0] r_px_cnt, px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
+	reg [8:0] r_lx,     lx;     /* counts 0 .. 455 */
+	reg [7:0] r_ly,     ly;     /* counts 0 .. 153 (each time lx resets to 0); resets to 0 early in line 153 */
+	reg [7:0] r_ily,    ily;    /* counts 0 .. 153 (each time lx resets to 0); completes line 153 normally */
+	reg       r_scxed,  scxed;  /* set to 1 when r_scx[2:0] pixels got thrown away at beginning of line */
 
-	reg r_draw_win; wire draw_win;
+	reg r_draw_win, draw_win;
 
-	reg r_stat_sig; wire stat_sig;
+	reg  r_stat_sig;
+	wire stat_sig;
 
-	reg r_mute; wire mute;
+	reg r_mute, mute;
 
 	/* FF40 (LCDC) */
-	reg r_ppu_ena;  wire ppu_ena;  /* bit 7 */
-	reg r_win_map;  wire win_map;  /* bit 6   0: 9800-9bff  1: 9c00-9fff */
-	reg r_win_ena;  wire win_ena;  /* bit 5 */
-	reg r_bg_tiles; wire bg_tiles; /* bit 4   0: 8800-97ff  1: 8000-8fff */
-	reg r_bg_map;   wire bg_map;   /* bit 3   0: 9800-9bff  1: 9c00-9fff */
-	reg r_obj_size; wire obj_size; /* bit 2   0: 8*8  1: 8*16 */
-	reg r_obj_ena;  wire obj_ena;  /* bit 1 */
-	reg r_bg_ena;   wire bg_ena;   /* bit 0 */
+	reg r_ppu_ena,  ppu_ena;  /* bit 7 */
+	reg r_win_map,  win_map;  /* bit 6   0: 9800-9bff  1: 9c00-9fff */
+	reg r_win_ena,  win_ena;  /* bit 5 */
+	reg r_bg_tiles, bg_tiles; /* bit 4   0: 8800-97ff  1: 8000-8fff */
+	reg r_bg_map,   bg_map;   /* bit 3   0: 9800-9bff  1: 9c00-9fff */
+	reg r_obj_size, obj_size; /* bit 2   0: 8*8  1: 8*16 */
+	reg r_obj_ena,  obj_ena;  /* bit 1 */
+	reg r_bg_ena,   bg_ena;   /* bit 0 */
 
 	/* FF41 (STAT) */
-	reg       r_sel_lyc;   wire       sel_lyc;   /* bit 6 */
-	reg       r_sel_mode2; wire       sel_mode2; /* bit 5 */
-	reg       r_sel_mode1; wire       sel_mode1; /* bit 4 */
-	reg       r_sel_mode0; wire       sel_mode0; /* bit 3 */
-	reg       r_lyc_eq;    wire       lyc_eq;    /* bit 2 */
-	reg [1:0] r_mode;      wire [1:0] mode;      /* bit 1:0 */
+	reg       r_sel_lyc,   sel_lyc;   /* bit 6 */
+	reg       r_sel_mode2, sel_mode2; /* bit 5 */
+	reg       r_sel_mode1, sel_mode1; /* bit 4 */
+	reg       r_sel_mode0, sel_mode0; /* bit 3 */
+	reg       r_lyc_eq,    lyc_eq;    /* bit 2 */
+	reg [1:0] r_mode,      mode;      /* bit 1:0 */
 
-	reg [7:0] r_scx;  wire [7:0] scx;
-	reg [7:0] r_scy;  wire [7:0] scy;
-	reg [7:0] r_lyc;  wire [7:0] lyc;
-	reg [7:0] r_bgp;  wire [7:0] bgp;
-	reg [7:0] r_obp0; wire [7:0] obp0;
-	reg [7:0] r_obp1; wire [7:0] obp1;
-	reg [7:0] r_wx;   wire [7:0] wx;
-	reg [7:0] r_wy;   wire [7:0] wy;
+	reg [7:0] r_scx,  scx;
+	reg [7:0] r_scy,  scy;
+	reg [7:0] r_lyc,  lyc;
+	reg [7:0] r_bgp,  bgp;
+	reg [7:0] r_obp0, obp0;
+	reg [7:0] r_obp1, obp1;
+	reg [7:0] r_wx,   wx;
+	reg [7:0] r_wy,   wy;
 
-	reg  [15:0] r_fifo1, r_fifo0;          /* Stores the color of each pixel in the FIFO. (fifo0=LSB, fifo1=MSB) */
-	wire [15:0] fifo1, fifo0;
-	reg  [15:0] r_fifo1_src, r_fifo0_src;  /* Stores the source of each pixel in the FIFO. (fifo0_src=LSB, fifo1_src=MSB) */
-	wire [15:0] fifo1_src, fifo0_src;
-	reg  [4:0]  r_fifo_len;                /* Number of pixels in the FIFO. */
-	wire [4:0]  fifo_len;
+	reg [15:0] r_fifo1,     r_fifo0;      /* Stores the color of each pixel in the FIFO. (fifo0=LSB, fifo1=MSB) */
+	reg [15:0] fifo1,       fifo0;
+	reg [15:0] r_fifo1_src, r_fifo0_src;  /* Stores the source of each pixel in the FIFO. (fifo0_src=LSB, fifo1_src=MSB) */
+	reg [15:0] fifo1_src,   fifo0_src;
+	reg [4:0]  r_fifo_len,  fifo_len;     /* Number of pixels in the FIFO. */
 
-	reg  [2:0]  r_fetch_state;
-	wire [2:0]  fetch_state;
-	reg  [1:0]  r_fetch_src;               /* Stores the source of the pixels currently held in the fetch buffer. */
-	wire [1:0]  fetch_src;
-	reg  [7:0]  r_fetch_tile;              /* Stores the fetched tile number. */
-	wire [7:0]  fetch_tile;
-	reg  [7:0]  r_fetch1, r_fetch0;        /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
-	wire [7:0]  fetch1, fetch0;
-	reg  [15:0] r_fetch_bg_adr;
-	wire [15:0] fetch_bg_adr;
-	reg         r_fetch_flip;
-	wire        fetch_flip;
-	reg         r_fetch_prio;
-	wire        fetch_prio;
+	reg [2:0]  r_fetch_state,  fetch_state;
+	reg [1:0]  r_fetch_src,    fetch_src;   /* Stores the source of the pixels currently held in the fetch buffer. */
+	reg [7:0]  r_fetch_tile,   fetch_tile;  /* Stores the fetched tile number. */
+	reg [7:0]  r_fetch1,       r_fetch0;    /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
+	reg [7:0]  fetch1,         fetch0;
+	reg [15:0] r_fetch_bg_adr, fetch_bg_adr;
+	reg        r_fetch_flip,   fetch_flip;
+	reg        r_fetch_prio,   fetch_prio;
 
-	wire [7:0] px_pal;
+	reg [7:0] px_pal;
 
 	wire [7:0] line, wline;
 
 	(* mem2reg *)
-	reg [28:0] r_obj[0:9]; wire [28:0] obj[0:9];
-	reg [3:0]  r_nobj;     wire [3:0]  nobj;
-	reg        r_lobj;     wire        lobj;
-	                       wire [28:0] mobj;
+	reg [28:0] r_obj[0:9], obj[0:9];
+	reg [3:0]  r_nobj,     nobj;
+	reg        r_lobj,     lobj;
+	reg [28:0]             mobj;
 
 	integer i;
 

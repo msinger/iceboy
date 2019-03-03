@@ -9,23 +9,23 @@ module lr35902_tim(
 		input  wire        write,
 		input  wire        clk,
 		input  wire        reset,
-		output wire        irq,
+		output reg         irq,
 		output wire [15:0] div,
 	);
 
 	reg [1:0] r_adr;
 	reg [7:0] r_din;
-	reg       r_wr;  wire wr;
+	reg       r_wr,  wr;
 
-	reg [8:0] r_tima; wire [8:0] tima;
-	reg [7:0] r_tma;  wire [7:0] tma;
-	reg [2:0] r_tac;  wire [2:0] tac;
+	reg [8:0] r_tima, tima;
+	reg [7:0] r_tma,  tma;
+	reg [2:0] r_tac,  tac;
 
-	reg [15:0] r_count; wire [15:0] count;
+	reg [15:0] r_count, count;
 
 	reg r_pread, r_pwrite;
 
-	reg r_tbit; wire tbit;
+	reg r_tbit, tbit;
 
 	assign div = count;
 

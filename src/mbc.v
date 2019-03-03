@@ -4,13 +4,13 @@
 module mbc_chip(
 		input  wire        clk,
 		input  wire [15:0] iadr,
-		output wire [20:0] oadr,
+		output reg  [20:0] oadr,
 		input  wire [7:0]  data,
 		input  wire        write,
 		input  wire        reset,
 
-		output wire        sel_rom,
-		output wire        sel_ram,
+		output reg         sel_rom,
+		output reg         sel_ram,
 	);
 
 	reg pwrite;

@@ -7,12 +7,12 @@ module gb_memmap(
 		input  wire        reset,
 		input  wire        enable_bootrom,
 
-		output wire        sel_bootrom,
-		output wire        sel_cartridge,
-		output wire        sel_vram,
-		output wire        sel_ram,
-		output wire        sel_oam,
-		output wire        sel_io,
+		output reg         sel_bootrom,
+		output reg         sel_cartridge,
+		output reg         sel_vram,
+		output reg         sel_ram,
+		output reg         sel_oam,
+		output reg         sel_io,
 	);
 
 	always @* begin

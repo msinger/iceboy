@@ -21,12 +21,12 @@
 (* nolatches *)
 module lr35902(
 		input  wire        clk,
-		output wire [15:0] adr,
+		output reg  [15:0] adr,
 		input  wire [7:0]  din,
-		output wire [7:0]  dout,
+		output reg  [7:0]  dout,
 
-		output wire        read,
-		output wire        write,
+		output reg         read,
+		output reg         write,
 
 		input  wire        reset,
 
@@ -53,73 +53,70 @@ module lr35902(
 	reg [7:0]  r_dout;
 
 	(* onehot *)
-	reg  [3:0] r_state;
-	(* onehot *)
-	wire [3:0] state;
-	reg  [1:0] r_cycle;
-	wire [1:0] cycle;
+	reg [3:0] r_state, state;
+	reg [1:0] r_cycle, cycle;
 
-	reg [7:0] r_op;      wire [7:0] op;
-	reg       r_op_bank; wire       op_bank;
-	reg [7:0] r_imml;    wire [7:0] imml;
-	reg [7:0] r_immh;    wire [7:0] immh;
+	reg [7:0] r_op,      op;
+	reg       r_op_bank, op_bank;
+	reg [7:0] r_imml,    imml;
+	reg [7:0] r_immh,    immh;
 
-	                wire [15:0] pc;
-	                wire [15:0] sp;
-	reg [7:0]  r_a; wire [7:0]  a;
-	                wire [7:4]  f;
-	reg [7:0]  r_b; wire [7:0]  b;
-	reg [7:0]  r_c; wire [7:0]  c;
-	reg [7:0]  r_d; wire [7:0]  d;
-	reg [7:0]  r_e; wire [7:0]  e;
-	reg [7:0]  r_h; wire [7:0]  h;
-	reg [7:0]  r_l; wire [7:0]  l;
+	reg [15:0]      pc;
+	reg [15:0]      sp;
+	reg [7:0]  r_a, a;
+	reg [7:4]       f;
+	reg [7:0]  r_b, b;
+	reg [7:0]  r_c, c;
+	reg [7:0]  r_d, d;
+	reg [7:0]  r_e, e;
+	reg [7:0]  r_h, h;
+	reg [7:0]  r_l, l;
 
-	wire [7:0] rot_result;
-	wire       rot_carry;
+	reg [7:0] rot_result;
+	reg       rot_carry;
 
-	wire [7:0] arg;
-	wire [7:0] result;
-	wire       fzero;
-	wire       fsub;
-	wire       fhalfcarry;
-	wire       fcarry;
+	reg [7:0] arg;
+	reg [7:0] result;
+	reg       fzero;
+	reg       fsub;
+	reg       fhalfcarry;
+	reg       fcarry;
 
-	wire [7:0] argi;
-	wire [7:0] resulti;
-	wire       fzeroi;
-	wire       fsubi;
-	wire       fhalfcarryi;
-	wire       fcarryi;
+	reg [7:0] argi;
+	reg [7:0] resulti;
+	reg       fzeroi;
+	reg       fsubi;
+	reg       fhalfcarryi;
+	reg       fcarryi;
 
 	/* for PC, SP, relative jumps and other 16 bit ops */
-	wire [15:0] arg16a;
-	wire [15:0] arg16b;
+	reg  [15:0] arg16a;
+	reg  [15:0] arg16b;
 	wire [15:0] result16;
 	wire        carry16;
 	wire        h4carry16;
 	wire        h8carry16;
 	wire        h12carry16;
 
-	wire [8:0] daa_result;
+	reg [8:0] daa_result;
 
-	reg        r_delay_ime;  wire       delay_ime;
-	                         wire       ime;
-	reg  [2:0] r_int_state;  wire [2:0] int_state;
+	reg        r_delay_ime,  delay_ime;
+	reg                      ime;
+	reg  [2:0] r_int_state,  int_state;
 	reg        r_int_entry;
 	reg  [4:0] r_iflag;
 	reg  [7:0] r_iena;
 	wire       do_int_entry;
-	wire [7:0] int_vector;
-	wire [4:0] iack;
-	wire [4:0] int_ackmask;
+	reg  [7:0] int_vector;
+	reg  [4:0] iack;
+	reg  [4:0] int_ackmask;
 
 	/* HALT instruction sets these -- interrupt clears them.
 	 *  no_inc clear is delayed till cycle==3 for implementing HALT bug. */
-	reg r_halt;   wire halt;
-	reg r_no_inc; wire no_inc;
+	reg r_halt,   halt;
+	reg r_no_inc, no_inc;
 
-	reg r_stop;   wire stop;
+	reg r_stop,   stop;
 
 	assign dbg_probe = arg;
 

@@ -44,15 +44,15 @@ module top(
 `endif
 	);
 
-	reg  [3:0] r_reset_ticks         = 0; wire [3:0] reset_ticks;
-	reg  [3:0] r_initial_reset_ticks = 0; wire [3:0] initial_reset_ticks;
-	reg        r_reset_done          = 0; wire       reset_done;
-	reg        r_initial_reset_done  = 0; wire       initial_reset_done;
-	reg        r_reset_gb            = 1; wire       reset_gb;
+	reg  [3:0] r_reset_ticks         = 0, reset_ticks;
+	reg  [3:0] r_initial_reset_ticks = 0, initial_reset_ticks;
+	reg        r_reset_done          = 0, reset_done;
+	reg        r_initial_reset_done  = 0, initial_reset_done;
+	reg        r_reset_gb            = 1, reset_gb;
 `ifdef USE_LOADER
-	reg        r_reset_ld            = 1; wire       reset_ld;
+	reg        r_reset_ld            = 1, reset_ld;
 `endif
-	reg        r_gb_on               = 0; wire       gb_on;
+	reg        r_gb_on               = 0, gb_on;
 
 	wire       pllclk;       /* 21 MHz     47 ns */
 	wire       gbclk;        /* 4.2 MHz   238 ns    (if r_slow, then 1.05 MHz) */
@@ -62,12 +62,12 @@ module top(
 	reg        r_slow = 0;
 
 	wire [15:0] adr_cpu;
-	wire [15:0] adr_ext;
+	reg  [15:0] adr_ext;
 	wire [15:0] adr_ppu;
 	wire [15:0] adr_dma_rd;
 	wire [7:0]  adr_dma_wr;
-	wire [12:0] adr_vram;
-	wire [7:0]  adr_oam;
+	reg  [12:0] adr_vram;
+	reg  [7:0]  adr_oam;
 	wire [20:0] adr21;
 `ifdef USE_LOADER
 	wire [20:0] adr21_prog;
@@ -86,9 +86,9 @@ module top(
 
 	wire rd_cpu, wr_cpu;
 	wire rd_dma, wr_dma;
-	wire rd_ext, wr_ext;
-	wire rd_vram, wr_vram;
-	wire rd_oam, wr_oam;
+	reg  rd_ext, wr_ext;
+	reg  rd_vram, wr_vram;
+	reg  rd_oam, wr_oam;
 	wire rd_ppu;
 `ifdef USE_LOADER
 	wire wr_prog;
@@ -100,24 +100,28 @@ module top(
 	wire cs_io_joypad, cs_io_serial, cs_io_timer, cs_io_int_flag;
 	wire cs_io_sound, cs_io_ppu, cs_io_brom, cs_io_hram, cs_io_int_ena;
 
-	wire [7:0] data_cpu_out, data_cpu_in;
-	wire [7:0] data_dma_out, data_dma_in;
-	wire [7:0] data_oam_out, data_oam_in;   wire [15:0] data_oam_out16;
-	wire [7:0] data_ext_in;
-	wire [7:0] data_ppu_out;
-	wire [7:0] data_vram_out;
-	wire [7:0] data_joy_out;
-	wire [7:0] data_sio_out;
-	wire [7:0] data_tim_out;
-	wire [7:0] data_snd_out;
-	wire [7:0] data_brom_out;
-	wire [7:0] data_hram_out;
-	wire [7:0] data_cpureg_out;
+	wire [7:0]  data_cpu_out;
+	reg  [7:0]  data_cpu_in;
+	wire [7:0]  data_dma_out;
+	reg  [7:0]  data_dma_in;
+	wire [7:0]  data_oam_out;
+	reg  [7:0]  data_oam_in;
+	wire [15:0] data_oam_out16;
+	wire [7:0]  data_ext_in;
+	wire [7:0]  data_ppu_out;
+	wire [7:0]  data_vram_out;
+	wire [7:0]  data_joy_out;
+	wire [7:0]  data_sio_out;
+	wire [7:0]  data_tim_out;
+	wire [7:0]  data_snd_out;
+	wire [7:0]  data_brom_out;
+	wire [7:0]  data_hram_out;
+	wire [7:0]  data_cpureg_out;
 `ifdef USE_DEBUGGER
-	wire [7:0] data_dbg_out;
+	wire [7:0]  data_dbg_out;
 `endif
 `ifdef USE_LOADER
-	wire [7:0] data_prog_out;
+	wire [7:0]  data_prog_out;
 `endif
 
 	wire irq_ppu_vblank, irq_ppu_stat, irq_timer, irq_serial, irq_joypad;

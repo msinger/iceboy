@@ -19,20 +19,20 @@ module lcd_uc1611(
 		input  wire       vsync,
 		input  wire       px_out,
 		input  wire [1:0] px,
-		output wire [7:0] lcd_data,
+		output reg  [7:0] lcd_data,
 		output wire       lcd_read,
-		output wire       lcd_write,
+		output reg        lcd_write,
 		output wire       lcd_cs,
-		output wire       lcd_cd,
+		output reg        lcd_cd,
 		output wire       lcd_vled,
 	);
 
-	reg [1:0]  r_state; wire [1:0]  state;
-	reg [16:0] r_count; wire [16:0] count;
+	reg [1:0]  r_state, state;
+	reg [16:0] r_count, count;
 
-	reg       r_insync; wire       insync;
-	reg       r_oddpx;  wire       oddpx;
-	reg [3:0] r_pxbuf;  wire [3:0] pxbuf;
+	reg       r_insync, insync;
+	reg       r_oddpx,  oddpx;
+	reg [3:0] r_pxbuf,  pxbuf;
 
 	reg [7:0] r_lcd_data;
 	reg       r_lcd_cd;

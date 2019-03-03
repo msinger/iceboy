@@ -6,15 +6,15 @@ module gb_iomap(
 
 		input  wire       reset,
 
-		output wire       sel_p1,
-		output wire       sel_ser,
-		output wire       sel_tim,
-		output wire       sel_if,
-		output wire       sel_snd,
-		output wire       sel_ppu,
-		output wire       sel_brom,
-		output wire       sel_hram,
-		output wire       sel_ie,
+		output reg        sel_p1,
+		output reg        sel_ser,
+		output reg        sel_tim,
+		output reg        sel_if,
+		output reg        sel_snd,
+		output reg        sel_ppu,
+		output reg        sel_brom,
+		output reg        sel_hram,
+		output reg        sel_ie,
 	);
 
 	always @* begin

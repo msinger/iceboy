@@ -13,9 +13,9 @@
 (* nolatches *)
 module prog_loader(
 		input  wire        clk,
-		output wire [20:0] adr,
-		output wire [7:0]  data,
-		output wire        write,
+		output reg  [20:0] adr,
+		output reg  [7:0]  data,
+		output reg         write,
 		input  wire        reset,
 
 		input  wire        uart_clk,
@@ -25,14 +25,14 @@ module prog_loader(
 	reg [20:0] r_adr;
 	reg [7:0]  r_data;
 
-	reg [1:0]  r_wr_state; wire [1:0] wr_state;
+	reg [1:0]  r_wr_state, wr_state;
 
 	reg [1:0]  r_rx_state;
 	reg [2:0]  r_cur_bit;
 	reg [3:0]  r_sub_count;
 	reg [7:0]  r_shift;
 	reg        r_data_in_seq;
-	reg        r_data_out_seq; wire data_out_seq;
+	reg        r_data_out_seq, data_out_seq;
 
 	always @* begin
 		adr          = r_adr;

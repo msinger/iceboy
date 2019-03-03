@@ -17,15 +17,15 @@ module lr35902_oam_dma(
 		input  wire [7:0]  din,
 		output wire        read,
 		output wire        write,
-		output wire        active,
+		output reg         active,
 	);
 
 	reg r_reg_write;
 
-	reg [1:0] r_state; wire [1:0] state;
-	reg [1:0] r_cycle; wire [1:0] cycle;
-	reg [7:0] r_pos;   wire [7:0] pos;
-	reg [7:0] r_sadr;  wire [7:0] sadr;
+	reg [1:0] r_state, state;
+	reg [1:0] r_cycle, cycle;
+	reg [7:0] r_pos,   pos;
+	reg [7:0] r_sadr,  sadr;
 
 	reg r_active;
 

@@ -146,27 +146,27 @@ module lr35902_snd(
 	Rate   256 Hz      64 Hz       128 Hz
 	*/
 
-	reg         voc1_trigger;
-	reg  [10:0] voc1_freq_shadow;
-	wire [11:0] voc1_freq_new_shadow;
-	wire [10:0] voc1_freq_delta;
-	reg  [10:0] voc1_freq_counter;
-	reg  [2:0]  voc1_duty_counter;
-	reg  [2:0]  voc1_vol_counter;
-	reg  [6:0]  voc1_len_counter;
-	reg  [2:0]  voc1_swp_counter;
-	wire        voc1_pout;
-	wire [3:0]  voc1_out;
-	reg  [3:0]  voc1_vol;
+	reg        voc1_trigger;
+	reg [10:0] voc1_freq_shadow;
+	reg [11:0] voc1_freq_new_shadow;
+	reg [10:0] voc1_freq_delta;
+	reg [10:0] voc1_freq_counter;
+	reg [2:0]  voc1_duty_counter;
+	reg [2:0]  voc1_vol_counter;
+	reg [6:0]  voc1_len_counter;
+	reg [2:0]  voc1_swp_counter;
+	reg        voc1_pout;
+	reg [3:0]  voc1_out;
+	reg [3:0]  voc1_vol;
 
-	reg         voc2_trigger;
-	reg  [10:0] voc2_freq_counter;
-	reg  [2:0]  voc2_duty_counter;
-	reg  [2:0]  voc2_vol_counter;
-	reg  [6:0]  voc2_len_counter;
-	wire        voc2_pout;
-	wire [3:0]  voc2_out;
-	reg  [3:0]  voc2_vol;
+	reg        voc2_trigger;
+	reg [10:0] voc2_freq_counter;
+	reg [2:0]  voc2_duty_counter;
+	reg [2:0]  voc2_vol_counter;
+	reg [6:0]  voc2_len_counter;
+	reg        voc2_pout;
+	reg [3:0]  voc2_out;
+	reg [3:0]  voc2_vol;
 
 	reg         voc3_trigger;
 	reg  [10:0] voc3_freq_counter;
@@ -174,17 +174,17 @@ module lr35902_snd(
 	reg  [3:0]  voc3_sample;
 	reg  [4:0]  voc3_pos;
 	wire [4:0]  voc3_next_pos;
-	wire [3:0]  voc3_out;
+	reg  [3:0]  voc3_out;
 
 	reg         voc4_trigger;
 	reg  [14:0] voc4_lfsr;
 	reg  [17:0] voc4_freq_counter;
 	wire [17:0] voc4_freq_unshift;
-	wire [17:0] voc4_freq;
+	reg  [17:0] voc4_freq;
 	reg  [2:0]  voc4_vol_counter;
 	reg  [6:0]  voc4_len_counter;
-	wire        voc4_pout;
-	wire [3:0]  voc4_out;
+	reg         voc4_pout;
+	reg  [3:0]  voc4_out;
 	reg  [3:0]  voc4_vol;
 
 	always @(posedge pwmclk)
