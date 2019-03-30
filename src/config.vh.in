@@ -1,5 +1,7 @@
 `define BOARD @BOARD@
 
+`define NUM_ADR @NUM_ADR@
+
 `@LEDS_DEF@ HAS_LEDS
 `define NUM_LEDS @NUM_LEDS@
 
@@ -14,6 +16,17 @@
 `define SIO_PIN_HEADER "sio/lr35902_sio_@SIO_TYPE@-pins.vh"
 `define SIO_ARG_HEADER "sio/lr35902_sio_@SIO_TYPE@-args.vh"
 `define SIO_GLUE_HEADER "sio/lr35902_sio_@SIO_TYPE@-glue.vh"
+
+`@CARTRIDGE_DEF@ HAS_CARTRIDGE
+
+`@MBC_DEF@ HAS_MBC
+`define MBC_TYPE @MBC_TYPE@
+
+/* need all combinations of CARTRIDGE and MBC for the crapy Verilog preprocessor */
+`@CARTRIDGE_ONLY_DEF@ HAS_CARTRIDGE_ONLY
+`@MBC_ONLY_DEF@ HAS_MBC_ONLY
+`@CARTRIDGE_AND_MBC_DEF@ HAS_CARTRIDGE_AND_MBC
+`@CARTRIDGE_OR_MBC_DEF@ HAS_CARTRIDGE_OR_MBC
 
 `@UART_DEF@ HAS_UART
 `@DEBUGGER_DEF@ USE_DEBUGGER

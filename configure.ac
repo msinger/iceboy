@@ -57,6 +57,19 @@ MY_ARG_ENABLE(
 )
 
 MY_ARG_ENABLE(
+	cartridge,
+	yes,
+	[Build with interface for real GB cartridges. Exposes additional signals for output enable and direction of bus driver chips.]
+)
+
+MY_ARG_ENABLE(
+	mbc-emu,
+	mbc1-2m32k,
+	[Build with internal MBC emulation. Exposes 21 bit addresses and additional chip selects on the external bus.],
+	[no, mbc1-2m32k]
+)
+
+MY_ARG_ENABLE(
 	loader,
 	auto,
 	[Build with program loader enabled. Needs UART and MBC emulation.],
@@ -71,6 +84,17 @@ MY_ARG_WITH(
 )
 
 AC_SUBST(BOARD, $enable_board)
+NUM_ADR=21
+if test "x$enable_board" = "xhx8k_brk"; then
+	NUM_ADR=20
+fi
+if test "x$enable_mbc_emu" = "xno"; then
+	NUM_ADR=15
+	if test "x$enable_cartridge" != "xyes"; then
+		NUM_ADR=0
+	fi
+fi
+AC_SUBST(NUM_ADR)
 
 _enable_leds="$enable_leds"
 if test "x$enable_leds" = "xauto"; then
@@ -95,6 +119,23 @@ AC_SUBST(HAS_SIO, $(test "x$enable_sio" != "xno" && echo y))
 AC_SUBST(SIO_DEF, $(test "x$enable_sio" != "xno" && echo define || echo undef))
 AC_SUBST(SIO_TYPE, $(test "x$enable_sio" != "xno" && echo $enable_sio || echo dummy))
 
+AC_SUBST(HAS_CARTRIDGE, $(test "x$enable_cartridge" = "xyes" && echo y))
+AC_SUBST(CARTRIDGE_DEF, $(test "x$enable_cartridge" = "xyes" && echo define || echo undef))
+
+AC_SUBST(HAS_MBC, $(test "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(MBC_DEF, $(test "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(MBC_TYPE, $(test "x$enable_mbc_emu" != "xno" && ( echo $enable_mbc_emu | sed -e 's,-.*,,' ) || echo none))
+
+# Verilog has a very useless preprocessor, so we need to define every combination here
+AC_SUBST(HAS_CARTRIDGE_ONLY, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo y))
+AC_SUBST(CARTRIDGE_ONLY_DEF, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo define || echo undef))
+AC_SUBST(HAS_MBC_ONLY, $(test "x$enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(MBC_ONLY_DEF, $(test "x$enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_AND_MBC, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(CARTRIDGE_AND_MBC_DEF, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_OR_MBC, $(test "x$enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+
 _enable_uart="$enable_uart"
 if test "x$enable_uart" = "xauto"; then
 	_enable_uart=no
@@ -115,6 +156,9 @@ AC_SUBST(DEBUGGER_DEF, $(test "x$_enable_debugger" = "xyes" && echo define || ec
 _enable_loader="$enable_loader"
 if test "x$enable_loader" = "xauto"; then
 	_enable_loader="$_enable_uart"
+	if test "x$enable_mbc_emu" = "xno"; then
+		_enable_loader=no
+	fi
 fi
 AC_SUBST(USE_LOADER, $(test "x$_enable_loader" = "xyes" && echo y))
 AC_SUBST(LOADER_DEF, $(test "x$_enable_loader" = "xyes" && echo define || echo undef))
@@ -151,6 +195,8 @@ echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" =
 echo "LCD:                                $enable_lcd"
 echo "Serial I/O (link cable):            $enable_sio"
 echo "UART:                               $_enable_uart$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
+echo "GB Cartridge slot:                  $enable_cartridge"
+echo "MBC emulation:                      $enable_mbc_emu"
 echo
 echo "--- Files ---"
 echo "Boot ROM:                           $with_bootrom"

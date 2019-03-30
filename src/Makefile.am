@@ -2,7 +2,6 @@ SRC = \
 top.v \
 map.v \
 iomap.v \
-mbc.v \
 cpu/lr35902.v \
 cpu/lr35902_hram.v \
 cpu/lr35902_dbg_uart.v \
@@ -21,7 +20,8 @@ pll.v
 
 COND_SRC = \
 sio/lr35902_sio_dummy.v \
-lcds/lcd_uc1611.v
+lcds/lcd_uc1611.v \
+mbc/mbc1.v
 
 HDR =
 
@@ -35,6 +35,9 @@ lcds/lcd_uc1611-pins.vh
 
 PCF_FILES = \
 boards/hx8k_brk.pcf \
+boards/hx8k_brk-cart.pcf \
+boards/hx8k_brk-mbc.pcf \
+boards/hx8k_brk-cart+mbc.pcf \
 boards/hx8k_brk-uart.pcf \
 leds/leds-hx8k_brk.pcf \
 lcds/lcd_uc1611-hx8k_brk.pcf
@@ -55,7 +58,8 @@ $(NODIST_HDR)
 
 USED_COND_SRC = \
 sio/lr35902_sio_@SIO_TYPE@.v \
-$(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v)
+$(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v) \
+$(if @HAS_MBC@,mbc/@MBC_TYPE@.v)
 
 USED_COND_HDR = \
 $(if @HAS_SIO@,$(foreach suf,args glue pins,sio/lr35902_sio_@SIO_TYPE@-$(suf).vh)) \
@@ -63,6 +67,9 @@ $(if @HAS_LCD@,$(foreach suf,args glue pins,lcds/lcd_@LCD_TYPE@-$(suf).vh))
 
 USED_PCF_FILES = \
 boards/@BOARD@.pcf \
+$(if @HAS_CARTRIDGE_ONLY@,boards/@BOARD@-cart.pcf) \
+$(if @HAS_MBC_ONLY@,boards/@BOARD@-mbc.pcf) \
+$(if @HAS_CARTRIDGE_AND_MBC@,boards/@BOARD@-cart+mbc.pcf) \
 $(if @HAS_UART@,boards/@BOARD@-uart.pcf) \
 $(if @HAS_LEDS@,leds/leds-@BOARD@.pcf) \
 $(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \

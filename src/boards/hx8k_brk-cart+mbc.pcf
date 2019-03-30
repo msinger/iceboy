@@ -1,0 +1,47 @@
+# For the iCE40HX-8K Breakout Board
+
+# Ext. Address Bus
+set_io adr[0]    R15
+set_io adr[1]    P16
+set_io adr[2]    P15
+set_io adr[3]    N16
+set_io adr[4]    M15
+set_io adr[5]    M16
+set_io adr[6]    L16
+set_io adr[7]    K15
+set_io adr[8]    K16
+set_io adr[9]    K14
+set_io adr[10]   J14
+set_io adr[11]   G14
+set_io adr[12]   F14
+set_io adr[13]   J15
+set_io adr[14]   H14
+set_io adr[15]   G15
+set_io adr[16]   G16
+set_io adr[17]   F15
+set_io adr[18]   F16
+set_io adr[19]   E14
+
+# Ext. Data Bus
+set_io data[0]   A9
+set_io data[1]   B9
+set_io data[2]   B8
+set_io data[3]   A7
+set_io data[4]   B7
+set_io data[5]   C7
+set_io data[6]   A6
+set_io data[7]   C6
+
+# Ext. R/W
+set_io n_read    B6
+set_io n_write   A5
+
+# Ext. Chip Selects
+set_io n_cs_rom  D14 # A15 (ROM CS) on cartridge connector
+set_io n_cs_xram E16 # nCS (RAM CS) on cartridge connector
+set_io n_cs_wram D16 # WRAM
+set_io n_cs_crom B16 # onboard cartridge ROM
+set_io n_cs_cram C16 # onboard cartridge RAM
+
+# Config
+set_io n_emu_mbc A11
