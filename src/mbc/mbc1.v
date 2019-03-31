@@ -30,9 +30,9 @@ module mbc_chip(
 	always @* begin
 		sel_rom  = 0;
 		sel_ram  = 0;
-		oadr     = 'bx;
 		rom_mask = 'bx;
 		ram_mask = 'bx;
+		oadr     = { 'bx, iadr[14:0] }; /* pass-through lower address lines for WRAM and cartridge slot */
 
 		case (rom_size)
 		'h00: rom_mask = 'h007fff; /*  32kB */
@@ -49,7 +49,6 @@ module mbc_chip(
 		'h03: ram_mask = 'h7fff; /* 32kB */
 		endcase
 
-		(* parallelcase *)
 		casez ({ ics_rom, ics_ram, iadr })
 		/* ROM RAM  A14...A8 A7.....A0 */
 		'b__1___?___0??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
