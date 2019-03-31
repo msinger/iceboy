@@ -239,6 +239,30 @@ module top(
 `ifdef HAS_CARTRIDGE
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
+		) n_coe_io (
+			.PACKAGE_PIN(n_coe),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !gb_on || !n_emu_mbc_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_coed_io (
+			.PACKAGE_PIN(n_coed),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !gb_on || !n_emu_mbc_in || !(cs_rom || cs_xram) || (!rd_ext && !wr_ext)),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_cdir_io (
+			.PACKAGE_PIN(n_cdir),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!rd_ext),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
 		) n_cs_rom_io (
 			.PACKAGE_PIN(n_cs_rom),
 			.OUTPUT_CLK(gbclk),
