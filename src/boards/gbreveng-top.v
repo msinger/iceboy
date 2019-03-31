@@ -223,7 +223,7 @@ module top(
 `ifdef HAS_CARTRIDGE_AND_MBC
 	SB_IO #(
 			.PIN_TYPE('b 0000_01),
-			.PULLUP(1),
+			.PULLUP(0),
 		) n_emu_mbc_io (
 			.PACKAGE_PIN(n_emu_mbc),
 			.D_IN_0(n_emu_mbc_in),
@@ -297,7 +297,7 @@ module top(
 
 	SB_IO #(
 			.PIN_TYPE('b 0000_01),
-			.PULLUP(1),
+			.PULLUP(0),
 		) reset_io (
 			.PACKAGE_PIN(reset),
 			.D_IN_0(reset_in),
