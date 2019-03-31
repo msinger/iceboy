@@ -64,15 +64,20 @@ module top(
 `endif
 	);
 
+`define rst_assert  0
+`define rst_release 1
+`define rst_done    2
+	(* onehot *)
+	reg  [1:0] r_reset_state         = 0, reset_state;
 	reg  [3:0] r_reset_ticks         = 0, reset_ticks;
 	reg  [3:0] r_initial_reset_ticks = 0, initial_reset_ticks;
-	reg        r_reset_done          = 0, reset_done;
 	reg        r_initial_reset_done  = 0, initial_reset_done;
-	reg        r_reset_gb            = 1, reset_gb;
-`ifdef USE_LOADER
-	reg        r_reset_ld            = 1, reset_ld;
-`endif
 	reg        r_gb_on               = 0, gb_on;
+	reg        reset_done;
+	reg        reset_gb;
+	reg        reset_ld;
+	reg        n_crst_out;
+	wire       n_crst_in;
 
 	wire       pllclk;       /* 21 MHz     47 ns */
 	wire       gbclk;        /* 4.2 MHz   238 ns    (if r_slow, then 1.05 MHz) */
@@ -296,6 +301,22 @@ module top(
 			.PACKAGE_PIN(reset),
 			.D_IN_0(reset_in),
 		);
+
+`ifdef HAS_CARTRIDGE
+	SB_IO #(
+			.PIN_TYPE('b 1101_00),
+			.PULLUP(1),
+		) n_crst_io (
+			.PACKAGE_PIN(n_crst),
+			.OUTPUT_CLK(gbclk),
+			.INPUT_CLK(gbclk),
+			.OUTPUT_ENABLE(!n_crst_out),
+			.D_OUT_0(n_crst_out),
+			.D_IN_0(n_crst_in),
+		);
+`else
+	assign n_crst_in = 1;
+`endif
 
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
@@ -557,48 +578,52 @@ module top(
 	always @* begin
 		initial_reset_ticks = r_initial_reset_ticks;
 		initial_reset_done  = r_initial_reset_done;
-		reset_ticks         = r_reset_ticks;
-		reset_done          = r_reset_done;
-		reset_gb            = r_reset_gb;
-`ifdef USE_LOADER
-		reset_ld            = r_reset_ld;
-`endif
+		reset_ticks         = 'bx;
+		reset_state         = r_reset_state;
 `ifdef HAS_UART
 		gb_on               = !reset_in && dtr_in;
 `else
 		gb_on               = !reset_in;
 `endif
 
-		if (!r_initial_reset_done && gbclk_stable)
+		if (gbclk_stable)
 			initial_reset_ticks = r_initial_reset_ticks + 1;
 
 		if (&r_initial_reset_ticks)
 			initial_reset_done = 1;
 
-		if (!r_reset_done && r_initial_reset_done)
-			reset_ticks = r_reset_ticks + 1;
-
-		if (r_gb_on != gb_on)
+		if (r_gb_on != gb_on || (r_reset_state == `rst_done && n_emu_mbc_in && !n_crst_in)) begin
+			reset_state = `rst_assert;
 			reset_ticks = 0;
+		end
 
-		if (&r_reset_ticks)
-			reset_done = 1;
+		if (r_initial_reset_done) case (reset_state)
+		`rst_assert:
+			if (&r_reset_ticks) begin
+				reset_state = `rst_release;
+				reset_ticks = 0;
+			end else
+				reset_ticks = r_reset_ticks + 1;
+		`rst_release:
+			if (!n_crst_in)
+				reset_ticks = 0;
+			else if (&r_reset_ticks)
+				reset_state = `rst_done;
+			else
+				reset_ticks = r_reset_ticks + 1;
+		endcase
 
-		reset_gb = !reset_done || !gb_on;
-`ifdef USE_LOADER
-		reset_ld = !reset_done || gb_on;
-`endif
+		reset_done = reset_state == `rst_done;
+		reset_gb   = !reset_done || !gb_on;
+		reset_ld   = !reset_done || gb_on;
+		n_crst_out = r_initial_reset_done && gb_on && reset_state != `rst_assert && n_emu_mbc_in;
 	end
 
 	always @(posedge gbclk) begin
 		r_initial_reset_ticks <= initial_reset_ticks;
 		r_initial_reset_done  <= initial_reset_done;
 		r_reset_ticks         <= reset_ticks;
-		r_reset_done          <= reset_done;
-		r_reset_gb            <= reset_gb;
-`ifdef USE_LOADER
-		r_reset_ld            <= reset_ld;
-`endif
+		r_reset_state         <= reset_state;
 		r_gb_on               <= gb_on;
 	end
 
