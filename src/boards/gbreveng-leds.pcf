@@ -1,0 +1,19 @@
+# For the Game Boy reverse eng. FPGA board
+
+# LEDs
+set_io led[0]    N4
+set_io led[1]    R1
+set_io led[2]    M5
+set_io led[3]    P2
+set_io led[4]    M4
+set_io led[5]    P1
+set_io led[6]    N3
+set_io led[7]    L5
+set_io led[8]    M3
+set_io led[9]    M6
+set_io led[10]   N2
+set_io led[11]   L7
+set_io led[12]   M2
+set_io led[13]   K5
+set_io led[14]   L3
+set_io led[15]   L6

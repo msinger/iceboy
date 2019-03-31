@@ -18,7 +18,7 @@ MY_ARG_ENABLE(
 	board,
 	hx8k_brk,
 	[Select board to build for.],
-	[hx8k_brk]
+	[hx8k_brk, gbreveng]
 )
 
 MY_ARG_ENABLE(
@@ -102,10 +102,16 @@ if test "x$enable_leds" = "xauto"; then
 	if test "x$enable_board" = "xhx8k_brk"; then
 		_enable_leds=yes
 	fi
+	if test "x$enable_board" = "xgbreveng"; then
+		_enable_leds=yes
+	fi
 fi
 NUM_LEDS=0
 if test "x$enable_board" = "xhx8k_brk"; then
 	NUM_LEDS=8
+fi
+if test "x$enable_board" = "xgbreveng"; then
+	NUM_LEDS=16
 fi
 AC_SUBST(HAS_LEDS, $(test "x$_enable_leds" = "xyes" && echo y))
 AC_SUBST(LEDS_DEF, $(test "x$_enable_leds" = "xyes" && echo define || echo undef))

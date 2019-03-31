@@ -1,0 +1,18 @@
+# For the Game Boy reverse eng. FPGA board
+
+# Clock & Reset
+set_io clk12m    J3
+set_io reset     L4  # SW3
+
+# Audio PWMs
+set_io chl       B2
+set_io chr       E4
+set_io chm       F5
+
+# Joypad
+set_io p10       C3
+set_io p11       D3
+set_io p12       E5
+set_io p13       D4
+set_io p14       B3
+set_io p15       C4

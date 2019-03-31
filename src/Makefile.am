@@ -19,6 +19,7 @@ pll.v
 
 COND_SRC = \
 boards/hx8k_evk-top.v \
+boards/gbreveng-top.v \
 sio/lr35902_sio_dummy.v \
 lcds/lcd_uc1611.v \
 mbc/mbc1.v
@@ -39,7 +40,9 @@ boards/hx8k_brk-cart.pcf \
 boards/hx8k_brk-mbc.pcf \
 boards/hx8k_brk-cart+mbc.pcf \
 boards/hx8k_brk-uart.pcf \
-leds/leds-hx8k_brk.pcf \
+boards/hx8k_brk-leds.pcf \
+boards/gbreveng.pcf \
+boards/gbreveng-leds.pcf \
 lcds/lcd_uc1611-hx8k_brk.pcf
 
 EXTRA_DIST = $(SRC) $(COND_SRC) $(HDR) $(COND_HDR) $(PCF_FILES)
@@ -72,7 +75,7 @@ $(if @HAS_CARTRIDGE_ONLY@,boards/@BOARD@-cart.pcf) \
 $(if @HAS_MBC_ONLY@,boards/@BOARD@-mbc.pcf) \
 $(if @HAS_CARTRIDGE_AND_MBC@,boards/@BOARD@-cart+mbc.pcf) \
 $(if @HAS_UART@,boards/@BOARD@-uart.pcf) \
-$(if @HAS_LEDS@,leds/leds-@BOARD@.pcf) \
+$(if @HAS_LEDS@,boards/@BOARD@-leds.pcf) \
 $(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@-@BOARD@.pcf)
 
