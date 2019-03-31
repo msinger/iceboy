@@ -1,0 +1,13 @@
+# For the Game Boy reverse eng. FPGA board
+
+# UART for Debugger & Prog Loader
+set_io rx        B10
+set_io tx        B12
+set_io rts       B13
+set_io cts       A15
+set_io dtr       A16
+set_io dsr       B14
+set_io dcd       B15
+
+set_io n_rxled   C11
+set_io n_txled   C13

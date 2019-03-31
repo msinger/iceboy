@@ -148,6 +148,9 @@ if test "x$enable_uart" = "xauto"; then
 	if test "x$enable_board" = "xhx8k_brk"; then
 		_enable_uart=yes
 	fi
+	if test "x$enable_board" = "xgbreveng"; then
+		_enable_uart=yes
+	fi
 fi
 AC_SUBST(HAS_UART, $(test "x$_enable_uart" = "xyes" && echo y))
 AC_SUBST(UART_DEF, $(test "x$_enable_uart" = "xyes" && echo define || echo undef))

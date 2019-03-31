@@ -43,6 +43,8 @@ module top(
 		input  wire        dtr,       /* UART DTR for additional reset input */
 		output wire        dsr = 0,   /* UART DSR */
 		output wire        dcd = 0,   /* UART DCD */
+		input  wire        n_rxled,
+		input  wire        n_txled,
 `endif
 
 `ifdef HAS_LEDS
@@ -90,6 +92,7 @@ module top(
 
 `ifdef HAS_UART
 	wire rx_in, rts_in, dtr_in;
+	wire n_rxled_in, n_txled_in;
 `endif
 
 `ifdef HAS_CARTRIDGE_OR_MBC
@@ -374,6 +377,22 @@ module top(
 			.PACKAGE_PIN(dtr),
 			.D_IN_0(dtr_in),
 		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) n_rxled_io (
+			.PACKAGE_PIN(n_rxled),
+			.D_IN_0(n_rxled_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) n_txled_io (
+			.PACKAGE_PIN(n_txled),
+			.D_IN_0(n_txled_in),
+		);
 `endif
 
 	always @(posedge gbclk) begin
@@ -492,7 +511,12 @@ module top(
 	end
 
 `ifdef HAS_LEDS
-	assign led = { r_slow, hide_bootrom, r_gb_on };
+	assign led = {
+`ifdef HAS_UART
+			!n_rxled_in, !n_txled_in,
+`endif
+			r_slow, hide_bootrom, r_gb_on
+		};
 `endif
 
 	assign cscpu_ext = cscpu_rom || cscpu_xram || cscpu_wram;
