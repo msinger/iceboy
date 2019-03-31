@@ -25,14 +25,18 @@ module top(
 		input  wire        n_emu_mbc, /* emulate MBC chip of cartridge for continuous 21 bit address bus */
 `endif
 `ifdef HAS_CARTRIDGE
+		output wire        clk1m_out, /* 1 MiHz clock output */
+		inout  wire        n_crst,    /* bi-directional !reset on cartridge slot */
+		output wire        n_coe,     /* output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13] */
+		output wire        n_coed,    /* output enable for data[7:0] */
+		output wire        n_cdir,    /* direction for data[7:0] */
 		output wire        n_cs_rom,  /* chip select for cartridge ROM */
 		output wire        n_cs_xram, /* chip select for cartridge RAM */
 `endif
 		output wire        n_cs_wram, /* chip select for WRAM */
-`ifdef HAS_MBC
 		output wire        n_cs_crom, /* chip select for onboard cartridge ROM (only when emulating MBC chip) */
 		output wire        n_cs_cram, /* chip select for onboard cartridge RAM (only when emulating MBC chip) */
-`endif
+		output wire        n_prog,    /* !wr signal for onboard cartridge ROM (only when emulating MBC chip) */
 `endif
 
 `ifdef HAS_UART
@@ -207,7 +211,7 @@ module top(
 		) n_write_io (
 			.PACKAGE_PIN(n_write),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!reset_done || (gb_on ? (cs_crom || !wr_ext) : !wr_prog)), /* suppress outgoing n_write if rom is selected */
+			.D_OUT_0(!wr_ext),
 		);
 
 `ifdef HAS_CARTRIDGE_AND_MBC
@@ -268,6 +272,18 @@ module top(
 			.OUTPUT_CLK(gbclk),
 			.D_OUT_0(!reset_done || !cs_cram || n_emu_mbc_in),
 		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) n_prog_io (
+			.PACKAGE_PIN(n_prog),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || gb_on || !wr_prog),
+		);
+`else
+	assign n_cs_crom = 1;
+	assign n_cs_cram = 1;
+	assign n_prog    = 1;
 `endif
 `else /* if !(HAS_CARTRIDGE || HAS_MBC) */
 	assign data_ext_in = 'hff;
@@ -847,7 +863,9 @@ module top(
 	);
 
 `ifdef HAS_MBC
-	mbc_chip mbc(
+	mbc_chip #(
+		.GBREVENG_MAPPING(1),
+	) mbc(
 		.clk(gbclk),
 		.write(wr_ext && !n_emu_mbc_in),
 		.data(data_cpu_out),

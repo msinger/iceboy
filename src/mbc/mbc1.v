@@ -1,7 +1,9 @@
 `default_nettype none
 
 (* nolatches *)
-module mbc_chip(
+module mbc_chip #(
+		parameter GBREVENG_MAPPING = 0,
+	) (
 		input  wire        clk,
 		input  wire        ics_rom,
 		input  wire        ics_ram,
@@ -32,7 +34,10 @@ module mbc_chip(
 		sel_ram  = 0;
 		rom_mask = 'bx;
 		ram_mask = 'bx;
-		oadr     = { 'bx, iadr[14:0] }; /* pass-through lower address lines for WRAM and cartridge slot */
+		oadr     = { 'bx, iadr }; /* pass-through lower address lines for WRAM and cartridge slot */
+
+		if (GBREVENG_MAPPING)
+			oadr[17:16] = 0; /* default to 0 for pass-through WRAM access */
 
 		case (rom_size)
 		'h00: rom_mask = 'h007fff; /*  32kB */
@@ -64,8 +69,12 @@ module mbc_chip(
 			end
 		'b__?___1___01?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
 			begin
-				oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
-				sel_ram    = ena_ram & |ram_size;
+				if (GBREVENG_MAPPING) begin
+					oadr[12:0]  = iadr[12:0] & ram_mask[12:0];
+					oadr[19:16] = bank[6:5] & {2{ mode }} & ram_mask[14:13];
+				end else
+					oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
+				sel_ram = ena_ram & |ram_size;
 			end
 		endcase
 
@@ -77,7 +86,6 @@ module mbc_chip(
 
 	always @(posedge clk) begin
 		if (pwrite && !write && ics_rom) begin
-			(* parallelcase *)
 			casez (iadr)
 			/* A14...A8 A7.....A0 */
 			'b_00?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */

@@ -1,0 +1,59 @@
+# For the Game Boy reverse eng. FGPA board
+
+# Ext. Address Bus
+set_io adr[0]    L10
+set_io adr[1]    R10
+set_io adr[2]    T9
+set_io adr[3]    N9
+set_io adr[4]    P7
+set_io adr[5]    T8
+set_io adr[6]    T7
+set_io adr[7]    L9
+set_io adr[8]    T6
+set_io adr[9]    P8
+set_io adr[10]   T5
+set_io adr[11]   M8
+set_io adr[12]   P6
+set_io adr[13]   N7
+set_io adr[14]   T3
+set_io adr[15]   R5
+set_io adr[16]   P10
+set_io adr[17]   N10
+set_io adr[18]   T10
+set_io adr[19]   T11
+set_io adr[20]   T15
+
+# Ext. Data Bus
+set_io data[0]   R3
+set_io data[1]   P5
+set_io data[2]   T2
+set_io data[3]   N5
+set_io data[4]   R2
+set_io data[5]   P4
+set_io data[6]   T1
+set_io data[7]   N6
+
+# Ext. R/W
+set_io n_read    R6
+set_io n_write   M9
+set_io n_prog    R9
+
+# Ext. Chip Selects
+set_io n_cs_rom  T14 # A15 (ROM CS) on cartridge connector
+set_io n_cs_xram M11 # nCS (RAM CS) on cartridge connector
+set_io n_cs_wram R16 # WRAM
+set_io n_cs_crom N12 # onboard cartridge ROM
+set_io n_cs_cram L11 # onboard cartridge RAM
+
+# Config
+set_io n_emu_mbc D2  # DipSW8 (SW5-1)
+
+# Clock & Reset
+set_io clk1m_out K9
+set_io n_crst    R4
+
+# Level Shifters
+set_io n_coe     P9  # output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13]
+set_io n_coed    M7  # output enable for data[7:0]
+set_io n_cdir    T13 # direction for data[7:0]
+

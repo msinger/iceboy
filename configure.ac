@@ -58,8 +58,9 @@ MY_ARG_ENABLE(
 
 MY_ARG_ENABLE(
 	cartridge,
-	yes,
-	[Build with interface for real GB cartridges. Exposes additional signals for output enable and direction of bus driver chips.]
+	auto,
+	[Build with interface for real GB cartridges. Exposes additional signals for output enable and direction of bus driver chips.],
+	[yes, no, auto]
 )
 
 MY_ARG_ENABLE(
@@ -125,22 +126,29 @@ AC_SUBST(HAS_SIO, $(test "x$enable_sio" != "xno" && echo y))
 AC_SUBST(SIO_DEF, $(test "x$enable_sio" != "xno" && echo define || echo undef))
 AC_SUBST(SIO_TYPE, $(test "x$enable_sio" != "xno" && echo $enable_sio || echo dummy))
 
-AC_SUBST(HAS_CARTRIDGE, $(test "x$enable_cartridge" = "xyes" && echo y))
-AC_SUBST(CARTRIDGE_DEF, $(test "x$enable_cartridge" = "xyes" && echo define || echo undef))
+_enable_cartridge="$enable_cartridge"
+if test "x$enable_cartridge" = "xauto"; then
+	_enable_cartridge=no
+	if test "x$enable_board" = "xgbreveng"; then
+		_enable_cartridge=yes
+	fi
+fi
+AC_SUBST(HAS_CARTRIDGE, $(test "x$_enable_cartridge" = "xyes" && echo y))
+AC_SUBST(CARTRIDGE_DEF, $(test "x$_enable_cartridge" = "xyes" && echo define || echo undef))
 
 AC_SUBST(HAS_MBC, $(test "x$enable_mbc_emu" != "xno" && echo y))
 AC_SUBST(MBC_DEF, $(test "x$enable_mbc_emu" != "xno" && echo define || echo undef))
 AC_SUBST(MBC_TYPE, $(test "x$enable_mbc_emu" != "xno" && ( echo $enable_mbc_emu | sed -e 's,-.*,,' ) || echo none))
 
 # Verilog has a very useless preprocessor, so we need to define every combination here
-AC_SUBST(HAS_CARTRIDGE_ONLY, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo y))
-AC_SUBST(CARTRIDGE_ONLY_DEF, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo define || echo undef))
-AC_SUBST(HAS_MBC_ONLY, $(test "x$enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(MBC_ONLY_DEF, $(test "x$enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
-AC_SUBST(HAS_CARTRIDGE_AND_MBC, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(CARTRIDGE_AND_MBC_DEF, $(test "x$enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
-AC_SUBST(HAS_CARTRIDGE_OR_MBC, $(test "x$enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_ONLY, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo y))
+AC_SUBST(CARTRIDGE_ONLY_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo define || echo undef))
+AC_SUBST(HAS_MBC_ONLY, $(test "x$_enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(MBC_ONLY_DEF, $(test "x$_enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_AND_MBC, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(CARTRIDGE_AND_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_OR_MBC, $(test "x$_enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo define || echo undef))
 
 _enable_uart="$enable_uart"
 if test "x$enable_uart" = "xauto"; then
@@ -204,7 +212,7 @@ echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" =
 echo "LCD:                                $enable_lcd"
 echo "Serial I/O (link cable):            $enable_sio"
 echo "UART:                               $_enable_uart$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
-echo "GB Cartridge slot:                  $enable_cartridge"
+echo "GB Cartridge slot:                  $_enable_cartridge"
 echo "MBC emulation:                      $enable_mbc_emu"
 echo
 echo "--- Files ---"
