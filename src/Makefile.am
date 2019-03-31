@@ -1,5 +1,4 @@
 SRC = \
-top.v \
 map.v \
 iomap.v \
 cpu/lr35902.v \
@@ -19,6 +18,7 @@ NODIST_SRC = \
 pll.v
 
 COND_SRC = \
+boards/hx8k_evk-top.v \
 sio/lr35902_sio_dummy.v \
 lcds/lcd_uc1611.v \
 mbc/mbc1.v
@@ -57,6 +57,7 @@ DISTCLEANFILES = \
 $(NODIST_HDR)
 
 USED_COND_SRC = \
+boards/@BOARD@-top.v \
 sio/lr35902_sio_@SIO_TYPE@.v \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v) \
 $(if @HAS_MBC@,mbc/@MBC_TYPE@.v)

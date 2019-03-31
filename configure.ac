@@ -1,6 +1,6 @@
 AC_PREREQ([2.63])
 AC_INIT([iceboy], [0.1])
-AC_CONFIG_SRCDIR([src/top.v])
+AC_CONFIG_SRCDIR([src/map.v])
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([foreign dist-bzip2 filename-length-max=99 no-dependencies tar-ustar])
