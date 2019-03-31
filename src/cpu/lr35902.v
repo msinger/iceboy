@@ -21,6 +21,7 @@
 (* nolatches *)
 module lr35902(
 		input  wire        clk,
+		output wire        clk_out,
 		output reg  [15:0] adr,
 		input  wire [7:0]  din,
 		output reg  [7:0]  dout,
@@ -117,6 +118,8 @@ module lr35902(
 	reg r_no_inc, no_inc;
 
 	reg r_stop,   stop;
+
+	assign clk_out = cycle[1];
 
 	assign dbg_probe = arg;
 

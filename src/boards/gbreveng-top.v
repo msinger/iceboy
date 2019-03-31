@@ -79,6 +79,7 @@ module top(
 	reg        n_crst_out;
 	wire       n_crst_in;
 
+	wire       clk1m;        /* 1 MiHz clock on cartridge slot; synced to CPU cycles */
 	wire       pllclk;       /* 21 MHz     47 ns */
 	wire       gbclk;        /* 4.2 MHz   238 ns    (if r_slow, then 1.05 MHz) */
 	wire       gbclk_stable;
@@ -303,6 +304,14 @@ module top(
 		);
 
 `ifdef HAS_CARTRIDGE
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) clk1m_out_io (
+			.PACKAGE_PIN(clk1m_out),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(clk1m || !reset_done || !n_emu_mbc_in),
+		);
+
 	SB_IO #(
 			.PIN_TYPE('b 1101_00),
 			.PULLUP(1),
@@ -635,6 +644,7 @@ module top(
 
 	lr35902 cpu(
 		.clk(gbclk),
+		.clk_out(clk1m),
 		.adr(adr_cpu),
 		.din(data_cpu_in),
 		.dout(data_cpu_out),
