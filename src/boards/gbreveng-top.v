@@ -638,7 +638,7 @@ module top(
 			end else
 				reset_ticks = r_reset_ticks + 1;
 		`rst_release:
-			if (!n_crst_in)
+			if (gb_on && n_emu_mbc_in && !n_crst_in)
 				reset_ticks = 0;
 			else if (&r_reset_ticks)
 				reset_state = `rst_done;
