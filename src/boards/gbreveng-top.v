@@ -82,10 +82,8 @@ module top(
 	wire       n_crst_in;
 
 	wire       clk1m;        /* 1 MiHz clock on cartridge slot; synced to CPU cycles */
-	wire       pllclk;       /* 21 MHz     47 ns */
 	wire       gbclk;        /* 4 MiHz    238 ns    (if r_slow, then 1 MiHz) */
 	reg  [3:0] r_gbclk_div;
-	wire       gbclk_stable;
 	reg        r_slow = 0;
 
 	wire [15:0] adr_cpu;
@@ -356,7 +354,7 @@ module top(
 			.PIN_TYPE('b 0101_01),
 		) chl_io (
 			.PACKAGE_PIN(chl),
-			.OUTPUT_CLK(pllclk),
+			.OUTPUT_CLK(clk16m),
 			.D_OUT_0(chl_out),
 		);
 
@@ -364,7 +362,7 @@ module top(
 			.PIN_TYPE('b 0101_01),
 		) chr_io (
 			.PACKAGE_PIN(chr),
-			.OUTPUT_CLK(pllclk),
+			.OUTPUT_CLK(clk16m),
 			.D_OUT_0(chr_out),
 		);
 
@@ -372,7 +370,7 @@ module top(
 			.PIN_TYPE('b 0101_01),
 		) chm_io (
 			.PACKAGE_PIN(chm),
-			.OUTPUT_CLK(pllclk),
+			.OUTPUT_CLK(clk16m),
 			.D_OUT_0(chm_out),
 		);
 
@@ -614,8 +612,7 @@ module top(
 		gb_on               = !reset_in;
 `endif
 
-		if (gbclk_stable)
-			initial_reset_ticks = r_initial_reset_ticks + 1;
+		initial_reset_ticks = r_initial_reset_ticks + 1;
 
 		if (&r_initial_reset_ticks)
 			initial_reset_done = 1;
@@ -654,12 +651,6 @@ module top(
 		r_reset_state         <= reset_state;
 		r_gb_on               <= gb_on;
 	end
-
-	pll gbpll(
-		.clock_in(clk12m),
-		.clock_out(pllclk),
-		.locked(gbclk_stable),
-	);
 
 	lr35902 cpu(
 		.clk(gbclk),
@@ -817,7 +808,7 @@ module top(
 		.read(gbclk),
 		.write(wr_cpu && cs_io_sound),
 		.clk(gbclk),
-		.pwmclk(pllclk),
+		.pwmclk(clk16m),
 		.adr(adr_cpu[5:0]),
 		.div(div),
 		.chl(chl_out),

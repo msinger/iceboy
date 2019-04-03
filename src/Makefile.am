@@ -14,8 +14,7 @@ lr35902_snd.v \
 lr35902_joy.v \
 prog_loader.v
 
-NODIST_SRC = \
-pll.v
+NODIST_SRC =
 
 COND_SRC = \
 boards/hx8k_evk-top.v \
@@ -23,6 +22,9 @@ boards/gbreveng-top.v \
 sio/lr35902_sio_dummy.v \
 lcds/lcd_uc1611.v \
 mbc/mbc1.v
+
+COND_NODIST_SRC = \
+pll.v
 
 HDR =
 
@@ -49,6 +51,7 @@ EXTRA_DIST = $(SRC) $(COND_SRC) $(HDR) $(COND_HDR) $(PCF_FILES)
 
 CLEANFILES = \
 $(NODIST_SRC) \
+$(COND_NODIST_SRC) \
 bootrom.hex \
 gameboy.asc \
 gameboy.bin \
@@ -64,6 +67,9 @@ boards/@BOARD@-top.v \
 sio/lr35902_sio_@SIO_TYPE@.v \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v) \
 $(if @HAS_MBC@,mbc/@MBC_TYPE@.v)
+
+USED_COND_NODIST_SRC = \
+$(if @NEED_PLL@,pll.v)
 
 USED_COND_HDR = \
 $(if @HAS_SIO@,$(foreach suf,args glue pins,sio/lr35902_sio_@SIO_TYPE@-$(suf).vh)) \
@@ -92,8 +98,8 @@ view: gameboy.asc
 
 .PHONY: all prog run view
 
-gameboy.json: Makefile $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC) $(HDR) $(USED_COND_HDR)) $(NODIST_SRC) $(NODIST_HDR) $(if @HAS_BOOTROM@,bootrom.hex)
-	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -json $@" $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC)) $(NODIST_SRC)
+gameboy.json: Makefile $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC) $(HDR) $(USED_COND_HDR)) $(NODIST_SRC) $(USED_COND_NODIST_SRC) $(NODIST_HDR) $(if @HAS_BOOTROM@,bootrom.hex)
+	$(YOSYS) $(YOSYSFLAGS) -q -p "synth_ice40 -abc2 -json $@" $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC)) $(NODIST_SRC) $(USED_COND_NODIST_SRC)
 
 gameboy.pcf: Makefile $(addprefix $(srcdir)/,$(USED_PCF_FILES))
 	cat $(addprefix $(srcdir)/,$(USED_PCF_FILES)) >$@

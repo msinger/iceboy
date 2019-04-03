@@ -187,6 +187,12 @@ AC_SUBST(HAS_BOOTROM, $(test "x$with_bootrom" != "xno" && echo y))
 AC_SUBST(BOOTROM_DEF, $(test "x$with_bootrom" != "xno" && echo define || echo undef))
 AC_SUBST(BOOTROM, $(test "x$with_bootrom" != "xno" && cd $(dirname $with_bootrom) && echo $(pwd)/$(basename $with_bootrom)))
 
+need_pll=no
+if test "x$enable_board" = "xhx8k_brk"; then
+	need_pll=yes
+fi
+AC_SUBST(NEED_PLL, $(test "x$need_pll" = "xyes" && echo y))
+
 AC_CONFIG_FILES([
 src/config.vh
 src/Makefile
