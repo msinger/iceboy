@@ -2,6 +2,8 @@
 
 # Clock & Reset
 set_io clk12m    J3
+set_io clk16m    C8
+set_io clk16m_en F9
 set_io reset     L4  # SW3
 
 # Audio PWMs

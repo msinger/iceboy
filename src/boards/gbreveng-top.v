@@ -5,6 +5,8 @@
 (* top *)
 module top(
 		input  wire        clk12m,    /* 12 MHz clock input */
+		input  wire        clk16m,    /* 16 MiHz clock input */
+		output wire        clk16m_en, /* 16 MiHz clock enable */
 		input  wire        reset,     /* Reset input */
 		output wire        chl,       /* left audio PWM channel */
 		output wire        chr,       /* right audio PWM channel */
@@ -81,10 +83,9 @@ module top(
 
 	wire       clk1m;        /* 1 MiHz clock on cartridge slot; synced to CPU cycles */
 	wire       pllclk;       /* 21 MHz     47 ns */
-	wire       gbclk;        /* 4.2 MHz   238 ns    (if r_slow, then 1.05 MHz) */
+	wire       gbclk;        /* 4 MiHz    238 ns    (if r_slow, then 1 MiHz) */
+	reg  [3:0] r_gbclk_div;
 	wire       gbclk_stable;
-	reg  [2:0] r_clkdiv5;
-	reg  [1:0] r_clkdiv4;
 	reg        r_slow = 0;
 
 	wire [15:0] adr_cpu;
@@ -596,17 +597,11 @@ module top(
 	assign cs_xram = cscpu_xram || csdma_xram;
 	assign cs_wram = cscpu_wram || csdma_wram;
 
-	assign gbclk = r_clkdiv5[2];
+	assign clk16m_en = 1;
+	assign gbclk = r_gbclk_div[r_slow ? 3 : 1];
 
-	always @(posedge pllclk) begin
-		if (!r_slow || &r_clkdiv4) begin
-			if (r_clkdiv5 == 5)
-				r_clkdiv5 <= 1;
-			else
-				r_clkdiv5 <= r_clkdiv5 + 1;
-		end
-		r_clkdiv4 <= r_clkdiv4 + 1;
-	end
+	always @(posedge clk16m)
+		r_gbclk_div <= r_gbclk_div + 1;
 
 	always @* begin
 		initial_reset_ticks = r_initial_reset_ticks;
