@@ -13,6 +13,7 @@
 (* nolatches *)
 module prog_loader(
 		input  wire        clk,
+		input  wire        sclk, /* synchronous to clk, but higher freq; for fast syncing from uart_clk domain */
 		output reg  [20:0] adr,
 		output reg  [7:0]  data,
 		output reg         write,
@@ -31,8 +32,10 @@ module prog_loader(
 	reg [1:0]  r_rx_state;
 	reg [2:0]  r_cur_bit;
 	reg [3:0]  r_sub_count;
-	reg [7:0]  r_shift;
-	reg        r_data_in_seq;
+	reg [7:0]  r_shift_domU, r_shift_domC;
+	dom_gate #(2) shift_gate[7:0]({8{sclk}}, r_shift_domU, r_shift_domC);
+	reg        r_data_in_seq_domU, r_data_in_seq_domC;
+	dom_gate #(3) data_in_seq_gate(sclk, r_data_in_seq_domU, r_data_in_seq_domC);
 	reg        r_data_out_seq, data_out_seq;
 
 	always @* begin
@@ -44,9 +47,9 @@ module prog_loader(
 
 		case (r_wr_state)
 		`WR_IDLE:
-			if (r_data_in_seq != r_data_out_seq) begin
-				data_out_seq = r_data_in_seq;
-				data         = r_shift;
+			if (r_data_in_seq_domC != r_data_out_seq) begin
+				data_out_seq = r_data_in_seq_domC;
+				data         = r_shift_domC;
 				wr_state     = `WR_AD_LATCH;
 			end
 		`WR_AD_LATCH:
@@ -70,7 +73,7 @@ module prog_loader(
 			data         = 'bx;
 			write        = 0;
 			wr_state     = `WR_IDLE;
-			data_out_seq = r_data_in_seq;
+			data_out_seq = r_data_in_seq_domC;
 		end
 	end
 
@@ -102,7 +105,7 @@ module prog_loader(
 		`RX_DATABIT:
 			begin
 				if (r_sub_count == 11) begin
-					r_shift <= { rx, r_shift[7:1] };
+					r_shift_domU <= { rx, r_shift_domU[7:1] };
 					if (r_cur_bit == 7)
 						r_rx_state <= `RX_STOPBIT;
 					else
@@ -116,7 +119,7 @@ module prog_loader(
 				if (r_sub_count == 11) begin
 					r_rx_state <= `RX_IDLE;
 					if (rx)
-						r_data_in_seq <= !r_data_in_seq;
+						r_data_in_seq_domU <= !r_data_in_seq_domU;
 				end else
 					r_sub_count <= r_sub_count + 1;
 			end

@@ -848,6 +848,7 @@ module top(
 	dom_gate reset_ld_gate(clk12m, reset_ld_domC, reset_ld_domU);
 	prog_loader loader(
 		.clk(gbclk),
+		.sclk(pllclk),
 		.write(wr_prog),
 		.data(data_prog_out),
 		.adr(adr21_prog),
