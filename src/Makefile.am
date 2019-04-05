@@ -12,7 +12,8 @@ bootrom.v \
 lr35902_tim.v \
 lr35902_snd.v \
 lr35902_joy.v \
-prog_loader.v
+prog_loader.v \
+dom_gate.v
 
 NODIST_SRC =
 

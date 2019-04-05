@@ -19,6 +19,7 @@ module prog_loader(
 		input  wire        reset,
 
 		input  wire        uart_clk,
+		input  wire        uart_reset,
 		input  wire        rx,
 	);
 
@@ -121,7 +122,7 @@ module prog_loader(
 			end
 		endcase
 
-		if (reset) begin
+		if (uart_reset) begin
 			r_rx_state <= `RX_IDLE;
 		end
 	end

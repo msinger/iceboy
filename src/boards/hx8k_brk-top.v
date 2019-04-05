@@ -598,6 +598,9 @@ module top(
 	);
 
 `ifdef USE_DEBUGGER
+	reg reset_gb_domC, reset_gb_domU;
+	always @(posedge gbclk) reset_gb_domC <= reset_gb;
+	dom_gate reset_gb_gate(clk12m, reset_gb_domC, reset_gb_domU);
 	lr35902_dbg_uart debugger(
 		.cpu_clk(gbclk),
 		.reset(!initial_reset_done),
@@ -611,7 +614,7 @@ module top(
 		.halt(halt),
 		.no_inc(no_inc),
 		.uart_clk(clk12m),
-		.uart_reset(reset_gb),
+		.uart_reset(reset_gb_domU),
 		.rx(rx_in),
 		.tx(tx),
 		.cts(cts),
@@ -840,6 +843,9 @@ module top(
 `endif
 
 `ifdef USE_LOADER
+	reg reset_ld_domC, reset_ld_domU;
+	always @(posedge gbclk) reset_ld_domC <= reset_ld;
+	dom_gate reset_ld_gate(clk12m, reset_ld_domC, reset_ld_domU);
 	prog_loader loader(
 		.clk(gbclk),
 		.write(wr_prog),
@@ -847,6 +853,7 @@ module top(
 		.adr(adr21_prog),
 		.reset(reset_ld),
 		.uart_clk(clk12m),
+		.uart_reset(reset_ld_domU),
 		.rx(rx_in),
 	);
 `else
