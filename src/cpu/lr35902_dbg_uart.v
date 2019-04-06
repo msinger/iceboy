@@ -54,9 +54,9 @@ module lr35902_dbg_uart(
 
 	reg [5:0] r_cycle, cycle;
 	reg [3:0] r_ret_domC, r_ret_domU, ret;
-	dom_gate #(1) ret_gate[3:0]({4{uart_clk}}, r_ret_domC, r_ret_domU);
+	dom_gate #(1) ret_gate[3:0](uart_clk, r_ret_domC, r_ret_domU);
 	reg [3:0] r_tx_prep_domC, r_tx_prep_domU, tx_prep;
-	dom_gate #(1) tx_prep_gate[3:0]({4{uart_clk}}, r_tx_prep_domC, r_tx_prep_domU);
+	dom_gate #(1) tx_prep_gate[3:0](uart_clk, r_tx_prep_domC, r_tx_prep_domU);
 
 	reg [1:0] r_dbg_state, dbg_state;
 
@@ -66,7 +66,7 @@ module lr35902_dbg_uart(
 	reg [2:0] r_rx_cur_bit;
 	reg [3:0] r_rx_sub_count;
 	reg [8:0] r_rx_shift_domU, r_rx_shift_domC;
-	dom_gate #(1) rx_shift_gate[8:0]({9{cpu_clk}}, r_rx_shift_domU, r_rx_shift_domC);
+	dom_gate #(1) rx_shift_gate[8:0](cpu_clk, r_rx_shift_domU, r_rx_shift_domC);
 
 	reg [1:0] r_tx_state;
 	reg [2:0] r_tx_cur_bit;

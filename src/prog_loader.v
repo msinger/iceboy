@@ -11,7 +11,10 @@
 `define WR_INC      3
 
 (* nolatches *)
-module prog_loader(
+module prog_loader #(
+		parameter SHIFT_GATE_DEPTH = 2,
+		parameter SEQ_GATE_DEPTH   = 3,
+	) (
 		input  wire        clk,
 		input  wire        sclk, /* synchronous to clk, but higher freq; for fast syncing from uart_clk domain */
 		output reg  [20:0] adr,
@@ -33,9 +36,9 @@ module prog_loader(
 	reg [2:0]  r_cur_bit;
 	reg [3:0]  r_sub_count;
 	reg [7:0]  r_shift_domU, r_shift_domC;
-	dom_gate #(2) shift_gate[7:0]({8{sclk}}, r_shift_domU, r_shift_domC);
+	dom_gate #(SHIFT_GATE_DEPTH) shift_gate[7:0](sclk, r_shift_domU, r_shift_domC);
 	reg        r_data_in_seq_domU, r_data_in_seq_domC;
-	dom_gate #(3) data_in_seq_gate(sclk, r_data_in_seq_domU, r_data_in_seq_domC);
+	dom_gate #(SEQ_GATE_DEPTH) data_in_seq_gate(sclk, r_data_in_seq_domU, r_data_in_seq_domC);
 	reg        r_data_out_seq, data_out_seq;
 
 	always @* begin
