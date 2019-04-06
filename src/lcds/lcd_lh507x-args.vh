@@ -1,0 +1,7 @@
+.lcd_clk(lcd_clk_out),
+.lcd_latch(lcd_latch_out),
+.lcd_altsig(lcd_altsig_out),
+.lcd_ctrl(lcd_ctrl_out),
+.lcd_hsync(lcd_hsync_out),
+.lcd_vsync(lcd_vsync_out),
+.lcd_data(lcd_data_out),

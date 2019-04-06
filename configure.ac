@@ -30,9 +30,9 @@ MY_ARG_ENABLE(
 
 MY_ARG_ENABLE(
 	lcd,
-	uc1611,
+	auto,
 	[Select LCD driver to built in.],
-	[no, uc1611]
+	[no, auto, lh507x, uc1611]
 )
 
 MY_ARG_ENABLE(
@@ -118,9 +118,19 @@ AC_SUBST(HAS_LEDS, $(test "x$_enable_leds" = "xyes" && echo y))
 AC_SUBST(LEDS_DEF, $(test "x$_enable_leds" = "xyes" && echo define || echo undef))
 AC_SUBST(NUM_LEDS)
 
-AC_SUBST(HAS_LCD, $(test "x$enable_lcd" != "xno" && echo y))
-AC_SUBST(LCD_DEF, $(test "x$enable_lcd" != "xno" && echo define || echo undef))
-AC_SUBST(LCD_TYPE, $(test "x$enable_lcd" != "xno" && echo $enable_lcd || echo none))
+_enable_lcd="$enable_lcd"
+if test "x$enable_lcd" = "xauto"; then
+	_enable_lcd=no
+	if test "x$enable_board" = "xhx8k_brk"; then
+		_enable_lcd=uc1611
+	fi
+	if test "x$enable_board" = "xgbreveng"; then
+		_enable_lcd=lh507x
+	fi
+fi
+AC_SUBST(HAS_LCD, $(test "x$_enable_lcd" != "xno" && echo y))
+AC_SUBST(LCD_DEF, $(test "x$_enable_lcd" != "xno" && echo define || echo undef))
+AC_SUBST(LCD_TYPE, $(test "x$_enable_lcd" != "xno" && echo $_enable_lcd || echo none))
 
 AC_SUBST(HAS_SIO, $(test "x$enable_sio" != "xno" && echo y))
 AC_SUBST(SIO_DEF, $(test "x$enable_sio" != "xno" && echo define || echo undef))
@@ -215,7 +225,7 @@ echo
 echo "--- Hardware ---"
 echo "Board:                              $enable_board"
 echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" = "xyes" && echo " ($NUM_LEDS)")"
-echo "LCD:                                $enable_lcd"
+echo "LCD:                                $_enable_lcd"
 echo "Serial I/O (link cable):            $enable_sio"
 echo "UART:                               $_enable_uart$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
 echo "GB Cartridge slot:                  $_enable_cartridge"

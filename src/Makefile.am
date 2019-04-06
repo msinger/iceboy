@@ -21,6 +21,7 @@ COND_SRC = \
 boards/hx8k_evk-top.v \
 boards/gbreveng-top.v \
 sio/lr35902_sio_dummy.v \
+lcds/lcd_lh507x.v \
 lcds/lcd_uc1611.v \
 mbc/mbc1.v
 
@@ -33,6 +34,9 @@ NODIST_HDR = \
 config.vh
 
 COND_HDR = \
+lcds/lcd_lh507x-args.vh \
+lcds/lcd_lh507x-glue.vh \
+lcds/lcd_lh507x-pins.vh \
 lcds/lcd_uc1611-args.vh \
 lcds/lcd_uc1611-glue.vh \
 lcds/lcd_uc1611-pins.vh
@@ -46,6 +50,7 @@ boards/hx8k_brk-uart.pcf \
 boards/hx8k_brk-leds.pcf \
 boards/gbreveng.pcf \
 boards/gbreveng-leds.pcf \
+lcds/lcd_lh507x-gbreveng.pcf \
 lcds/lcd_uc1611-hx8k_brk.pcf
 
 EXTRA_DIST = $(SRC) $(COND_SRC) $(HDR) $(COND_HDR) $(PCF_FILES)

@@ -1,0 +1,7 @@
+output wire       lcd_clk,
+output wire       lcd_latch,
+output wire       lcd_altsig,
+output wire       lcd_ctrl,
+output wire       lcd_hsync,
+output wire       lcd_vsync,
+output wire [1:0] lcd_data,
