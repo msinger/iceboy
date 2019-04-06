@@ -16,9 +16,9 @@ MY_PROG_ICEPROG
 
 MY_ARG_ENABLE(
 	board,
-	hx8k_brk,
+	gbreveng,
 	[Select board to build for.],
-	[hx8k_brk, gbreveng]
+	[gbreveng, hx8k_brk]
 )
 
 MY_ARG_ENABLE(
@@ -100,19 +100,19 @@ AC_SUBST(NUM_ADR)
 _enable_leds="$enable_leds"
 if test "x$enable_leds" = "xauto"; then
 	_enable_leds=no
-	if test "x$enable_board" = "xhx8k_brk"; then
+	if test "x$enable_board" = "xgbreveng"; then
 		_enable_leds=yes
 	fi
-	if test "x$enable_board" = "xgbreveng"; then
+	if test "x$enable_board" = "xhx8k_brk"; then
 		_enable_leds=yes
 	fi
 fi
 NUM_LEDS=0
-if test "x$enable_board" = "xhx8k_brk"; then
-	NUM_LEDS=8
-fi
 if test "x$enable_board" = "xgbreveng"; then
 	NUM_LEDS=16
+fi
+if test "x$enable_board" = "xhx8k_brk"; then
+	NUM_LEDS=8
 fi
 AC_SUBST(HAS_LEDS, $(test "x$_enable_leds" = "xyes" && echo y))
 AC_SUBST(LEDS_DEF, $(test "x$_enable_leds" = "xyes" && echo define || echo undef))
@@ -121,11 +121,11 @@ AC_SUBST(NUM_LEDS)
 _enable_lcd="$enable_lcd"
 if test "x$enable_lcd" = "xauto"; then
 	_enable_lcd=no
-	if test "x$enable_board" = "xhx8k_brk"; then
-		_enable_lcd=uc1611
-	fi
 	if test "x$enable_board" = "xgbreveng"; then
 		_enable_lcd=lh507x
+	fi
+	if test "x$enable_board" = "xhx8k_brk"; then
+		_enable_lcd=uc1611
 	fi
 fi
 AC_SUBST(HAS_LCD, $(test "x$_enable_lcd" != "xno" && echo y))
@@ -163,10 +163,10 @@ AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -o "x$enabl
 _enable_uart="$enable_uart"
 if test "x$enable_uart" = "xauto"; then
 	_enable_uart=no
-	if test "x$enable_board" = "xhx8k_brk"; then
+	if test "x$enable_board" = "xgbreveng"; then
 		_enable_uart=yes
 	fi
-	if test "x$enable_board" = "xgbreveng"; then
+	if test "x$enable_board" = "xhx8k_brk"; then
 		_enable_uart=yes
 	fi
 fi

@@ -18,8 +18,8 @@ dom_gate.v
 NODIST_SRC =
 
 COND_SRC = \
-boards/hx8k_evk-top.v \
 boards/gbreveng-top.v \
+boards/hx8k_evk-top.v \
 sio/lr35902_sio_dummy.v \
 lcds/lcd_lh507x.v \
 lcds/lcd_uc1611.v \
@@ -42,14 +42,18 @@ lcds/lcd_uc1611-glue.vh \
 lcds/lcd_uc1611-pins.vh
 
 PCF_FILES = \
+boards/gbreveng.pcf \
+boards/gbreveng-cart.pcf \
+boards/gbreveng-mbc.pcf \
+boards/gbreveng-cart+mbc.pcf \
+boards/gbreveng-uart.pcf \
+boards/gbreveng-leds.pcf \
 boards/hx8k_brk.pcf \
 boards/hx8k_brk-cart.pcf \
 boards/hx8k_brk-mbc.pcf \
 boards/hx8k_brk-cart+mbc.pcf \
 boards/hx8k_brk-uart.pcf \
 boards/hx8k_brk-leds.pcf \
-boards/gbreveng.pcf \
-boards/gbreveng-leds.pcf \
 lcds/lcd_lh507x-gbreveng.pcf \
 lcds/lcd_uc1611-hx8k_brk.pcf
 
