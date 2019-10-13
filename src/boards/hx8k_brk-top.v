@@ -154,9 +154,14 @@ module top(
 	wire dma_active;
 
 	wire ppu_needs_oam, ppu_needs_vram;
+	wire ppu_n_needs_oam, ppu_n_needs_vram;
+	wire ppu_p_needs_oam, ppu_p_needs_vram;
 
-	wire       disp_on, hsync, vsync, px_out;
-	wire [1:0] px;
+	wire       disp_on;
+	wire       ppu_n_hsync, ppu_n_vsync, ppu_n_latch, ppu_n_altsig, ppu_n_ctrl, ppu_n_pclk;
+	wire       ppu_p_hsync, ppu_p_vsync, ppu_p_latch, ppu_p_altsig, ppu_p_ctrl, ppu_p_pclk;
+	wire [1:0] ppu_n_px;
+	wire [1:0] ppu_p_px;
 
 	wire hide_bootrom;
 
@@ -502,6 +507,9 @@ module top(
 	assign cs_xram = cscpu_xram || csdma_xram;
 	assign cs_wram = cscpu_wram || csdma_wram;
 
+	assign ppu_needs_oam  = ppu_n_needs_oam || ppu_p_needs_oam;
+	assign ppu_needs_vram = ppu_n_needs_vram || ppu_p_needs_vram;
+
 	assign gbclk = r_clkdiv5[2];
 
 	always @(posedge pllclk) begin
@@ -784,16 +792,29 @@ module top(
 		.irq_vblank(irq_ppu_vblank),
 		.irq_stat(irq_ppu_stat),
 		.disp_on(disp_on),
-		.hsync(hsync),
-		.vsync(vsync),
-		.px_out(px_out),
-		.px(px),
-		.need_oam(ppu_needs_oam),
-		.need_vram(ppu_needs_vram),
+		.n_hsync(ppu_n_hsync),
+		.p_hsync(ppu_p_hsync),
+		.n_vsync(ppu_n_vsync),
+		.p_vsync(ppu_p_vsync),
+		.n_latch(ppu_n_latch),
+		.p_latch(ppu_p_latch),
+		.n_altsig(ppu_n_altsig),
+		.p_altsig(ppu_p_altsig),
+		.n_ctrl(ppu_n_ctrl),
+		.p_ctrl(ppu_p_ctrl),
+		.n_pclk(ppu_n_pclk),
+		.p_pclk(ppu_p_pclk),
+		.n_px(ppu_n_px),
+		.p_px(ppu_p_px),
+		.n_need_oam(ppu_n_needs_oam),
+		.p_need_oam(ppu_p_needs_oam),
+		.n_need_vram(ppu_n_needs_vram),
+		.p_need_vram(ppu_p_needs_vram),
 		.adr(adr_ppu),
 		.data(data_vram_out),
 		.data16(data_oam_out16),
 		.read(rd_ppu),
+		.div(div),
 	);
 
 `ifdef HAS_LCD
@@ -803,10 +824,20 @@ module top(
 		.clk(gbclk),
 		.reset(reset_gb),
 		.disp_on(disp_on),
-		.hsync(hsync),
-		.vsync(vsync),
-		.px_out(px_out),
-		.px(px),
+		.n_hsync(ppu_n_hsync),
+		.p_hsync(ppu_p_hsync),
+		.n_vsync(ppu_n_vsync),
+		.p_vsync(ppu_p_vsync),
+		.n_latch(ppu_n_latch),
+		.p_latch(ppu_p_latch),
+		.n_altsig(ppu_n_altsig),
+		.p_altsig(ppu_p_altsig),
+		.n_ctrl(ppu_n_ctrl),
+		.p_ctrl(ppu_p_ctrl),
+		.n_pclk(ppu_n_pclk),
+		.p_pclk(ppu_p_pclk),
+		.n_px(ppu_n_px),
+		.p_px(ppu_p_px),
 `include `LCD_ARG_HEADER
 	);
 `endif

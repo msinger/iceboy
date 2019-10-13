@@ -15,10 +15,22 @@ module lcd_uc1611(
 		input  wire       clk,
 		input  wire       reset,
 		input  wire       disp_on,
-		input  wire       hsync,
-		input  wire       vsync,
-		input  wire       px_out,
-		input  wire [1:0] px,
+
+		input  wire       n_hsync,
+		input  wire       p_hsync,
+		input  wire       n_vsync,
+		input  wire       p_vsync,
+		input  wire       n_latch,
+		input  wire       p_latch,
+		input  wire       n_altsig,
+		input  wire       p_altsig,
+		input  wire       n_ctrl,
+		input  wire       p_ctrl,
+		input  wire       n_pclk,
+		input  wire       p_pclk,
+		input  wire [1:0] n_px,
+		input  wire [1:0] p_px,
+
 		output reg  [7:0] lcd_data,
 		output wire       lcd_read,
 		output reg        lcd_write,
@@ -31,11 +43,24 @@ module lcd_uc1611(
 	reg [16:0] r_count, count;
 
 	reg       r_insync, insync;
-	reg       r_oddpx,  oddpx;
 	reg [3:0] r_pxbuf,  pxbuf;
 
 	reg [7:0] r_lcd_data;
 	reg       r_lcd_cd;
+
+	reg       r_px_trans, px_trans;
+	reg [7:0] r_cur_px, cur_px;
+	reg [1:0] rd_px;
+
+	reg       prev_hsync;
+	reg       prev_vsync;
+	reg       prev_latch;
+	reg       prev_pclk;
+
+	reg       rec_px;
+	reg       cur_rd_line;
+	reg [7:0] wr_pxcnt, rd_pxcnt;
+	reg [1:0] linebuf[0:(160 * 2 - 1)];
 
 	reg [7:0] init_seq[0:15];
 	initial begin
@@ -67,17 +92,51 @@ module lcd_uc1611(
 	assign lcd_read = 0;
 	assign lcd_vled = disp_on;
 
+	function hsync_falls_on_pos_edge();
+		hsync_falls_on_pos_edge = n_hsync && !p_hsync;
+	endfunction
+
+	function hsync_falls_on_neg_edge();
+		hsync_falls_on_neg_edge = prev_hsync && !n_hsync;
+	endfunction
+
+	function vsync_falls_on_pos_edge();
+		vsync_falls_on_pos_edge = n_vsync && !p_vsync;
+	endfunction
+
+	function vsync_falls_on_neg_edge();
+		vsync_falls_on_neg_edge = prev_vsync && !n_vsync;
+	endfunction
+
+	function latch_falls_on_pos_edge();
+		latch_falls_on_pos_edge = n_latch && !p_latch;
+	endfunction
+
+	function latch_falls_on_neg_edge();
+		latch_falls_on_neg_edge = prev_latch && !n_latch;
+	endfunction
+
+	function pclk_falls_on_pos_edge();
+		pclk_falls_on_pos_edge = n_pclk && !p_pclk;
+	endfunction
+
+	function pclk_falls_on_neg_edge();
+		pclk_falls_on_neg_edge = prev_pclk && !n_pclk;
+	endfunction
+
 	always @* begin
 		state     = r_state;
 		count     = 'bx;
 
 		insync    = r_insync;
-		oddpx     = r_oddpx;
 		pxbuf     = r_pxbuf;
 
 		lcd_data  = r_lcd_data;
 		lcd_cd    = r_lcd_cd;
 		lcd_write = 0;
+
+		px_trans  = r_px_trans;
+		cur_px    = r_cur_px;
 
 		case (r_state)
 		`STATE_OFF:
@@ -87,7 +146,8 @@ module lcd_uc1611(
 				lcd_cd    = 0;
 				lcd_data  = 'he2; /* System Reset */
 				insync    = 1;
-				oddpx     = 0;
+				px_trans  = 0;
+				cur_px    = 0;
 			end
 		`STATE_INIT:
 			begin
@@ -107,9 +167,9 @@ module lcd_uc1611(
 					if (r_count[0] && r_count[4:1] == 15)
 						state  = `STATE_ON;
 				end
-				if (vsync)
+				if (n_vsync && p_vsync && (hsync_falls_on_neg_edge() || hsync_falls_on_pos_edge()))
 					insync = 1;
-				else if (hsync || px_out)
+				else if ((!n_vsync || !p_vsync) && (n_hsync || p_hsync || n_pclk || p_pclk))
 					insync = 0;
 				count = r_count + 1;
 			end
@@ -119,14 +179,15 @@ module lcd_uc1611(
 				count[0]   = 0;
 				lcd_cd     = 0;
 				lcd_data   = 'he2; /* System Reset */
-			end else if (vsync) begin
+			end else if (n_vsync && p_vsync && (hsync_falls_on_neg_edge() || hsync_falls_on_pos_edge())) begin /* new frame? */
 				state      = `STATE_INIT;
 				count[16:13] = 4'b1111; /* do not reset/clear/wait */
 				count[4:1] = 12; /* start at index 12: only set page&col addresses to upper left corner */
 				count[0]   = 0;
 				lcd_cd     = 0;
 				insync     = 1;
-				oddpx      = 0;
+				px_trans   = 0;
+				cur_px     = 0;
 			end
 		`STATE_UNINIT:
 			begin
@@ -139,19 +200,22 @@ module lcd_uc1611(
 
 		if (state == `STATE_ON && insync) begin         /* ready to shift out pixels? */
 			lcd_cd = 1;
-			if (px_out) begin                           /* new pixel arrived? */
-				if (!r_oddpx) begin                     /* pixel 0, 2, 4, ... */
-					oddpx = 1;
-					case (px)                           /* store px in pxbuf */
+			if (r_px_trans) begin
+				if (r_cur_px != rd_pxcnt - 1)
+					cur_px = r_cur_px + 1;
+				else
+					px_trans = 0;
+
+				if (!r_cur_px[0]) begin                 /* pixel 0, 2, 4, ... */
+					case (rd_px)                        /* store px in pxbuf */
 					0: pxbuf = `COLOR0;
 					1: pxbuf = `COLOR1;
 					2: pxbuf = `COLOR2;
 					3: pxbuf = `COLOR3;
 					endcase
 				end else begin                          /* pixel 1, 3, 5, ... */
-					oddpx = 0;
 					lcd_data[3:0] = r_pxbuf;            /* store pxbuf in low nibble */
-					case (px)                           /* store px in high nibble */
+					case (rd_px)                        /* store px in high nibble */
 					0: lcd_data[7:4] = `COLOR0;
 					1: lcd_data[7:4] = `COLOR1;
 					2: lcd_data[7:4] = `COLOR2;
@@ -160,6 +224,11 @@ module lcd_uc1611(
 					lcd_write = 1;                      /* send 2 pixels to the LCD */
 				end
 			end
+
+			if (rd_pxcnt && (latch_falls_on_neg_edge() || latch_falls_on_pos_edge())) begin
+				cur_px   = 0;
+				px_trans = 1;
+			end
 		end
 
 		if (reset) begin
@@ -167,12 +236,14 @@ module lcd_uc1611(
 			count     = 'bx;
 
 			insync    = 'bx;
-			oddpx     = 'bx;
 			pxbuf     = 'bx;
 
 			lcd_data  = 'bx;
 			lcd_cd    = 'bx;
 			lcd_write = 0;
+
+			px_trans  = 0;
+			cur_px    = 0;
 		end
 	end
 
@@ -181,11 +252,66 @@ module lcd_uc1611(
 		r_count     <= count;
 
 		r_insync    <= insync;
-		r_oddpx     <= oddpx;
 		r_pxbuf     <= pxbuf;
 
 		r_lcd_data  <= lcd_data;
 		r_lcd_cd    <= lcd_cd;
+
+		r_px_trans  <= px_trans;
+		r_cur_px    <= cur_px;
+	end
+
+	always @(posedge clk) begin
+		rd_px <= linebuf[{ cur_px, cur_rd_line }];
+
+		/* Falling edge of hsync clocks in first pixel.
+		 * Falling edge of pclk clocks in other pixels.
+		 * Falling edge of latch clocks in last pixel. (TODO: Test when LH507x
+		 * samples last pixel.) */
+		if (rec_px && wr_pxcnt != 160) begin
+			if (hsync_falls_on_pos_edge() ||
+			    pclk_falls_on_pos_edge()  ||
+			    latch_falls_on_pos_edge())
+			begin
+				linebuf[{ wr_pxcnt, !cur_rd_line }] <= p_px;
+				wr_pxcnt <= wr_pxcnt + 1;
+			end else if (hsync_falls_on_neg_edge() ||
+			             pclk_falls_on_neg_edge()  ||
+			             latch_falls_on_neg_edge())
+			begin
+				linebuf[{ wr_pxcnt, !cur_rd_line }] <= n_px;
+				wr_pxcnt <= wr_pxcnt + 1;
+			end
+		end
+
+		/* Falling edge of pclk during hsync starts reception of new line. */
+		if ((p_hsync && pclk_falls_on_pos_edge()) ||
+		    (n_hsync && pclk_falls_on_neg_edge()))
+		begin
+			wr_pxcnt <= 0;
+			rec_px   <= 1;
+		end
+
+		/* Falling edge of latch also triggers switching the line buffers. */
+		if (latch_falls_on_pos_edge() ||
+		    latch_falls_on_neg_edge())
+		begin
+			cur_rd_line <= !cur_rd_line;
+			rd_pxcnt    <= wr_pxcnt;
+			wr_pxcnt    <= 0;
+			rec_px      <= 0; /* don't accept pixels until HSync */
+		end
+
+		prev_hsync <= p_hsync;
+		prev_vsync <= p_vsync;
+		prev_latch <= p_latch;
+		prev_pclk  <= p_pclk;
+
+		if (reset) begin
+			rd_pxcnt <= 0;
+			wr_pxcnt <= 0;
+			rec_px   <= 0;
+		end
 	end
 
 endmodule

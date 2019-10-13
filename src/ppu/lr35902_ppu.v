@@ -394,14 +394,14 @@ module lr35902_ppu(
 			mode = `MODE_VBLANK;
 		else begin
 			if (lx == 0) begin
-				mode        = `MODE_OAMSRC;
+				mode = `MODE_OAMSRC;
 				acquire_oam (`NEG_EDGE);
 			end else if (lx == 80) begin
-				mode        = `MODE_PXTRANS;
+				mode = `MODE_PXTRANS;
 				acquire_oam (`NEG_EDGE);
 				acquire_vram(`NEG_EDGE);
 			end else if (px_cnt == 168) begin
-				mode        = `MODE_HBLANK;
+				mode = `MODE_HBLANK;
 				release_oam (`NEG_EDGE);
 				release_vram(`NEG_EDGE);
 			end
