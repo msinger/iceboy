@@ -50,10 +50,8 @@ module lcd_uc1611(
 
 	reg       r_px_trans, px_trans;
 	reg [7:0] r_cur_px, cur_px;
-	reg [1:0] rd_px;
 
 	reg       prev_hsync;
-	reg       prev_vsync;
 	reg       prev_latch;
 	reg       prev_pclk;
 
@@ -100,14 +98,6 @@ module lcd_uc1611(
 		hsync_falls_on_neg_edge = prev_hsync && !n_hsync;
 	endfunction
 
-	function vsync_falls_on_pos_edge();
-		vsync_falls_on_pos_edge = n_vsync && !p_vsync;
-	endfunction
-
-	function vsync_falls_on_neg_edge();
-		vsync_falls_on_neg_edge = prev_vsync && !n_vsync;
-	endfunction
-
 	function latch_falls_on_pos_edge();
 		latch_falls_on_pos_edge = n_latch && !p_latch;
 	endfunction
@@ -123,6 +113,8 @@ module lcd_uc1611(
 	function pclk_falls_on_neg_edge();
 		pclk_falls_on_neg_edge = prev_pclk && !n_pclk;
 	endfunction
+
+	reg [1:0] px;
 
 	always @* begin
 		state     = r_state;
@@ -206,8 +198,10 @@ module lcd_uc1611(
 				else
 					px_trans = 0;
 
+				px = linebuf[{ r_cur_px, cur_rd_line }];
+
 				if (!r_cur_px[0]) begin                 /* pixel 0, 2, 4, ... */
-					case (rd_px)                        /* store px in pxbuf */
+					case (px)                           /* store px in pxbuf */
 					0: pxbuf = `COLOR0;
 					1: pxbuf = `COLOR1;
 					2: pxbuf = `COLOR2;
@@ -215,7 +209,7 @@ module lcd_uc1611(
 					endcase
 				end else begin                          /* pixel 1, 3, 5, ... */
 					lcd_data[3:0] = r_pxbuf;            /* store pxbuf in low nibble */
-					case (rd_px)                        /* store px in high nibble */
+					case (px)                           /* store px in high nibble */
 					0: lcd_data[7:4] = `COLOR0;
 					1: lcd_data[7:4] = `COLOR1;
 					2: lcd_data[7:4] = `COLOR2;
@@ -262,8 +256,6 @@ module lcd_uc1611(
 	end
 
 	always @(posedge clk) begin
-		rd_px <= linebuf[{ cur_px, cur_rd_line }];
-
 		/* Falling edge of hsync clocks in first pixel.
 		 * Falling edge of pclk clocks in other pixels.
 		 * Falling edge of latch clocks in last pixel. (TODO: Test when LH507x
@@ -303,7 +295,6 @@ module lcd_uc1611(
 		end
 
 		prev_hsync <= p_hsync;
-		prev_vsync <= p_vsync;
 		prev_latch <= p_latch;
 		prev_pclk  <= p_pclk;
 
