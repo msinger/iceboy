@@ -13,6 +13,9 @@
 `define FETCH_STATE_PXL1_1 5
 `define FETCH_STATE_BLOCK  6
 
+`define POS_EDGE 1
+`define NEG_EDGE 0
+
 /* From higan:
 auto PPU::coincidence() -> bool {
   uint ly = status.ly;
@@ -34,27 +37,43 @@ module lr35902_ppu(
 		input  wire        reg_write,
 		output wire        irq_vblank,
 		output wire        irq_stat,
-		output reg         need_oam,
-		output reg         need_vram,
 		input  wire [7:0]  data,
 		input  wire [15:0] data16,
 		output reg  [15:0] adr,
 		output reg         read,
 		output wire        disp_on,
-		output wire        hsync,
-		output wire        vsync,
-		output reg         px_out,     /* Set when a pixel is shifted out to the display driver on next clk. */
-		output reg  [1:0]  px,         /* The color of the pixel being shifted out. */
+
+		output reg         n_need_oam,  p_need_oam,
+		output reg         n_need_vram, p_need_vram,
+
+		output reg         n_hsync,  p_hsync,
+		output reg         n_vsync,  p_vsync,
+		output reg         n_latch,  p_latch,
+		output reg         n_altsig, p_altsig, /* Signal for alternating polarity of electrical current flow through LCD segments. Called FR (Frame inversion signal) in Sharp datasheets. */
+		output reg         n_ctrl,   p_ctrl,   /* Timing signal for switching on/off columns depending on pixels brightness. */
+		output reg         n_pclk,   p_pclk,
+		output reg  [1:0]  n_px,     p_px,     /* The color (brightness) of the pixel being shifted out. */
+
+		input  wire [15:0] div
 	);
 
 	reg r_preg_read,  preg_read;
 	reg r_preg_write, preg_write;
 
-	reg        r_need_oam, r_need_vram;
 	reg [15:0] r_adr;
 
-	reg       r_px_out;
-	reg [1:0] r_px;
+	reg       r_n_need_oam,  r_p_need_oam,  r_cp_need_oam,  cp_need_oam;
+	reg       r_n_need_vram, r_p_need_vram, r_cp_need_vram, cp_need_vram;
+
+	reg       r_n_hsync,  r_p_hsync,  r_cp_hsync,  cp_hsync;
+	reg       r_n_vsync,  r_p_vsync,  r_cp_vsync,  cp_vsync;
+	reg       r_n_latch,  r_p_latch,  r_cp_latch,  cp_latch;
+	reg       r_n_altsig, r_p_altsig, r_cp_altsig, cp_altsig;
+	reg       r_n_ctrl,   r_p_ctrl,   r_cp_ctrl,   cp_ctrl;
+	reg       r_n_pclk,   r_p_pclk,   r_cp_pclk,   cp_pclk;
+	reg [1:0] r_n_px,     r_p_px;
+	reg       r_cp_px,    cp_px;
+
 	reg [7:0] r_px_cnt, px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
 	reg [8:0] r_lx,     lx;     /* counts 0 .. 455 */
 	reg [7:0] r_ly,     ly;     /* counts 0 .. 153 (each time lx resets to 0); resets to 0 early in line 153 */
@@ -65,8 +84,6 @@ module lr35902_ppu(
 
 	reg  r_stat_sig;
 	wire stat_sig;
-
-	reg r_mute, mute;
 
 	/* FF40 (LCDC) */
 	reg r_ppu_ena,  ppu_ena;  /* bit 7 */
@@ -132,8 +149,6 @@ module lr35902_ppu(
 	assign irq_vblank = lx == 0 && ly == 144;
 
 	assign disp_on = r_ppu_ena;
-	assign hsync   = r_ppu_ena && lx == 0 && !r_mute;
-	assign vsync   = hsync && ly == 0;
 
 	assign line  = r_scy + r_ly;
 	assign wline = r_ly - r_wy;
@@ -155,17 +170,112 @@ module lr35902_ppu(
 		endcase
 	end
 
+	task keep_dual_edge_signals();
+		{ n_need_oam,  p_need_oam,  cp_need_oam  } = { r_cp_need_oam  ? r_p_need_oam  : r_n_need_oam,  r_p_need_oam,  1'b0 };
+		{ n_need_vram, p_need_vram, cp_need_vram } = { r_cp_need_vram ? r_p_need_vram : r_n_need_vram, r_p_need_vram, 1'b0 };
+
+		{ n_hsync,  p_hsync,  cp_hsync  } = { r_cp_hsync  ? r_p_hsync  : r_n_hsync,  r_p_hsync,  1'b0 };
+		{ n_vsync,  p_vsync,  cp_vsync  } = { r_cp_vsync  ? r_p_vsync  : r_n_vsync,  r_p_vsync,  1'b0 };
+		{ n_latch,  p_latch,  cp_latch  } = { r_cp_latch  ? r_p_latch  : r_n_latch,  r_p_latch,  1'b0 };
+		{ n_altsig, p_altsig, cp_altsig } = { r_cp_altsig ? r_p_altsig : r_n_altsig, r_p_altsig, 1'b0 };
+		{ n_ctrl,   p_ctrl,   cp_ctrl   } = { r_cp_ctrl   ? r_p_ctrl   : r_n_ctrl,   r_p_ctrl,   1'b0 };
+		{ n_pclk,   p_pclk,   cp_pclk   } = { r_cp_pclk   ? r_p_pclk   : r_n_pclk,   r_p_pclk,   1'b0 };
+		{ n_px,     p_px,     cp_px     } = { r_cp_px     ? r_p_px     : r_n_px,     r_p_px,     1'b0 };
+	endtask
+
+	task acquire_oam(input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b_11;
+		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b110;
+		endcase
+	endtask
+
+	task release_oam(input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b_01;
+		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b000;
+		endcase
+	endtask
+
+	task acquire_vram(input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b_11;
+		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b110;
+		endcase
+	endtask
+
+	task release_vram(input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b_01;
+		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b000;
+		endcase
+	endtask
+
+	task hsync(input state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {          p_hsync, cp_hsync } = {      state, 1'b1 };
+		`NEG_EDGE: { n_hsync, p_hsync, cp_hsync } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
+	task vsync(input state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {          p_vsync, cp_vsync } = {      state, 1'b1 };
+		`NEG_EDGE: { n_vsync, p_vsync, cp_vsync } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
+	task latch(input state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {          p_latch, cp_latch } = {      state, 1'b1 };
+		`NEG_EDGE: { n_latch, p_latch, cp_latch } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
+	task altsig(input state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {           p_altsig, cp_altsig } = {      state, 1'b1 };
+		`NEG_EDGE: { n_altsig, p_altsig, cp_altsig } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
+	task toggle_altsig(input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: altsig(!n_altsig,   `POS_EDGE);
+		`NEG_EDGE: altsig(!r_p_altsig, `NEG_EDGE);
+		endcase
+	endtask
+
+	task ctrl(input state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {         p_ctrl, cp_ctrl } = {      state, 1'b1 };
+		`NEG_EDGE: { n_ctrl, p_ctrl, cp_ctrl } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
+	task pclk(input state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {         p_pclk, cp_pclk } = {      state, 1'b1 };
+		`NEG_EDGE: { n_pclk, p_pclk, cp_pclk } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
+	task px(input [1:0] state, input clk_edge);
+		case (clk_edge)
+		`POS_EDGE: {       p_px, cp_px } = {      state, 1'b1 };
+		`NEG_EDGE: { n_px, p_px, cp_px } = { {2{state}}, 1'b0 };
+		endcase
+	endtask
+
 	always @* begin
 		preg_read  = reg_read;
 		preg_write = reg_write;
 
-		need_oam  = r_need_oam;
-		need_vram = r_need_vram;
+		keep_dual_edge_signals();
+
 		adr       = r_adr;
 		read      = 0;
 
-		px_out = 0;
-		px     = 'bx;
 		px_cnt = r_px_cnt;
 		lx     = r_lx + 1;
 		ly     = r_ly;
@@ -173,8 +283,6 @@ module lr35902_ppu(
 		scxed  = r_scxed;
 
 		draw_win = r_draw_win;
-
-		mute = r_mute;
 
 		ppu_ena  = r_ppu_ena;
 		win_map  = r_win_map;
@@ -230,10 +338,8 @@ module lr35902_ppu(
 			ly     = ily;
 		end
 
-		if (r_ly == 153 && r_lx == 8) begin
+		if (r_ly == 153 && r_lx == 8)
 			ly   = 0;
-			mute = 0;
-		end
 
 		if (r_preg_write && !reg_write) case (reg_adr)
 		'h0: { ppu_ena, win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena } = reg_din;
@@ -248,25 +354,65 @@ module lr35902_ppu(
 		'hb: wx   = reg_din;
 		endcase
 
-		need_oam  = ily < 144 && px_cnt != 168;
-		need_vram = need_oam && lx >= 80;
+		if (!r_ppu_ena && ppu_ena) begin
+			latch (0, `POS_EDGE);
+			altsig(1, `POS_EDGE);
+		end
+
+		if (lx == 0) begin
+			latch(1, `NEG_EDGE);
+			ctrl (1, `NEG_EDGE);
+		end
+		if (lx == 4)
+			latch(0, `NEG_EDGE);
+		if (lx == 2 && ily == 144)
+			toggle_altsig(`NEG_EDGE);
+		if (lx == 4)
+			toggle_altsig(`NEG_EDGE);
+		if (lx == 8)
+			ctrl(0, `NEG_EDGE);
+		if (lx == 32)
+			ctrl(1, `NEG_EDGE);
+		if (lx == 36)
+			ctrl(0, `NEG_EDGE);
+		if (n_hsync && lx == 86)
+			pclk(1, `POS_EDGE);
+		if (n_hsync && lx == 87)
+			pclk(0, `NEG_EDGE);
+		if (lx == 184)
+			ctrl(1, `NEG_EDGE);
+		if (lx == 188)
+			ctrl(0, `NEG_EDGE);
+		if (lx == 336)
+			ctrl(1, `NEG_EDGE);
+		if (lx == 340)
+			ctrl(0, `NEG_EDGE);
 
 		lyc_eq = ly == lyc;
 
 		if (ily >= 144)
 			mode = `MODE_VBLANK;
 		else begin
-			if (lx == 0)
-				mode = `MODE_OAMSRC;
-			else if (lx == 80)
-				mode = `MODE_PXTRANS;
-			else if (px_cnt == 168)
-				mode = `MODE_HBLANK;
+			if (lx == 0) begin
+				mode        = `MODE_OAMSRC;
+				acquire_oam (`NEG_EDGE);
+			end else if (lx == 80) begin
+				mode        = `MODE_PXTRANS;
+				acquire_oam (`NEG_EDGE);
+				acquire_vram(`NEG_EDGE);
+			end else if (px_cnt == 168) begin
+				mode        = `MODE_HBLANK;
+				release_oam (`NEG_EDGE);
+				release_vram(`NEG_EDGE);
+			end
 		end
 
 		if (mode == `MODE_OAMSRC) begin
 			read = 1;
 			adr  = { 8'hfe, lx[6:0], 1'b0 };
+
+			if (lx == 6)
+				vsync(ily == 0, `NEG_EDGE);
 		end
 
 		if (r_mode == `MODE_OAMSRC && r_nobj < 10) begin
@@ -286,6 +432,8 @@ module lr35902_ppu(
 			fetch_bg_adr[9:5]   = line[7:3];
 			fetch_bg_adr[4:0]   = r_scx[7:3];
 			fetch_src           = 'b0x;
+
+			hsync(1, `NEG_EDGE);
 		end
 
 		case (r_fetch_state)
@@ -406,10 +554,10 @@ module lr35902_ppu(
 		endcase
 
 		case ({ fifo1[15], fifo0[15] })
-		0: px = px_pal[1:0];
-		1: px = px_pal[3:2];
-		2: px = px_pal[5:4];
-		3: px = px_pal[7:6];
+		0: px(px_pal[1:0], `NEG_EDGE);
+		1: px(px_pal[3:2], `NEG_EDGE);
+		2: px(px_pal[5:4], `NEG_EDGE);
+		3: px(px_pal[7:6], `NEG_EDGE);
 		endcase
 
 		if (mode == `MODE_PXTRANS && fifo_len > 8 && !fetch_src[1]) begin
@@ -458,8 +606,12 @@ module lr35902_ppu(
 				endcase
 			end else begin
 				/* Don't send eight pixels following the scroll (which are all garbage when r_scx==0) to the LCD. */
-				if (px_cnt >= 8)
-					px_out = !r_mute;
+				if (px_cnt == 8)
+					hsync(0, `POS_EDGE);
+				else if (px_cnt > 8) begin
+					pclk(1, `NEG_EDGE);
+					pclk(0, `POS_EDGE);
+				end
 				px_cnt    = px_cnt + 1;
 				fifo_len  = fifo_len - 1;
 				fifo0     = { fifo0[14:0], 1'bx };
@@ -517,22 +669,27 @@ module lr35902_ppu(
 		end
 
 		if (!ppu_ena) begin
-			need_oam  = 0;
-			need_vram = 0;
-			adr       = 'bx;
-			read      = 0;
+			release_oam (`POS_EDGE);
+			release_vram(`POS_EDGE);
 
-			px_out = 0;
-			px     = 'bx;
+			adr  = 'bx;
+			read = 0;
+
+			hsync (     0, `POS_EDGE);
+			vsync (     0, `POS_EDGE);
+			latch (div[8], `POS_EDGE);
+			altsig(div[9], `POS_EDGE);
+			ctrl  (     0, `POS_EDGE);
+			pclk  (     0, `POS_EDGE);
+			px    (     0, `POS_EDGE);
+
 			px_cnt = 0;
-			lx     = 8;
+			lx     = 0;
 			ly     = 0;
 			ily    = 0;
 			scxed  = 0;
 
 			draw_win = 0;
-
-			mute = 1;
 
 			lyc_eq = 0;
 			mode   = 0;
@@ -563,12 +720,19 @@ module lr35902_ppu(
 		r_preg_read  <= preg_read;
 		r_preg_write <= preg_write;
 
-		r_need_oam  <= need_oam;
-		r_need_vram <= need_vram;
-		r_adr       <= adr;
+		r_adr <= adr;
 
-		r_px_out <= px_out;
-		r_px     <= px;
+		{ r_n_need_oam,  r_p_need_oam,  r_cp_need_oam  } <= { n_need_oam,  p_need_oam,  cp_need_oam  };
+		{ r_n_need_vram, r_p_need_vram, r_cp_need_vram } <= { n_need_vram, p_need_vram, cp_need_vram };
+
+		{ r_n_hsync,  r_p_hsync,  r_cp_hsync  } <= { n_hsync,  p_hsync,  cp_hsync  };
+		{ r_n_vsync,  r_p_vsync,  r_cp_vsync  } <= { n_vsync,  p_vsync,  cp_vsync  };
+		{ r_n_latch,  r_p_latch,  r_cp_latch  } <= { n_latch,  p_latch,  cp_latch  };
+		{ r_n_altsig, r_p_altsig, r_cp_altsig } <= { n_altsig, p_altsig, cp_altsig };
+		{ r_n_ctrl,   r_p_ctrl,   r_cp_ctrl   } <= { n_ctrl,   p_ctrl,   cp_ctrl   };
+		{ r_n_pclk,   r_p_pclk,   r_cp_pclk   } <= { n_pclk,   p_pclk,   cp_pclk   };
+		{ r_n_px,     r_p_px,     r_cp_px     } <= { n_px,     p_px,     cp_px     };
+
 		r_px_cnt <= px_cnt;
 		r_lx     <= lx;
 		r_ly     <= ly;
@@ -578,8 +742,6 @@ module lr35902_ppu(
 		r_draw_win <= draw_win;
 
 		r_stat_sig <= stat_sig;
-
-		r_mute <= mute;
 
 		r_ppu_ena  <= ppu_ena;
 		r_win_map  <= win_map;

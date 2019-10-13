@@ -1,10 +1,10 @@
 # For the Sharp LH5076 & LH5077 drivers on Game Boy reverse eng. FPGA board
 
-set_io lcd_clk     B4
+set_io lcd_hsync   C5
+set_io lcd_vsync   A1
 set_io lcd_latch   A2
 set_io lcd_altsig  D5
 set_io lcd_ctrl    A5
-set_io lcd_hsync   C5
-set_io lcd_vsync   A1
-set_io lcd_data[0] E6
-set_io lcd_data[1] B5
+set_io lcd_clk     B4
+set_io lcd_data[0] B5
+set_io lcd_data[1] E6
