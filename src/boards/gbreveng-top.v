@@ -964,7 +964,7 @@ module top(
 	reg reset_ld_domC, reset_ld_domU;
 	always @(posedge gbclk) reset_ld_domC <= reset_ld;
 	dom_gate reset_ld_gate(clk12m, reset_ld_domC, reset_ld_domU);
-	prog_loader #(2, 3) loader(
+	prog_loader #(1, 2) loader(
 		.clk(gbclk),
 		.sclk(clk16m),
 		.write(wr_prog),
