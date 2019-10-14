@@ -10,7 +10,7 @@ module lr35902_tim(
 		input  wire        clk,
 		input  wire        reset,
 		output reg         irq,
-		output wire [15:0] div,
+		output reg  [15:0] div,
 	);
 
 	reg [1:0] r_adr;
@@ -21,41 +21,39 @@ module lr35902_tim(
 	reg [7:0] r_tma,  tma;
 	reg [2:0] r_tac,  tac;
 
-	reg [15:0] r_count, count;
+	reg [15:0] r_div, div;
 
 	reg r_pread, r_pwrite;
 
 	reg r_tbit, tbit;
 
-	assign div = count;
-
 	always @* begin
-		wr    = r_wr;
-		count = r_count + 1;
-		tima  = r_tima;
-		tma   = r_tma;
-		tac   = r_tac;
-		tbit  = r_tbit;
-		irq   = 0;
+		wr   = r_wr;
+		div  = r_div + 1;
+		tima = r_tima;
+		tma  = r_tma;
+		tac  = r_tac;
+		tbit = r_tbit;
+		irq  = 0;
 
 		if (tima[8]) begin
 			tima = tma;
 			irq  = 1;
 		end
 
-		if (&count[1:0]) begin
+		if (&div[1:0]) begin
 			case (r_tac[1:0])
-			0: tbit = count[9];
-			1: tbit = count[3];
-			2: tbit = count[5];
-			3: tbit = count[7];
+			0: tbit = div[9];
+			1: tbit = div[3];
+			2: tbit = div[5];
+			3: tbit = div[7];
 			endcase
 
 			if (r_wr) case (r_adr)
-			0: count[15:0] = 0;
-			1: tima        = r_din;
-			2: tma         = r_din;
-			3: tac         = r_din;
+			0: div[15:2] = 0;
+			1: tima      = r_din;
+			2: tma       = r_din;
+			3: tac       = r_din;
 			endcase
 
 			if (!tac[2])
@@ -69,25 +67,25 @@ module lr35902_tim(
 		end
 
 		if (reset) begin
-			wr     = 0;
-			count  = 0;
-			tbit   = 0;
-			tima   = 0;
-			tma    = 0;
-			tac    = 0;
-			irq    = 0;
+			wr        = 0;
+			div[15:2] = 0;
+			tbit      = 0;
+			tima      = 0;
+			tma       = 0;
+			tac       = 0;
+			irq       = 0;
 		end
 	end
 
 	always @(posedge clk) begin
-		r_wr    <= wr;
-		r_count <= count;
-		r_tima  <= tima;
-		r_tma   <= tma;
-		r_tac   <= tac;
+		r_wr   <= wr;
+		r_div  <= div;
+		r_tima <= tima;
+		r_tma  <= tma;
+		r_tac  <= tac;
 
 		if (!r_pread && read) case (adr)
-		0: dout <= r_count[15:8];
+		0: dout <= r_div[15:8];
 		1: dout <= r_tima;
 		2: dout <= r_tma;
 		3: dout <= { 5'h1f, r_tac };
