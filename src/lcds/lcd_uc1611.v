@@ -191,8 +191,9 @@ module lcd_uc1611(
 		endcase
 
 		if (state == `STATE_ON && insync) begin         /* ready to shift out pixels? */
-			lcd_cd = 1;
-			if (r_px_trans) begin
+			if (rd_pxcnt && r_px_trans) begin
+				lcd_cd = 1;
+
 				if (r_cur_px != rd_pxcnt - 1)
 					cur_px = r_cur_px + 1;
 				else
@@ -217,9 +218,10 @@ module lcd_uc1611(
 					endcase
 					lcd_write = 1;                      /* send 2 pixels to the LCD */
 				end
-			end
+			end else
+				px_trans = 0;
 
-			if (rd_pxcnt && (latch_falls_on_neg_edge() || latch_falls_on_pos_edge())) begin
+			if (latch_falls_on_neg_edge() || latch_falls_on_pos_edge()) begin
 				cur_px   = 0;
 				px_trans = 1;
 			end
