@@ -157,7 +157,6 @@ module top(
 	wire ppu_n_needs_oam, ppu_n_needs_vram;
 	wire ppu_p_needs_oam, ppu_p_needs_vram;
 
-	wire       disp_on;
 	wire       ppu_n_hsync, ppu_n_vsync, ppu_n_latch, ppu_n_altsig, ppu_n_ctrl, ppu_n_pclk;
 	wire       ppu_p_hsync, ppu_p_vsync, ppu_p_latch, ppu_p_altsig, ppu_p_ctrl, ppu_p_pclk;
 	wire [1:0] ppu_n_px;
@@ -791,7 +790,6 @@ module top(
 		.reg_write(wr_cpu && cs_io_ppu),
 		.irq_vblank(irq_ppu_vblank),
 		.irq_stat(irq_ppu_stat),
-		.disp_on(disp_on),
 		.n_hsync(ppu_n_hsync),
 		.p_hsync(ppu_p_hsync),
 		.n_vsync(ppu_n_vsync),
@@ -823,7 +821,6 @@ module top(
 	lcd_`LCD_TYPE lcd(
 		.clk(gbclk),
 		.reset(reset_gb),
-		.disp_on(disp_on),
 		.n_hsync(ppu_n_hsync),
 		.p_hsync(ppu_p_hsync),
 		.n_vsync(ppu_n_vsync),

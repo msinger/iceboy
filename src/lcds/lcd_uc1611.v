@@ -14,7 +14,6 @@
 module lcd_uc1611(
 		input  wire       clk,
 		input  wire       reset,
-		input  wire       disp_on,
 
 		input  wire       n_hsync,
 		input  wire       p_hsync,
@@ -49,15 +48,17 @@ module lcd_uc1611(
 	reg       r_lcd_cd;
 
 	reg       r_px_trans, px_trans;
-	reg [7:0] r_cur_px, cur_px;
+	reg [7:0] r_cur_px,   cur_px;
 
-	reg       prev_hsync;
-	reg       prev_latch;
-	reg       prev_pclk;
+	reg       lcd_ena    = 0;
 
-	reg       rec_px;
+	reg       prev_hsync = 0;
+	reg       prev_latch = 0;
+	reg       prev_pclk  = 0;
+
+	reg       rec_px     = 0;
 	reg       cur_rd_line;
-	reg [7:0] wr_pxcnt, rd_pxcnt;
+	reg [7:0] wr_pxcnt, rd_pxcnt = 0;
 	reg [1:0] linebuf[0:(160 * 2 - 1)];
 
 	reg [7:0] init_seq[0:15];
@@ -88,7 +89,7 @@ module lcd_uc1611(
 
 	assign lcd_cs   = 1;
 	assign lcd_read = 0;
-	assign lcd_vled = disp_on;
+	assign lcd_vled = 1;
 
 	function hsync_falls_on_pos_edge();
 		hsync_falls_on_pos_edge = n_hsync && !p_hsync;
@@ -132,7 +133,7 @@ module lcd_uc1611(
 
 		case (r_state)
 		`STATE_OFF:
-			if (disp_on) begin
+			if (lcd_ena) begin
 				state     = `STATE_INIT;
 				count     = 0;
 				lcd_cd    = 0;
@@ -166,7 +167,7 @@ module lcd_uc1611(
 				count = r_count + 1;
 			end
 		`STATE_ON:
-			if (!disp_on) begin
+			if (!lcd_ena) begin
 				state      = `STATE_UNINIT;
 				count[0]   = 0;
 				lcd_cd     = 0;
@@ -294,6 +295,8 @@ module lcd_uc1611(
 			rd_pxcnt    <= wr_pxcnt;
 			wr_pxcnt    <= 0;
 			rec_px      <= 0; /* don't accept pixels until HSync */
+
+			lcd_ena     <= n_ctrl || p_ctrl;
 		end
 
 		prev_hsync <= p_hsync;
@@ -304,6 +307,7 @@ module lcd_uc1611(
 			rd_pxcnt <= 0;
 			wr_pxcnt <= 0;
 			rec_px   <= 0;
+			lcd_ena  <= 0;
 		end
 	end
 

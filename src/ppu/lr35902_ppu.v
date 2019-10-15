@@ -41,7 +41,6 @@ module lr35902_ppu(
 		input  wire [15:0] data16,
 		output reg  [15:0] adr,
 		output reg         read,
-		output wire        disp_on,
 
 		output reg         n_need_oam,  p_need_oam,
 		output reg         n_need_vram, p_need_vram,
@@ -147,8 +146,6 @@ module lr35902_ppu(
 	assign irq_stat = stat_sig && !r_stat_sig;
 
 	assign irq_vblank = lx == 0 && ly == 144;
-
-	assign disp_on = r_ppu_ena;
 
 	assign line  = r_scy + r_ly;
 	assign wline = r_ly - r_wy;

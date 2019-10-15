@@ -4,7 +4,6 @@
 module lcd_lh507x(
 		input  wire       clk,
 		input  wire       reset,
-		input  wire       disp_on,
 
 		input  wire       n_hsync,
 		input  wire       p_hsync,
