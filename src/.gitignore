@@ -1,6 +1,7 @@
 /config.vh
 /bootrom.hex
 /gameboy.pcf
+/gameboy-constraints.py
 /pll.v
 *.asc
 *.bin

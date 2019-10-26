@@ -59,7 +59,11 @@ boards/hx8k_brk-leds.pcf \
 lcds/lcd_lh507x-gbreveng.pcf \
 lcds/lcd_uc1611-hx8k_brk.pcf
 
-EXTRA_DIST = $(SRC) $(COND_SRC) $(HDR) $(COND_HDR) $(PCF_FILES)
+CONSTR_FILES = \
+boards/gbreveng-constraints.py \
+boards/hx8k_brk-constraints.py
+
+EXTRA_DIST = $(SRC) $(COND_SRC) $(HDR) $(COND_HDR) $(PCF_FILES) $(CONSTR_FILES)
 
 CLEANFILES = \
 $(NODIST_SRC) \
@@ -68,6 +72,7 @@ bootrom.hex \
 gameboy.asc \
 gameboy.bin \
 gameboy.pcf \
+gameboy-constraints.py \
 gameboy.json \
 viewer.html
 
@@ -97,6 +102,9 @@ $(if @HAS_LEDS@,boards/@BOARD@-leds.pcf) \
 $(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@-@BOARD@.pcf)
 
+USED_CONSTR_FILES = \
+boards/@BOARD@-constraints.py
+
 all: gameboy.bin
 
 prog: gameboy.bin
@@ -116,8 +124,11 @@ gameboy.json: Makefile $(addprefix $(srcdir)/,$(SRC) $(USED_COND_SRC) $(HDR) $(U
 gameboy.pcf: Makefile $(addprefix $(srcdir)/,$(USED_PCF_FILES))
 	cat $(addprefix $(srcdir)/,$(USED_PCF_FILES)) >$@
 
-gameboy.asc: gameboy.json gameboy.pcf Makefile
-	$(NEXTPNR) $(NEXTPNRFLAGS) --hx8k --package ct256 --pcf gameboy.pcf --json $< --asc $@
+gameboy-constraints.py: Makefile $(addprefix $(srcdir)/,$(USED_CONSTR_FILES))
+	cat $(addprefix $(srcdir)/,$(USED_CONSTR_FILES)) >$@
+
+gameboy.asc: gameboy.json gameboy.pcf gameboy-constraints.py Makefile
+	$(NEXTPNR) $(NEXTPNRFLAGS) --hx8k --package ct256 --pcf gameboy.pcf --pre-pack gameboy-constraints.py --json $< --asc $@
 
 gameboy.bin: gameboy.asc Makefile
 	$(ICEPACK) $(ICEPACKFLAGS) $< $@
