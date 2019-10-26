@@ -1,30 +1,21 @@
 `default_nettype none
 
-`define RX_IDLE     0
-`define RX_STARTBIT 1
-`define RX_DATABIT  2
-`define RX_STOPBIT  3
-
 `define WR_IDLE     0
 `define WR_AD_LATCH 1
 `define WR_WRITE    2
 `define WR_INC      3
 
 (* nolatches *)
-module prog_loader #(
-		parameter SHIFT_GATE_DEPTH = 2,
-		parameter SEQ_GATE_DEPTH   = 3,
-	) (
+module prog_loader(
 		input  wire        clk,
-		input  wire        sclk, /* synchronous to clk, but higher freq; for fast syncing from uart_clk domain */
+		input  wire        reset,
+
 		output reg  [20:0] adr,
 		output reg  [7:0]  data,
 		output reg         write,
-		input  wire        reset,
 
-		input  wire        uart_clk,
-		input  wire        uart_reset,
-		input  wire        rx,
+		input  wire [7:0]  data_rx,
+		input  wire        data_rx_seq,
 	);
 
 	reg [20:0] r_adr;
@@ -32,28 +23,21 @@ module prog_loader #(
 
 	reg [1:0]  r_wr_state, wr_state;
 
-	reg [1:0]  r_rx_state;
-	reg [2:0]  r_cur_bit;
-	reg [3:0]  r_sub_count;
-	reg [7:0]  r_shift_domU, r_shift_domC;
-	dom_gate #(SHIFT_GATE_DEPTH) shift_gate[7:0](sclk, r_shift_domU, r_shift_domC);
-	reg        r_data_in_seq_domU, r_data_in_seq_domC;
-	dom_gate #(SEQ_GATE_DEPTH) data_in_seq_gate(sclk, r_data_in_seq_domU, r_data_in_seq_domC);
-	reg        r_data_out_seq, data_out_seq;
+	reg        r_data_wr_seq, data_wr_seq;
 
 	always @* begin
-		adr          = r_adr;
-		data         = r_data;
-		write        = 0;
-		wr_state     = r_wr_state;
-		data_out_seq = r_data_out_seq;
+		adr         = r_adr;
+		data        = r_data;
+		write       = 0;
+		wr_state    = r_wr_state;
+		data_wr_seq = r_data_wr_seq;
 
 		case (r_wr_state)
 		`WR_IDLE:
-			if (r_data_in_seq_domC != r_data_out_seq) begin
-				data_out_seq = r_data_in_seq_domC;
-				data         = r_shift_domC;
-				wr_state     = `WR_AD_LATCH;
+			if (data_rx_seq != r_data_wr_seq) begin
+				data_wr_seq = data_rx_seq;
+				data        = data_rx;
+				wr_state    = `WR_AD_LATCH;
 			end
 		`WR_AD_LATCH:
 			begin
@@ -72,65 +56,19 @@ module prog_loader #(
 		endcase
 
 		if (reset) begin
-			adr          = 0;
-			data         = 'bx;
-			write        = 0;
-			wr_state     = `WR_IDLE;
-			data_out_seq = r_data_in_seq_domC;
+			adr         = 0;
+			data        = 'bx;
+			write       = 0;
+			wr_state    = `WR_IDLE;
+			data_wr_seq = data_rx_seq;
 		end
 	end
 
 	always @(posedge clk) begin
-		r_adr          <= adr;
-		r_data         <= data;
-		r_wr_state     <= wr_state;
-		r_data_out_seq <= data_out_seq;
-	end
-
-	always @(posedge uart_clk) begin
-		case (r_rx_state)
-		`RX_IDLE:
-			begin
-				if (!rx) begin
-					r_rx_state  <= `RX_STARTBIT;
-					r_sub_count <= 6;
-					r_cur_bit   <= 0;
-				end
-			end
-		`RX_STARTBIT:
-			begin
-				if (r_sub_count == 11) begin
-					r_rx_state  <= !rx ? `RX_DATABIT : `RX_IDLE;
-					r_sub_count <= 0;
-				end else
-					r_sub_count <= r_sub_count + 1;
-			end
-		`RX_DATABIT:
-			begin
-				if (r_sub_count == 11) begin
-					r_shift_domU <= { rx, r_shift_domU[7:1] };
-					if (r_cur_bit == 7)
-						r_rx_state <= `RX_STOPBIT;
-					else
-						r_cur_bit <= r_cur_bit + 1;
-					r_sub_count <= 0;
-				end else
-					r_sub_count <= r_sub_count + 1;
-			end
-		`RX_STOPBIT:
-			begin
-				if (r_sub_count == 11) begin
-					r_rx_state <= `RX_IDLE;
-					if (rx)
-						r_data_in_seq_domU <= !r_data_in_seq_domU;
-				end else
-					r_sub_count <= r_sub_count + 1;
-			end
-		endcase
-
-		if (uart_reset) begin
-			r_rx_state <= `RX_IDLE;
-		end
+		r_adr         <= adr;
+		r_data        <= data;
+		r_wr_state    <= wr_state;
+		r_data_wr_seq <= data_wr_seq;
 	end
 
 endmodule

@@ -690,11 +690,26 @@ module top(
 	);
 
 `ifdef USE_DEBUGGER
-	reg reset_gb_domC, reset_gb_domU;
-	always @(posedge gbclk) reset_gb_domC <= reset_gb;
-	dom_gate reset_gb_gate(clk12m, reset_gb_domC, reset_gb_domU);
-	lr35902_dbg_uart debugger(
-		.cpu_clk(gbclk),
+	reg        reset_dbg_domC;
+	wire       reset_dbg_domU;
+	wire       dbg_data_rx_valid_domU, dbg_data_rx_valid_domC;
+	wire [7:0] dbg_data_rx_domU,       dbg_data_rx_domC;
+	wire       dbg_data_rx_seq_domU,   dbg_data_rx_seq_domC;
+	wire       dbg_data_rx_ack_domU,   dbg_data_rx_ack_domC;
+	wire [7:0] dbg_data_tx_domU,       dbg_data_tx_domC;
+	wire       dbg_data_tx_seq_domU,   dbg_data_tx_seq_domC;
+	wire       dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC;
+	always @(posedge gbclk) reset_dbg_domC <= reset_gb;
+	dom_gate      reset_dbg_gate       (clk12m, reset_dbg_domC,         reset_dbg_domU);
+	dom_gate #(1) dbg_data_rx_gate[7:0](gbclk,  dbg_data_rx_domU,       dbg_data_rx_domC);
+	dom_gate #(1) dbg_data_rx_valid    (gbclk,  dbg_data_rx_valid_domU, dbg_data_rx_valid_domC);
+	dom_gate #(2) dbg_data_rx_seq_gate (gbclk,  dbg_data_rx_seq_domU,   dbg_data_rx_seq_domC);
+	dom_gate #(2) dbg_data_rx_ack_gate (clk12m, dbg_data_rx_ack_domC,   dbg_data_rx_ack_domU);
+	dom_gate #(1) dbg_data_tx_gate[7:0](clk12m, dbg_data_tx_domC,       dbg_data_tx_domU);
+	dom_gate #(2) dbg_data_tx_seq_gate (clk12m, dbg_data_tx_seq_domC,   dbg_data_tx_seq_domU);
+	dom_gate #(2) dbg_data_tx_ack_gate (gbclk,  dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC);
+	lr35902_dbg_ifc dbg_ifc(
+		.clk(gbclk),
 		.reset(!initial_reset_done),
 		.pc(pc),
 		.sp(sp),
@@ -705,11 +720,32 @@ module top(
 		.drv(ddrv_dbg),
 		.halt(halt),
 		.no_inc(no_inc),
-		.uart_clk(clk12m),
-		.uart_reset(reset_gb_domU),
+		.data_rx(dbg_data_rx_domC),
+		.data_rx_valid(dbg_data_rx_valid_domC),
+		.data_rx_seq(dbg_data_rx_seq_domC),
+		.data_rx_ack(dbg_data_rx_ack_domC),
+		.data_tx(dbg_data_tx_domC),
+		.data_tx_seq(dbg_data_tx_seq_domC),
+		.data_tx_ack(dbg_data_tx_ack_domC),
+	);
+	uart_recv #(.BAUDDIV(12)) dbg_uart_rx(
+		.clk(clk12m),
+		.reset(!initial_reset_done),
+		.soft_reset(reset_dbg_domU),
+		.data(dbg_data_rx_domU),
+		.valid(dbg_data_rx_valid_domU),
+		.seq(dbg_data_rx_seq_domU),
+		.ack(dbg_data_rx_ack_domU),
 		.rx(rx_in),
-		.tx(tx),
 		.cts(cts),
+	);
+	uart_send #(.BAUDDIV(12)) dbg_uart_tx(
+		.clk(clk12m),
+		.reset(!initial_reset_done),
+		.data(dbg_data_tx_domU),
+		.seq(dbg_data_tx_seq_domU),
+		.ack(dbg_data_tx_ack_domU),
+		.tx(tx),
 	);
 `else
 	assign ddrv_dbg = 0;
@@ -958,18 +994,30 @@ module top(
 `endif
 
 `ifdef USE_LOADER
-	reg reset_ld_domC, reset_ld_domU;
+	reg        reset_ld_domC;
+	wire       reset_ld_domU;
+	wire [7:0] ld_data_domU,     ld_data_domC;
+	wire       ld_data_seq_domU, ld_data_seq_domC;
 	always @(posedge gbclk) reset_ld_domC <= reset_ld;
-	dom_gate reset_ld_gate(clk12m, reset_ld_domC, reset_ld_domU);
-	prog_loader #(1, 2) loader(
+	dom_gate      reset_ld_gate    (clk12m, reset_ld_domC,    reset_ld_domU);
+	dom_gate #(1) ld_data_gate[7:0](clk16m, ld_data_domU,     ld_data_domC);
+	dom_gate #(2) ld_data_seq_gate (clk16m, ld_data_seq_domU, ld_data_seq_domC);
+	prog_loader loader(
 		.clk(gbclk),
-		.sclk(clk16m),
+		.reset(reset_ld),
 		.write(wr_prog),
 		.data(data_prog_out),
 		.adr(adr21_prog),
-		.reset(reset_ld),
-		.uart_clk(clk12m),
-		.uart_reset(reset_ld_domU),
+		.data_rx(ld_data_domC),
+		.data_rx_seq(ld_data_seq_domC),
+	);
+	uart_recv #(.BAUDDIV(12)) ld_uart(
+		.clk(clk12m),
+		.reset(reset_ld_domU),
+		.soft_reset(0),
+		.data(ld_data_domU),
+		.seq(ld_data_seq_domU),
+		.ack(ld_data_seq_domU), /* short circuit ack to seq */
 		.rx(rx_in),
 	);
 `else

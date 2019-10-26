@@ -3,7 +3,7 @@ map.v \
 iomap.v \
 cpu/lr35902.v \
 cpu/lr35902_hram.v \
-cpu/lr35902_dbg_uart.v \
+cpu/lr35902_dbg_ifc.v \
 ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \
@@ -13,7 +13,9 @@ lr35902_tim.v \
 lr35902_snd.v \
 lr35902_joy.v \
 prog_loader.v \
-dom_gate.v
+dom_gate.v \
+uart_recv.v \
+uart_send.v
 
 NODIST_SRC =
 
