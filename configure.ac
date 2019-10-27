@@ -43,16 +43,16 @@ MY_ARG_ENABLE(
 )
 
 MY_ARG_ENABLE(
-	uart,
+	hostifc,
 	auto,
-	[Build with UART (for debugger and program loader) enabled.],
-	[yes, no, auto]
+	[Select host interface for connecting debugger and/or program loader.],
+	[no, auto, uart, ft245]
 )
 
 MY_ARG_ENABLE(
 	debugger,
 	auto,
-	[Build with debugger enabled. Needs UART.],
+	[Build with debugger enabled. Needs host interface.],
 	[yes, no, auto]
 )
 
@@ -73,7 +73,7 @@ MY_ARG_ENABLE(
 MY_ARG_ENABLE(
 	loader,
 	auto,
-	[Build with program loader enabled. Needs UART and MBC emulation.],
+	[Build with program loader enabled. Needs host interface and MBC emulation.],
 	[yes, no, auto]
 )
 
@@ -160,31 +160,41 @@ AC_SUBST(CARTRIDGE_AND_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$enab
 AC_SUBST(HAS_CARTRIDGE_OR_MBC, $(test "x$_enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo y))
 AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo define || echo undef))
 
-_enable_uart="$enable_uart"
-if test "x$enable_uart" = "xauto"; then
-	_enable_uart=no
+_enable_hostifc="$enable_hostifc"
+if test "x$enable_hostifc" = "xauto"; then
+	_enable_hostifc=no
 	if test "x$enable_board" = "xgbreveng"; then
-		_enable_uart=yes
+		_enable_hostifc=ft245
 	fi
 	if test "x$enable_board" = "xhx8k_brk"; then
-		_enable_uart=yes
+		_enable_hostifc=uart
 	fi
 fi
-AC_SUBST(HAS_UART, $(test "x$_enable_uart" = "xyes" && echo y))
-AC_SUBST(UART_DEF, $(test "x$_enable_uart" = "xyes" && echo define || echo undef))
+AC_SUBST(HAS_HOSTIFC, $(test "x$_enable_hostifc" != "xno" && echo y))
+AC_SUBST(HOSTIFC_DEF, $(test "x$_enable_hostifc" != "xno" && echo define || echo undef))
+AC_SUBST(HOSTIFC_TYPE, $(test "x$_enable_hostifc" != "xno" && echo $_enable_hostifc || echo none))
+AC_SUBST(HAS_UART, $(test "x$_enable_hostifc" = "xuart" && echo y))
+AC_SUBST(UART_DEF, $(test "x$_enable_hostifc" = "xuart" && echo define || echo undef))
+AC_SUBST(HAS_FT245, $(test "x$_enable_hostifc" = "xft245" && echo y))
+AC_SUBST(FT245_DEF, $(test "x$_enable_hostifc" = "xft245" && echo define || echo undef))
 
 _enable_debugger="$enable_debugger"
 if test "x$enable_debugger" = "xauto"; then
-	_enable_debugger="$_enable_uart"
+	_enable_debugger=no
+	if test "x$_enable_hostifc" != "xno"; then
+		_enable_debugger=yes
+	fi
 fi
 AC_SUBST(USE_DEBUGGER, $(test "x$_enable_debugger" = "xyes" && echo y))
 AC_SUBST(DEBUGGER_DEF, $(test "x$_enable_debugger" = "xyes" && echo define || echo undef))
 
 _enable_loader="$enable_loader"
 if test "x$enable_loader" = "xauto"; then
-	_enable_loader="$_enable_uart"
-	if test "x$enable_mbc_emu" = "xno"; then
-		_enable_loader=no
+	_enable_loader=no
+	if test "x$_enable_hostifc" != "xno"; then
+		if test "x$enable_mbc_emu" != "xno"; then
+			_enable_loader=yes
+		fi
 	fi
 fi
 AC_SUBST(USE_LOADER, $(test "x$_enable_loader" = "xyes" && echo y))
@@ -227,7 +237,7 @@ echo "Board:                              $enable_board"
 echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" = "xyes" && echo " ($NUM_LEDS)")"
 echo "LCD:                                $_enable_lcd"
 echo "Serial I/O (link cable):            $enable_sio"
-echo "UART:                               $_enable_uart$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
+echo "Host interface:                     $_enable_hostifc$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
 echo "GB Cartridge slot:                  $_enable_cartridge"
 echo "MBC emulation:                      $enable_mbc_emu"
 echo

@@ -15,7 +15,8 @@ lr35902_joy.v \
 prog_loader.v \
 dom_gate.v \
 uart_recv.v \
-uart_send.v
+uart_send.v \
+ft245_ifc.v
 
 NODIST_SRC =
 
@@ -49,6 +50,7 @@ boards/gbreveng-cart.pcf \
 boards/gbreveng-mbc.pcf \
 boards/gbreveng-cart+mbc.pcf \
 boards/gbreveng-uart.pcf \
+boards/gbreveng-ft245.pcf \
 boards/gbreveng-leds.pcf \
 boards/hx8k_brk.pcf \
 boards/hx8k_brk-cart.pcf \
@@ -98,6 +100,7 @@ $(if @HAS_CARTRIDGE_ONLY@,boards/@BOARD@-cart.pcf) \
 $(if @HAS_MBC_ONLY@,boards/@BOARD@-mbc.pcf) \
 $(if @HAS_CARTRIDGE_AND_MBC@,boards/@BOARD@-cart+mbc.pcf) \
 $(if @HAS_UART@,boards/@BOARD@-uart.pcf) \
+$(if @HAS_FT245@,boards/@BOARD@-ft245.pcf) \
 $(if @HAS_LEDS@,boards/@BOARD@-leds.pcf) \
 $(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@-@BOARD@.pcf)

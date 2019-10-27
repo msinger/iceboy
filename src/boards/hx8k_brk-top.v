@@ -615,14 +615,14 @@ module top(
 	wire       dbg_data_tx_seq_domU,   dbg_data_tx_seq_domC;
 	wire       dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC;
 	always @(posedge gbclk) reset_dbg_domC <= reset_gb;
-	dom_gate      reset_dbg_gate       (clk12m, reset_dbg_domC,         reset_dbg_domU);
-	dom_gate #(1) dbg_data_rx_gate[7:0](gbclk,  dbg_data_rx_domU,       dbg_data_rx_domC);
-	dom_gate #(1) dbg_data_rx_valid    (gbclk,  dbg_data_rx_valid_domU, dbg_data_rx_valid_domC);
-	dom_gate #(2) dbg_data_rx_seq_gate (gbclk,  dbg_data_rx_seq_domU,   dbg_data_rx_seq_domC);
-	dom_gate #(2) dbg_data_rx_ack_gate (clk12m, dbg_data_rx_ack_domC,   dbg_data_rx_ack_domU);
-	dom_gate #(1) dbg_data_tx_gate[7:0](clk12m, dbg_data_tx_domC,       dbg_data_tx_domU);
-	dom_gate #(2) dbg_data_tx_seq_gate (clk12m, dbg_data_tx_seq_domC,   dbg_data_tx_seq_domU);
-	dom_gate #(2) dbg_data_tx_ack_gate (gbclk,  dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC);
+	dom_gate      reset_dbg_gate        (clk12m, reset_dbg_domC,         reset_dbg_domU);
+	dom_gate #(1) dbg_data_rx_gate[7:0] (gbclk,  dbg_data_rx_domU,       dbg_data_rx_domC);
+	dom_gate #(1) dbg_data_rx_valid_gate(gbclk,  dbg_data_rx_valid_domU, dbg_data_rx_valid_domC);
+	dom_gate #(2) dbg_data_rx_seq_gate  (gbclk,  dbg_data_rx_seq_domU,   dbg_data_rx_seq_domC);
+	dom_gate #(2) dbg_data_rx_ack_gate  (clk12m, dbg_data_rx_ack_domC,   dbg_data_rx_ack_domU);
+	dom_gate #(1) dbg_data_tx_gate[7:0] (clk12m, dbg_data_tx_domC,       dbg_data_tx_domU);
+	dom_gate #(2) dbg_data_tx_seq_gate  (clk12m, dbg_data_tx_seq_domC,   dbg_data_tx_seq_domU);
+	dom_gate #(2) dbg_data_tx_ack_gate  (gbclk,  dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC);
 	lr35902_dbg_ifc dbg_ifc(
 		.clk(gbclk),
 		.reset(!initial_reset_done),

@@ -52,6 +52,14 @@ module top(
 		input  wire        n_rxled,
 		input  wire        n_txled,
 `endif
+`ifdef HAS_FT245
+		inout  wire [7:0]  ft245_d,
+		input  wire        ft245_n_rxf,
+		input  wire        ft245_n_txe,
+		output wire        ft245_n_rd,
+		output wire        ft245_n_wr,
+		output wire        ft245_siwu,
+`endif
 
 `ifdef HAS_LEDS
 		output wire [`NUM_LEDS-1:0] led,
@@ -102,6 +110,13 @@ module top(
 `ifdef HAS_UART
 	wire rx_in, rts_in, dtr_in;
 	wire n_rxled_in, n_txled_in;
+`endif
+`ifdef HAS_FT245
+	wire [7:0] ft245_d_out, ft245_d_in;
+	wire       ft245_dir_out;
+	wire       ft245_n_rxf_in, ft245_n_txe_in;
+	wire       ft245_rd_dbg_out, ft245_rd_ld_out, ft245_wr_out;
+	wire       ft245_siwu_out;
 `endif
 
 `ifdef HAS_CARTRIDGE_OR_MBC
@@ -467,6 +482,58 @@ module top(
 			.D_IN_0(n_txled_in),
 		);
 `endif
+`ifdef HAS_FT245
+	SB_IO #(
+			.PIN_TYPE('b 1101_01),
+			.PULLUP(1),
+		) ft245_d_io[7:0] (
+			.PACKAGE_PIN(ft245_d),
+			.OUTPUT_CLK(gbclk),
+			.OUTPUT_ENABLE(reset_done && gb_on && ft245_dir_out),
+			.D_OUT_0(ft245_d_out),
+			.D_IN_0(ft245_d_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) ft245_n_rxf_io (
+			.PACKAGE_PIN(ft245_n_rxf),
+			.D_IN_0(ft245_n_rxf_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) ft245_n_txe_io (
+			.PACKAGE_PIN(ft245_n_txe),
+			.D_IN_0(ft245_n_txe_in),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) ft245_n_rd_io (
+			.PACKAGE_PIN(ft245_n_rd),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !(gb_on ? ft245_rd_dbg_out : ft245_rd_ld_out)),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) ft245_n_wr_io (
+			.PACKAGE_PIN(ft245_n_wr),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !ft245_wr_out),
+		);
+
+	SB_IO #(
+			.PIN_TYPE('b 0101_01),
+		) ft245_siwu_io (
+			.PACKAGE_PIN(ft245_siwu),
+			.OUTPUT_CLK(gbclk),
+			.D_OUT_0(!reset_done || !ft245_siwu_out),
+		);
+`endif
 
 	always @(posedge gbclk) begin
 		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
@@ -690,44 +757,32 @@ module top(
 	);
 
 `ifdef USE_DEBUGGER
+	wire       dbg_data_rx_valid;
+	wire [7:0] dbg_data_rx;
+	wire       dbg_data_rx_seq;
+	wire       dbg_data_rx_ack;
+	wire [7:0] dbg_data_tx;
+	wire       dbg_data_tx_seq;
+	wire       dbg_data_tx_ack;
+`ifdef HAS_UART
 	reg        reset_dbg_domC;
 	wire       reset_dbg_domU;
-	wire       dbg_data_rx_valid_domU, dbg_data_rx_valid_domC;
-	wire [7:0] dbg_data_rx_domU,       dbg_data_rx_domC;
-	wire       dbg_data_rx_seq_domU,   dbg_data_rx_seq_domC;
-	wire       dbg_data_rx_ack_domU,   dbg_data_rx_ack_domC;
-	wire [7:0] dbg_data_tx_domU,       dbg_data_tx_domC;
-	wire       dbg_data_tx_seq_domU,   dbg_data_tx_seq_domC;
-	wire       dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC;
+	wire       dbg_data_rx_valid_domU;
+	wire [7:0] dbg_data_rx_domU;
+	wire       dbg_data_rx_seq_domU;
+	wire       dbg_data_rx_ack_domU;
+	wire [7:0] dbg_data_tx_domU;
+	wire       dbg_data_tx_seq_domU;
+	wire       dbg_data_tx_ack_domU;
 	always @(posedge gbclk) reset_dbg_domC <= reset_gb;
-	dom_gate      reset_dbg_gate       (clk12m, reset_dbg_domC,         reset_dbg_domU);
-	dom_gate #(1) dbg_data_rx_gate[7:0](gbclk,  dbg_data_rx_domU,       dbg_data_rx_domC);
-	dom_gate #(1) dbg_data_rx_valid    (gbclk,  dbg_data_rx_valid_domU, dbg_data_rx_valid_domC);
-	dom_gate #(2) dbg_data_rx_seq_gate (gbclk,  dbg_data_rx_seq_domU,   dbg_data_rx_seq_domC);
-	dom_gate #(2) dbg_data_rx_ack_gate (clk12m, dbg_data_rx_ack_domC,   dbg_data_rx_ack_domU);
-	dom_gate #(1) dbg_data_tx_gate[7:0](clk12m, dbg_data_tx_domC,       dbg_data_tx_domU);
-	dom_gate #(2) dbg_data_tx_seq_gate (clk12m, dbg_data_tx_seq_domC,   dbg_data_tx_seq_domU);
-	dom_gate #(2) dbg_data_tx_ack_gate (gbclk,  dbg_data_tx_ack_domU,   dbg_data_tx_ack_domC);
-	lr35902_dbg_ifc dbg_ifc(
-		.clk(gbclk),
-		.reset(!initial_reset_done),
-		.pc(pc),
-		.sp(sp),
-		.f(flags[7:4]),
-		.ime(ime),
-		.probe(dbg_probe),
-		.data(data_dbg_out),
-		.drv(ddrv_dbg),
-		.halt(halt),
-		.no_inc(no_inc),
-		.data_rx(dbg_data_rx_domC),
-		.data_rx_valid(dbg_data_rx_valid_domC),
-		.data_rx_seq(dbg_data_rx_seq_domC),
-		.data_rx_ack(dbg_data_rx_ack_domC),
-		.data_tx(dbg_data_tx_domC),
-		.data_tx_seq(dbg_data_tx_seq_domC),
-		.data_tx_ack(dbg_data_tx_ack_domC),
-	);
+	dom_gate      reset_dbg_gate        (clk12m, reset_dbg_domC,         reset_dbg_domU);
+	dom_gate #(1) dbg_data_rx_gate[7:0] (gbclk,  dbg_data_rx_domU,       dbg_data_rx);
+	dom_gate #(1) dbg_data_rx_valid_gate(gbclk,  dbg_data_rx_valid_domU, dbg_data_rx_valid);
+	dom_gate #(2) dbg_data_rx_seq_gate  (gbclk,  dbg_data_rx_seq_domU,   dbg_data_rx_seq);
+	dom_gate #(2) dbg_data_rx_ack_gate  (clk12m, dbg_data_rx_ack,        dbg_data_rx_ack_domU);
+	dom_gate #(1) dbg_data_tx_gate[7:0] (clk12m, dbg_data_tx,            dbg_data_tx_domU);
+	dom_gate #(2) dbg_data_tx_seq_gate  (clk12m, dbg_data_tx_seq,        dbg_data_tx_seq_domU);
+	dom_gate #(2) dbg_data_tx_ack_gate  (gbclk,  dbg_data_tx_ack_domU,   dbg_data_tx_ack);
 	uart_recv #(.BAUDDIV(12)) dbg_uart_rx(
 		.clk(clk12m),
 		.reset(!initial_reset_done),
@@ -747,12 +802,61 @@ module top(
 		.ack(dbg_data_tx_ack_domU),
 		.tx(tx),
 	);
+`endif
+`ifdef HAS_FT245
+	ft245_ifc dbg_ft245(
+		.clk(gbclk),
+		.reset(reset_gb),
+		.rx_data(dbg_data_rx),
+		.rx_seq(dbg_data_rx_seq),
+		.rx_ack(dbg_data_rx_ack),
+		.tx_data(dbg_data_tx),
+		.tx_seq(dbg_data_tx_seq),
+		.tx_ack(dbg_data_tx_ack),
+		.data_in(ft245_d_in),
+		.data_out(ft245_d_out),
+		.dir_out(ft245_dir_out),
+		.rxf(!ft245_n_rxf_in),
+		.txe(!ft245_n_txe_in),
+		.rd(ft245_rd_dbg_out),
+		.wr(ft245_wr_out),
+		.siwu(ft245_siwu_out),
+	);
+	assign dbg_data_rx_valid = 1;
+`endif
+	lr35902_dbg_ifc dbg_ifc(
+		.clk(gbclk),
+		.reset(!initial_reset_done),
+		.pc(pc),
+		.sp(sp),
+		.f(flags[7:4]),
+		.ime(ime),
+		.probe(dbg_probe),
+		.data(data_dbg_out),
+		.drv(ddrv_dbg),
+		.halt(halt),
+		.no_inc(no_inc),
+		.data_rx(dbg_data_rx),
+		.data_rx_valid(dbg_data_rx_valid),
+		.data_rx_seq(dbg_data_rx_seq),
+		.data_rx_ack(dbg_data_rx_ack),
+		.data_tx(dbg_data_tx),
+		.data_tx_seq(dbg_data_tx_seq),
+		.data_tx_ack(dbg_data_tx_ack),
+	);
 `else
 	assign ddrv_dbg = 0;
 	assign data_dbg_out = 'bx;
 `ifdef HAS_UART
 	assign tx = 1;
 	assign cts = 0;
+`endif
+`ifdef HAS_FT245
+	assign ft245_d_out = 0;
+	assign ft245_dir_out = 0;
+	assign ft245_rd_dbg_out = 0;
+	assign ft245_wr_out = 0;
+	assign ft245_siwu_out = 0;
 `endif
 `endif
 
@@ -994,23 +1098,17 @@ module top(
 `endif
 
 `ifdef USE_LOADER
+	wire [7:0] ld_data;
+	wire       ld_data_seq;
+`ifdef HAS_UART
 	reg        reset_ld_domC;
 	wire       reset_ld_domU;
-	wire [7:0] ld_data_domU,     ld_data_domC;
-	wire       ld_data_seq_domU, ld_data_seq_domC;
+	wire [7:0] ld_data_domU;
+	wire       ld_data_seq_domU;
 	always @(posedge gbclk) reset_ld_domC <= reset_ld;
 	dom_gate      reset_ld_gate    (clk12m, reset_ld_domC,    reset_ld_domU);
-	dom_gate #(1) ld_data_gate[7:0](clk16m, ld_data_domU,     ld_data_domC);
-	dom_gate #(2) ld_data_seq_gate (clk16m, ld_data_seq_domU, ld_data_seq_domC);
-	prog_loader loader(
-		.clk(gbclk),
-		.reset(reset_ld),
-		.write(wr_prog),
-		.data(data_prog_out),
-		.adr(adr21_prog),
-		.data_rx(ld_data_domC),
-		.data_rx_seq(ld_data_seq_domC),
-	);
+	dom_gate #(1) ld_data_gate[7:0](clk16m, ld_data_domU,     ld_data);
+	dom_gate #(2) ld_data_seq_gate (clk16m, ld_data_seq_domU, ld_data_seq);
 	uart_recv #(.BAUDDIV(12)) ld_uart(
 		.clk(clk12m),
 		.reset(reset_ld_domU),
@@ -1020,8 +1118,36 @@ module top(
 		.ack(ld_data_seq_domU), /* short circuit ack to seq */
 		.rx(rx_in),
 	);
+`endif
+`ifdef HAS_FT245
+	ft245_ifc ld_ft245(
+		.clk(gbclk),
+		.reset(reset_ld),
+		.rx_data(ld_data),
+		.rx_seq(ld_data_seq),
+		.rx_ack(ld_data_seq), /* short circuit ack to seq */
+		.tx_data(0),
+		.tx_seq(0),
+		.data_in(ft245_d_in),
+		.rxf(!ft245_n_rxf_in),
+		.txe(0),
+		.rd(ft245_rd_ld_out),
+	);
+`endif
+	prog_loader loader(
+		.clk(gbclk),
+		.reset(reset_ld),
+		.write(wr_prog),
+		.data(data_prog_out),
+		.adr(adr21_prog),
+		.data_rx(ld_data),
+		.data_rx_seq(ld_data_seq),
+	);
 `else
 	assign wr_prog = 0;
+`ifdef HAS_FT245
+	assign ft245_rd_ld_out = 0;
+`endif
 `endif
 
 endmodule

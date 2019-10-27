@@ -1,0 +1,16 @@
+# For the Game Boy reverse eng. FPGA board
+
+# FT245 parallel FIFO for Debugger & Prog Loader
+set_io ft245_d[0]  B10
+set_io ft245_d[1]  B12
+set_io ft245_d[2]  B13
+set_io ft245_d[3]  A15
+set_io ft245_d[4]  A16
+set_io ft245_d[5]  B14
+set_io ft245_d[6]  B15
+set_io ft245_d[7]  C14
+set_io ft245_n_rxf D13
+set_io ft245_n_txe E10
+set_io ft245_n_rd  D11
+set_io ft245_n_wr  C11
+set_io ft245_siwu  C13
