@@ -108,8 +108,11 @@ module top(
 	wire [`NUM_ADR-1:0] adr_out;
 
 `ifdef HAS_UART
-	wire rx_in, rts_in, dtr_in;
+	wire rx_in,  rx_in_ext;
+	wire dtr_in, dtr_in_ext;
 	wire n_rxled_in, n_txled_in;
+	dom_gate #(1) rx_in_gate(clk12m, rx_in_ext, rx_in);
+	dom_gate #(1) dtr_in_gate(gbclk, dtr_in_ext, dtr_in);
 `endif
 `ifdef HAS_FT245
 	wire [7:0] ft245_d_out, ft245_d_in;
@@ -443,27 +446,28 @@ module top(
 
 `ifdef HAS_UART
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) rx_io (
 			.PACKAGE_PIN(rx),
-			.D_IN_0(rx_in),
+			.INPUT_CLK(clk12m),
+			.D_IN_0(rx_in_ext),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) rts_io (
 			.PACKAGE_PIN(rts),
-			.D_IN_0(rts_in),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) dtr_io (
 			.PACKAGE_PIN(dtr),
-			.D_IN_0(dtr_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(dtr_in_ext),
 		);
 
 	SB_IO #(
@@ -767,28 +771,22 @@ module top(
 `ifdef HAS_UART
 	reg        reset_dbg_domC;
 	wire       reset_dbg_domU;
-	wire       dbg_data_rx_valid_domU;
-	wire [7:0] dbg_data_rx_domU;
 	wire       dbg_data_rx_seq_domU;
 	wire       dbg_data_rx_ack_domU;
-	wire [7:0] dbg_data_tx_domU;
 	wire       dbg_data_tx_seq_domU;
 	wire       dbg_data_tx_ack_domU;
 	always @(posedge gbclk) reset_dbg_domC <= reset_gb;
-	dom_gate      reset_dbg_gate        (clk12m, reset_dbg_domC,         reset_dbg_domU);
-	dom_gate #(1) dbg_data_rx_gate[7:0] (gbclk,  dbg_data_rx_domU,       dbg_data_rx);
-	dom_gate #(1) dbg_data_rx_valid_gate(gbclk,  dbg_data_rx_valid_domU, dbg_data_rx_valid);
-	dom_gate #(2) dbg_data_rx_seq_gate  (gbclk,  dbg_data_rx_seq_domU,   dbg_data_rx_seq);
-	dom_gate #(2) dbg_data_rx_ack_gate  (clk12m, dbg_data_rx_ack,        dbg_data_rx_ack_domU);
-	dom_gate #(1) dbg_data_tx_gate[7:0] (clk12m, dbg_data_tx,            dbg_data_tx_domU);
-	dom_gate #(2) dbg_data_tx_seq_gate  (clk12m, dbg_data_tx_seq,        dbg_data_tx_seq_domU);
-	dom_gate #(2) dbg_data_tx_ack_gate  (gbclk,  dbg_data_tx_ack_domU,   dbg_data_tx_ack);
+	dom_gate reset_dbg_gate(clk12m, reset_dbg_domC, reset_dbg_domU);
+	dom_gate dbg_data_rx_seq_gate(gbclk,  dbg_data_rx_seq_domU, dbg_data_rx_seq);
+	dom_gate dbg_data_rx_ack_gate(clk12m, dbg_data_rx_ack,      dbg_data_rx_ack_domU);
+	dom_gate dbg_data_tx_seq_gate(clk12m, dbg_data_tx_seq,      dbg_data_tx_seq_domU);
+	dom_gate dbg_data_tx_ack_gate(gbclk,  dbg_data_tx_ack_domU, dbg_data_tx_ack);
 	uart_recv #(.BAUDDIV(12)) dbg_uart_rx(
 		.clk(clk12m),
 		.reset(!initial_reset_done),
 		.soft_reset(reset_dbg_domU),
-		.data(dbg_data_rx_domU),
-		.valid(dbg_data_rx_valid_domU),
+		.data(dbg_data_rx),
+		.valid(dbg_data_rx_valid),
 		.seq(dbg_data_rx_seq_domU),
 		.ack(dbg_data_rx_ack_domU),
 		.rx(rx_in),
@@ -797,7 +795,7 @@ module top(
 	uart_send #(.BAUDDIV(12)) dbg_uart_tx(
 		.clk(clk12m),
 		.reset(!initial_reset_done),
-		.data(dbg_data_tx_domU),
+		.data(dbg_data_tx),
 		.seq(dbg_data_tx_seq_domU),
 		.ack(dbg_data_tx_ack_domU),
 		.tx(tx),
@@ -1103,17 +1101,15 @@ module top(
 `ifdef HAS_UART
 	reg        reset_ld_domC;
 	wire       reset_ld_domU;
-	wire [7:0] ld_data_domU;
 	wire       ld_data_seq_domU;
 	always @(posedge gbclk) reset_ld_domC <= reset_ld;
-	dom_gate      reset_ld_gate    (clk12m, reset_ld_domC,    reset_ld_domU);
-	dom_gate #(1) ld_data_gate[7:0](clk16m, ld_data_domU,     ld_data);
-	dom_gate #(2) ld_data_seq_gate (clk16m, ld_data_seq_domU, ld_data_seq);
+	dom_gate reset_ld_gate(clk12m, reset_ld_domC, reset_ld_domU);
+	dom_gate ld_data_seq_gate(gbclk, ld_data_seq_domU, ld_data_seq);
 	uart_recv #(.BAUDDIV(12)) ld_uart(
 		.clk(clk12m),
 		.reset(reset_ld_domU),
 		.soft_reset(0),
-		.data(ld_data_domU),
+		.data(ld_data),
 		.seq(ld_data_seq_domU),
 		.ack(ld_data_seq_domU), /* short circuit ack to seq */
 		.rx(rx_in),

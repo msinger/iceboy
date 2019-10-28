@@ -71,6 +71,7 @@ module uart_send #(
 			sub_count <= 'bx;
 			cur_bit   <= 'bx;
 			shift     <= 'bx;
+			ack       <= ack;
 		end
 	end
 

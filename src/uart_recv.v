@@ -28,6 +28,7 @@ module uart_recv #(
 	reg [2:0]                  state;
 	reg [$clog2(DATABITS)-1:0] cur_bit;
 	reg [$clog2(BAUDDIV)-1:0]  sub_count;
+	reg [DATABITS-1:0]         shift;
 
 	always @(posedge clk) begin
 		case (state)
@@ -46,7 +47,7 @@ module uart_recv #(
 				sub_count <= sub_count + 1;
 		`RX_DATABIT:
 			if (sub_count == BAUDDIV - 1) begin
-				data      <= { rx, data[DATABITS-1:1] };
+				shift     <= { rx, shift[DATABITS-1:1] };
 				if (cur_bit == DATABITS - 1)
 					state <= `RX_STOPBIT;
 				else
@@ -57,6 +58,7 @@ module uart_recv #(
 		`RX_STOPBIT:
 			if (sub_count == BAUDDIV - 1) begin
 				valid     <= rx;
+				data      <= shift;
 				state     <= `RX_WAIT_ACK;
 				seq       <= !seq;
 				sub_count <= 'bx;
@@ -76,8 +78,10 @@ module uart_recv #(
 			cts       <= 0;
 			state     <= `RX_WAIT_IDL;
 			sub_count <= 'bx;
-			data      <= 'bx;
-			valid     <= 0;
+			shift     <= 'bx;
+			data      <= data;
+			valid     <= valid;
+			seq       <= seq;
 		end
 	end
 
