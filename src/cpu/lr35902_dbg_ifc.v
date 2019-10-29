@@ -8,7 +8,9 @@
 `define NUM_BP 4
 
 (* nolatches *)
-module lr35902_dbg_ifc(
+module lr35902_dbg_ifc #(
+		parameter INITIAL_ENABLE = 0,
+	) (
 		input  wire        clk,
 		input  wire        reset,
 		input  wire [7:0]  probe,  /* content of the currently selected register */
@@ -29,6 +31,9 @@ module lr35902_dbg_ifc(
 		output reg         data_tx_seq,
 		input  wire        data_tx_ack,
 	);
+
+	reg r_ena = INITIAL_ENABLE;
+	reg ena;
 
 	reg r_halt, r_no_inc;
 
@@ -53,6 +58,7 @@ module lr35902_dbg_ifc(
 	reg stepping;
 
 	always @* begin
+		ena       = r_ena;
 		halt      = r_halt;
 		no_inc    = r_no_inc;
 		drv       = 0;
@@ -74,26 +80,26 @@ module lr35902_dbg_ifc(
 
 		case (r_dbg_state)
 		`DBG_IDLE:
-			if (data_rx_seq != data_rx_ack) casez ({ data_rx_valid, data_rx })
-			'b?00000000: /* halt */
+			if (data_rx_seq != data_rx_ack) casez ({ ena, data_rx_valid, data_rx })
+			'b 1_?_00000000: /* halt */
 				begin
 					halt      = 1;
 					dbg_state = `DBG_HALT;
 					cycle     = 0;
 				end
-			'b10000??0?: /* NOP */
+			'b ?_1_0000??0?: /* NOP */
 				begin
 					dbg_state = `DBG_SEND;
 					tx_seq    = !data_tx_seq;
 				end
-			'b10000??11: /* continue */
+			'b 1_1_0000??11: /* continue */
 				begin
 					halt      = 0;
 					no_inc    = 0;
 					dbg_state = `DBG_SEND;
 					tx_seq    = !data_tx_seq;
 				end
-			'b10000??10: /* step */
+			'b 1_1_0000??10: /* step */
 				if (r_halt) begin
 					stepping      = 1;
 					halt          = 0;
@@ -102,26 +108,30 @@ module lr35902_dbg_ifc(
 					dbg_state     = `DBG_STEP;
 				end else
 					rx_ack    = data_rx_seq;
-			'b10001????: /* prep drvdata */
+			'b ?_1_0001????: /* prep drvdata */
 				begin
 					drvdata   = { data_rx[3:0], r_drvdata[7:4] };
 					dbg_state = `DBG_SEND;
 					tx_seq    = !data_tx_seq;
 				end
-			'b1001?????: /* set control bits */
+			'b 1_1_001?????: /* set control bits */
 				begin
 					if (r_halt)
 						no_inc = data_rx[1];
+					if (!r_halt && data_rx[0] && r_drvdata == 138)
+						ena = 0;
 					dbg_state = `DBG_SEND;
 					tx_seq    = !data_tx_seq;
 				end
-			'b101??????: /* set drvdata */
+			'b ?_1_01??????: /* set drvdata */
 				begin
 					drvarr[data_rx[1:0]] = { data_rx[5], r_drvdata };
+					if (!data_rx[5] && data_rx[1:0] == 1 && r_drvdata == 138)
+						ena = 1;
 					dbg_state = `DBG_SEND;
 					tx_seq    = !data_tx_seq;
 				end
-			'b11???????: /* set breakpoint */
+			'b 1_1_1???????: /* set breakpoint */
 				if (r_halt) begin
 					bp[data_rx[6:4]] = { data_rx[3:0], r_bp[data_rx[6:4]][15:4] };
 					dbg_state = `DBG_SEND;
@@ -161,6 +171,7 @@ module lr35902_dbg_ifc(
 					halt = 1;
 
 		if (reset) begin
+			ena       = INITIAL_ENABLE;
 			halt      = 0;
 			no_inc    = 0;
 			drv       = 0;
@@ -201,6 +212,7 @@ module lr35902_dbg_ifc(
 	end
 
 	always @(posedge clk) begin
+		r_ena       <= ena;
 		r_halt      <= halt;
 		r_no_inc    <= no_inc;
 		r_cycle     <= cycle;
