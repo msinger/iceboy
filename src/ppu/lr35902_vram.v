@@ -25,4 +25,3 @@ module lr35902_vram(
 	end
 
 endmodule
-

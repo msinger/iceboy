@@ -82,4 +82,3 @@ module lr35902_oam_dma(
 	end
 
 endmodule
-

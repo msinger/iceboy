@@ -4,8 +4,8 @@
 `define STATE_TX_SETUP  1
 `define STATE_TX_ASSERT 2
 `define STATE_TX_HOLD   3
-`define STATE_RX_SETUP  4
-`define STATE_RX_ASSERT 5
+`define STATE_RX_ASSERT 4
+`define STATE_RX_HOLD   5
 `define STATE_RX_SAMPLE 6
 
 (* nolatches *)
@@ -61,7 +61,7 @@ module ft245_ifc(
 				dir_out  = 1;
 				tx_ack   = tx_seq;
 			end else if (rx_seq == rx_ack && rxf) begin
-				state    = `STATE_RX_SETUP;
+				state    = `STATE_RX_ASSERT;
 			end
 		`STATE_TX_SETUP:
 			begin
@@ -79,20 +79,20 @@ module ft245_ifc(
 				state    = `STATE_IDLE;
 				siwu     = 1;
 			end
-		`STATE_RX_SETUP:
+		`STATE_RX_ASSERT:
 			begin
-				state    = `STATE_RX_ASSERT;
+				state    = `STATE_RX_HOLD;
 				rd       = 1;
 			end
-		`STATE_RX_ASSERT:
+		`STATE_RX_HOLD:
 			begin
 				state    = `STATE_RX_SAMPLE;
 				rd       = 1;
-				rx_data  = data_in;
 			end
 		`STATE_RX_SAMPLE:
 			begin
 				state    = `STATE_IDLE;
+				rx_data  = data_in;
 				rx_seq   = !rx_seq;
 			end
 		endcase

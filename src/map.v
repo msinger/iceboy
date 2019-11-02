@@ -26,7 +26,7 @@ module gb_memmap(
 		sel_io       = 0;
 
 		if (!reset) casez ({ enable_bootrom, adr })
-		/* B RW A15....A8 A7.....A0 */
+		/* B A15....A8 A7.....A0 */
 		'b_1_0000_0000_????_????: /* 0x0000-0x00ff: 256 byte BOOT ROM (if enabled) */
 			sel_bootrom = 1;
 		'b_?_00??_????_????_????, /* 0x0000-0x3fff: 16k cartridge ROM bank #0 */
@@ -47,4 +47,3 @@ module gb_memmap(
 	end
 
 endmodule
-

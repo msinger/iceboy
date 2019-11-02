@@ -20,10 +20,6 @@ module lr35902_joy(
 	reg [3:0] prev;
 	reg       pwrite;
 
-	always @(posedge read) begin
-		dout <= { 2'b11, p15, p14, p13, p12, p11, p10 };
-	end
-
 	always @(posedge clk) begin
 		irq <= 0;
 		if (prev & { !p13, !p12, !p11, !p10 }) /* interrupt if any of p10..p13 flip high-to-low */
@@ -35,6 +31,9 @@ module lr35902_joy(
 
 		pwrite <= write;
 
+		if (read)
+			dout <= { 2'b11, p15, p14, p13, p12, p11, p10 };
+
 		if (reset) begin
 			prev   <= 'hf;
 			pwrite <= 0;
@@ -45,4 +44,3 @@ module lr35902_joy(
 	end
 
 endmodule
-

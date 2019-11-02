@@ -20,7 +20,7 @@ module lr35902_sio_dummy(
 
 	reg pwrite;
 
-	always @(posedge read) begin
+	always @(posedge clk) if (read) begin
 		case (adr)
 		1: dout <= sb;
 		0: dout <= { tstart, 6'h3f, sclk };
@@ -71,4 +71,3 @@ module lr35902_sio_dummy(
 	end
 
 endmodule
-

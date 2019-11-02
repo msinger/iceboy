@@ -110,4 +110,3 @@ module mbc_chip #(
 	end
 
 endmodule
-

@@ -26,4 +26,3 @@ module lr35902_hram(
 	end
 
 endmodule
-

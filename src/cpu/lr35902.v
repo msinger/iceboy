@@ -1048,4 +1048,3 @@ module lr35902(
 	endcase
 
 endmodule
-

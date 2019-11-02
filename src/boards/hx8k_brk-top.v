@@ -89,21 +89,28 @@ module top(
 	wire [`NUM_ADR-1:0] adr_out;
 
 `ifdef HAS_UART
-	wire rx_in,  rx_in_ext;
-	wire dtr_in, dtr_in_ext;
-	dom_gate #(1) rx_in_gate(clk12m, rx_in_ext, rx_in);
-	dom_gate #(1) dtr_in_gate(gbclk, dtr_in_ext, dtr_in);
+	wire rx_in,  rx_ext;
+	wire dtr_in, dtr_ext;
+	dom_gate #(1) rx_gate (clk12m, rx_ext,  rx_in);
+	dom_gate #(1) dtr_gate(gbclk,  dtr_ext, dtr_in);
 `endif
 
 `ifdef HAS_CARTRIDGE_OR_MBC
-	wire n_emu_mbc_in;
+	wire emu_mbc;
 `endif
 
-	wire n_reset_in;
+	wire n_reset_in, n_reset_ext;
+	dom_gate #(1) reset_gate(gbclk, n_reset_ext, n_reset_in);
+
 	wire chl_out, chr_out, chm_out;
 
-	wire p10_in, p11_in, p12_in, p13_in;
+	wire p10_in,  p11_in,  p12_in,  p13_in;
+	wire p10_ext, p11_ext, p12_ext, p13_ext;
 	wire p14_out, p15_out;
+	dom_gate #(1) p10_gate(gbclk, p10_ext, p10_in);
+	dom_gate #(1) p11_gate(gbclk, p11_ext, p11_in);
+	dom_gate #(1) p12_gate(gbclk, p12_ext, p12_in);
+	dom_gate #(1) p13_gate(gbclk, p13_ext, p13_in);
 
 	reg r_wr_ext;
 
@@ -156,7 +163,7 @@ module top(
 
 	wire dma_active;
 
-	wire ppu_needs_oam, ppu_needs_vram;
+	wire ppu_needs_oam,   ppu_needs_vram;
 	wire ppu_n_needs_oam, ppu_n_needs_vram;
 	wire ppu_p_needs_oam, ppu_p_needs_vram;
 
@@ -215,18 +222,22 @@ module top(
 		);
 
 `ifdef HAS_CARTRIDGE_AND_MBC
+	wire n_emu_mbc_in, n_emu_mbc_ext;
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) n_emu_mbc_io (
 			.PACKAGE_PIN(n_emu_mbc),
-			.D_IN_0(n_emu_mbc_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(n_emu_mbc_ext),
 		);
+	dom_gate #(1) n_emu_mbc_gate(gbclk, n_emu_mbc_ext, n_emu_mbc_in);
+	always @(posedge gbclk) if (reset_state == `rst_assert) emu_mbc <= !n_emu_mbc_in;
 `else
 `ifdef HAS_CARTRIDGE_ONLY
-	assign n_emu_mbc_in = 1;
+	assign emu_mbc = 0;
 `else
-	assign n_emu_mbc_in = 0;
+	assign emu_mbc = 1;
 `endif
 `endif
 
@@ -236,7 +247,7 @@ module top(
 		) n_cs_rom_io (
 			.PACKAGE_PIN(n_cs_rom),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!reset_done || !cs_rom || !n_emu_mbc_in),
+			.D_OUT_0(!reset_done || !cs_rom || emu_mbc),
 		);
 
 	SB_IO #(
@@ -244,7 +255,7 @@ module top(
 		) n_cs_xram_io (
 			.PACKAGE_PIN(n_cs_xram),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!reset_done || !cs_xram || !n_emu_mbc_in),
+			.D_OUT_0(!reset_done || !cs_xram || emu_mbc),
 		);
 `endif
 
@@ -262,7 +273,7 @@ module top(
 		) n_cs_crom_io (
 			.PACKAGE_PIN(n_cs_crom),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!reset_done || (gb_on ? !cs_crom || n_emu_mbc_in : 0)),
+			.D_OUT_0(!reset_done || (gb_on ? !cs_crom || !emu_mbc : 0)),
 		);
 
 	SB_IO #(
@@ -270,7 +281,7 @@ module top(
 		) n_cs_cram_io (
 			.PACKAGE_PIN(n_cs_cram),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(!reset_done || !cs_cram || n_emu_mbc_in),
+			.D_OUT_0(!reset_done || !cs_cram || !emu_mbc),
 		);
 `endif
 `else /* if !(HAS_CARTRIDGE || HAS_MBC) */
@@ -278,11 +289,12 @@ module top(
 `endif
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) n_reset_io (
 			.PACKAGE_PIN(n_reset),
-			.D_IN_0(n_reset_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(n_reset_ext),
 		);
 
 	SB_IO #(
@@ -310,35 +322,39 @@ module top(
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) p10_io (
 			.PACKAGE_PIN(p10),
-			.D_IN_0(p10_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(p10_ext),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) p11_io (
 			.PACKAGE_PIN(p11),
-			.D_IN_0(p11_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(p11_ext),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) p12_io (
 			.PACKAGE_PIN(p12),
-			.D_IN_0(p12_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(p12_ext),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_01),
+			.PIN_TYPE('b 0000_00),
 			.PULLUP(1),
 		) p13_io (
 			.PACKAGE_PIN(p13),
-			.D_IN_0(p13_in),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(p13_ext),
 		);
 
 	SB_IO #(
@@ -364,11 +380,11 @@ module top(
 		) rx_io (
 			.PACKAGE_PIN(rx),
 			.INPUT_CLK(clk12m),
-			.D_IN_0(rx_in_ext),
+			.D_IN_0(rx_ext),
 		);
 
 	SB_IO #(
-			.PIN_TYPE('b 0000_00),
+			.PIN_TYPE('b 0000_01),
 			.PULLUP(1),
 		) rts_io (
 			.PACKAGE_PIN(rts),
@@ -380,7 +396,7 @@ module top(
 		) dtr_io (
 			.PACKAGE_PIN(dtr),
 			.INPUT_CLK(gbclk),
-			.D_IN_0(dtr_in_ext),
+			.D_IN_0(dtr_ext),
 		);
 `endif
 
@@ -419,7 +435,7 @@ module top(
 `ifdef HAS_CARTRIDGE_OR_MBC
 		cscpu_ext && (!dma_active || !csdma_ext) &&
 		/* HACK: pull-ups on data lines seem to be not strong enough: */
-		(cscpu_wram || n_emu_mbc_in || cs_crom || cs_cram):
+		(cscpu_wram || !emu_mbc || cs_crom || cs_cram):
 `else
 		cscpu_ext && (!dma_active || !csdma_ext):
 `endif
@@ -452,7 +468,7 @@ module top(
 `ifdef HAS_CARTRIDGE_OR_MBC
 		csdma_ext &&
 		/* HACK: pull-ups on data lines seem to be not strong enough: */
-		(csdma_wram || n_emu_mbc_in || cs_crom || cs_cram):
+		(csdma_wram || !emu_mbc || cs_crom || cs_cram):
 `else
 		csdma_ext:
 `endif
@@ -893,10 +909,10 @@ module top(
 `ifdef HAS_MBC
 	mbc_chip mbc(
 		.clk(gbclk),
-		.write(wr_ext && !n_emu_mbc_in),
+		.write(wr_ext && emu_mbc),
 		.data(data_cpu_out),
-		.ics_rom(cs_rom && !n_emu_mbc_in),
-		.ics_ram(cs_xram && !n_emu_mbc_in),
+		.ics_rom(cs_rom && emu_mbc),
+		.ics_ram(cs_xram && emu_mbc),
 		.iadr(adr_ext[14:0]),
 		.oadr(adr21),
 		.reset(reset_gb),
@@ -938,4 +954,3 @@ module top(
 `endif
 
 endmodule
-

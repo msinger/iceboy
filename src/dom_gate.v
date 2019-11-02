@@ -22,4 +22,3 @@ module dom_gate #(
 	end
 
 endmodule
-

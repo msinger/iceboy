@@ -788,4 +788,3 @@ module lr35902_ppu(
 	end
 
 endmodule
-

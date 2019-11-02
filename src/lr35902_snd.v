@@ -42,7 +42,9 @@ module lr35902_snd(
 	reg  [5:0] so1_compare, so2_compare;
 	wire [6:0] so12_sum;
 	wire [5:0] so12_compare;
-	wire       so1_pwm, so2_pwm, so12_pwm;
+
+	reg  [5:0] so1_compare_new, so2_compare_new;
+	reg        so_seq_new, so_seq, so_seq_old;
 
 	wire [5:0] so1_mux, so2_mux;
 
@@ -200,13 +202,9 @@ module lr35902_snd(
 	assign so12_sum = so1_compare + so2_compare;
 	assign so12_compare = so12_sum[6:1];
 
-	assign so1_pwm  = pwm_count <= so1_compare;
-	assign so2_pwm  = pwm_count <= so2_compare;
-	assign so12_pwm = pwm_count <= so12_compare;
-
-	assign chl = so1_pwm; /* which one is which? */
-	assign chr = so2_pwm;
-	assign chm = so12_pwm;
+	assign chl = pwm_count <= so1_compare; /* which one is which? (L,R swapped here?) */
+	assign chr = pwm_count <= so2_compare;
+	assign chm = pwm_count <= so12_compare;
 
 	always @* begin
 		case (voc1_swp_shift)
@@ -253,7 +251,7 @@ module lr35902_snd(
 		endcase
 	end
 
-	always @(posedge read) begin
+	always @(posedge clk) if (read) begin
 		dout <= 'hff;
 
 		if (&adr[5:4])
@@ -734,12 +732,16 @@ module lr35902_snd(
 	end
 
 	always @(posedge clk) begin
-		so1_compare <= 32;
-		so2_compare <= 32;
+		if (!div[0]) begin /* update every second tick to give pwmclk domain enough time to read stable value */
+			so1_compare_new <= 32;
+			so2_compare_new <= 32;
 
-		if (master_ena && !reset) begin
-			so1_compare <= so1_mux;
-			so2_compare <= so2_mux;
+			if (master_ena && !reset) begin
+				so1_compare_new <= so1_mux;
+				so2_compare_new <= so2_mux;
+			end
+
+			so_seq_new <= !so_seq_new;
 		end
 	end
 
@@ -753,5 +755,12 @@ module lr35902_snd(
 	                 (voc3_so2 ? voc3_out : 8) +
 	                 (voc4_so2 ? voc4_out : 8);
 
-endmodule
+	dom_gate so_gate(pwmclk, so_seq_new, so_seq);
 
+	always @(posedge pwmclk) if (so_seq != so_seq_old) begin
+		so1_compare <= so1_compare_new;
+		so2_compare <= so2_compare_new;
+		so_seq_old  <= so_seq;
+	end
+
+endmodule

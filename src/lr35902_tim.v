@@ -103,4 +103,3 @@ module lr35902_tim(
 	end
 
 endmodule
-
