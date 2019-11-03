@@ -312,4 +312,3 @@ module lcd_uc1611(
 	end
 
 endmodule
-

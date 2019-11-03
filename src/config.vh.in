@@ -11,11 +11,11 @@
 `define LCD_ARG_HEADER "lcds/lcd_@LCD_TYPE@-args.vh"
 `define LCD_GLUE_HEADER "lcds/lcd_@LCD_TYPE@-glue.vh"
 
-`@SIO_DEF@ HAS_SIO
-`define SIO_TYPE @SIO_TYPE@
-`define SIO_PIN_HEADER "sio/lr35902_sio_@SIO_TYPE@-pins.vh"
-`define SIO_ARG_HEADER "sio/lr35902_sio_@SIO_TYPE@-args.vh"
-`define SIO_GLUE_HEADER "sio/lr35902_sio_@SIO_TYPE@-glue.vh"
+`@ELP_DEF@ HAS_ELP
+`define ELP_TYPE @ELP_TYPE@
+`define ELP_PIN_HEADER "elp/lr35902_elp_@ELP_TYPE@-pins.vh"
+`define ELP_ARG_HEADER "elp/lr35902_elp_@ELP_TYPE@-args.vh"
+`define ELP_GLUE_HEADER "elp/lr35902_elp_@ELP_TYPE@-glue.vh"
 
 `@CARTRIDGE_DEF@ HAS_CARTRIDGE
 

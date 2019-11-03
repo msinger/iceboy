@@ -3,6 +3,7 @@
 (* nolatches *)
 module lr35902_vram(
 		input  wire        clk,
+
 		output reg  [7:0]  dout,
 		input  wire [7:0]  din,
 		input  wire [12:0] adr,

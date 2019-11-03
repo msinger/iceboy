@@ -1,7 +1,7 @@
 `default_nettype none
 
 (* nolatches *)
-module dom_gate #(
+module cdc #(
 		parameter DEPTH = 2,
 	) (
 		input  wire target_clk,

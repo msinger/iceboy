@@ -1,14 +1,15 @@
 `default_nettype none
 
 (* nolatches *)
-module lr35902_joy(
-		output reg  [7:0] dout,
-		input  wire [7:0] din,
-		input  wire       read,
-		input  wire       write,
+module lr35902_p1(
 		input  wire       clk,
 		input  wire       reset,
+
+		output reg  [7:0] dout,
+		input  wire [7:0] din,
+		input  wire       write,
 		output reg        irq,
+
 		input  wire       p10,
 		input  wire       p11,
 		input  wire       p12,
@@ -31,8 +32,7 @@ module lr35902_joy(
 
 		pwrite <= write;
 
-		if (read)
-			dout <= { 2'b11, p15, p14, p13, p12, p11, p10 };
+		dout <= { 2'b11, p15, p14, p13, p12, p11, p10 };
 
 		if (reset) begin
 			prev   <= 'hf;

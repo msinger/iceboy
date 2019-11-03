@@ -1,14 +1,14 @@
 `default_nettype none
 
 (* nolatches *)
-module lr35902_sio_dummy(
+module lr35902_elp_dummy(
+		input  wire       clk,
+		input  wire       reset,
+
 		output reg  [7:0] dout,
 		input  wire [7:0] din,
 		input  wire       adr,
-		input  wire       read,
 		input  wire       write,
-		input  wire       clk,
-		input  wire       reset,
 		output reg        irq,
 	);
 
@@ -20,7 +20,7 @@ module lr35902_sio_dummy(
 
 	reg pwrite;
 
-	always @(posedge clk) if (read) begin
+	always @(posedge clk) begin
 		case (adr)
 		1: dout <= sb;
 		0: dout <= { tstart, 6'h3f, sclk };

@@ -1,20 +1,21 @@
 `default_nettype none
 
 (* nolatches *)
-module mbc_chip #(
-		parameter GBREVENG_MAPPING = 0,
+module mbc1 #(
+		parameter HX8K_BRK_MAPPING = 0,
 	) (
 		input  wire        clk,
-		input  wire        ics_rom,
-		input  wire        ics_ram,
-		input  wire [14:0] iadr,
-		output reg  [20:0] oadr,
-		input  wire [7:0]  data,
-		input  wire        write,
 		input  wire        reset,
 
-		output reg         sel_rom,
-		output reg         sel_ram,
+		input  wire [14:0] iadr,
+		input  wire [7:0]  data,
+		input  wire        write,
+		input  wire        ics_rom,
+		input  wire        ics_ram,
+
+		output reg  [20:0] oadr,
+		output reg         ocs_rom,
+		output reg         ocs_ram,
 
 		input  wire [2:0]  rom_size, /* encoded in byte 0x148 from cartridge */
 		input  wire [1:0]  ram_size, /* encoded in byte 0x149 from cartridge */
@@ -30,13 +31,13 @@ module mbc_chip #(
 	reg [14:0] ram_mask;
 
 	always @* begin
-		sel_rom  = 0;
-		sel_ram  = 0;
+		ocs_rom  = 0;
+		ocs_ram  = 0;
 		rom_mask = 'bx;
 		ram_mask = 'bx;
 		oadr     = { 'bx, iadr }; /* pass-through lower address lines for WRAM and cartridge slot */
 
-		if (GBREVENG_MAPPING)
+		if (!HX8K_BRK_MAPPING)
 			oadr[17:16] = 0; /* default to 0 for pass-through WRAM access */
 
 		case (rom_size)
@@ -59,28 +60,29 @@ module mbc_chip #(
 		'b__1___?___0??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
 			begin
 				oadr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] } & rom_mask;
-				sel_rom = 1;
+				ocs_rom = 1;
 			end
 		'b__1___?___1??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
 			begin
 				/* banks #0, #32, #64 and #96 can't be selected, instead the next one (+1) is selected */
 				oadr    = { bank[6:0] | !bank[4:0], iadr[13:0] } & rom_mask;
-				sel_rom = 1;
+				ocs_rom = 1;
 			end
 		'b__?___1___01?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
 			begin
-				if (GBREVENG_MAPPING) begin
+				if (HX8K_BRK_MAPPING)
+					oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
+				else begin
 					oadr[12:0]  = iadr[12:0] & ram_mask[12:0];
 					oadr[19:16] = bank[6:5] & {2{ mode }} & ram_mask[14:13];
-				end else
-					oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
-				sel_ram = ena_ram & |ram_size;
+				end
+				ocs_ram = ena_ram & |ram_size;
 			end
 		endcase
 
 		if (reset) begin
-			sel_rom = 0;
-			sel_ram = 0;
+			ocs_rom = 0;
+			ocs_ram = 0;
 		end
 	end
 

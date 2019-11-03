@@ -1,19 +1,19 @@
 SRC = \
-map.v \
-iomap.v \
-cpu/lr35902.v \
+lr35902_map.v \
+lr35902_iomap.v \
+cpu/lr35902_cpu.v \
 cpu/lr35902_hram.v \
 cpu/lr35902_dbg_ifc.v \
 ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \
 ppu/lr35902_oam_dma.v \
-bootrom.v \
+lr35902_brom.v \
 lr35902_tim.v \
-lr35902_snd.v \
-lr35902_joy.v \
+lr35902_apu.v \
+lr35902_p1.v \
 prog_loader.v \
-dom_gate.v \
+cdc.v \
 uart_recv.v \
 uart_send.v \
 ft245_ifc.v
@@ -23,7 +23,7 @@ NODIST_SRC =
 COND_SRC = \
 boards/gbreveng-top.v \
 boards/hx8k_evk-top.v \
-sio/lr35902_sio_dummy.v \
+elp/lr35902_elp_dummy.v \
 lcds/lcd_lh507x.v \
 lcds/lcd_uc1611.v \
 mbc/mbc1.v
@@ -83,7 +83,7 @@ $(NODIST_HDR)
 
 USED_COND_SRC = \
 boards/@BOARD@-top.v \
-sio/lr35902_sio_@SIO_TYPE@.v \
+elp/lr35902_elp_@ELP_TYPE@.v \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v) \
 $(if @HAS_MBC@,mbc/@MBC_TYPE@.v)
 
@@ -91,7 +91,7 @@ USED_COND_NODIST_SRC = \
 $(if @NEED_PLL@,pll.v)
 
 USED_COND_HDR = \
-$(if @HAS_SIO@,$(foreach suf,args glue pins,sio/lr35902_sio_@SIO_TYPE@-$(suf).vh)) \
+$(if @HAS_ELP@,$(foreach suf,args glue pins,elp/lr35902_elp_@ELP_TYPE@-$(suf).vh)) \
 $(if @HAS_LCD@,$(foreach suf,args glue pins,lcds/lcd_@LCD_TYPE@-$(suf).vh))
 
 USED_PCF_FILES = \
@@ -102,7 +102,7 @@ $(if @HAS_CARTRIDGE_AND_MBC@,boards/@BOARD@-cart+mbc.pcf) \
 $(if @HAS_UART@,boards/@BOARD@-uart.pcf) \
 $(if @HAS_FT245@,boards/@BOARD@-ft245.pcf) \
 $(if @HAS_LEDS@,boards/@BOARD@-leds.pcf) \
-$(if @HAS_SIO@,sio/lr35902_sio_@SIO_TYPE@-@BOARD@.pcf) \
+$(if @HAS_ELP@,elp/lr35902_elp_@ELP_TYPE@-@BOARD@.pcf) \
 $(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@-@BOARD@.pcf)
 
 USED_CONSTR_FILES = \

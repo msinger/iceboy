@@ -1,6 +1,6 @@
 AC_PREREQ([2.63])
 AC_INIT([iceboy], [0.1])
-AC_CONFIG_SRCDIR([src/map.v])
+AC_CONFIG_SRCDIR([src/lr35902_map.v])
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([foreign dist-bzip2 filename-length-max=99 no-dependencies tar-ustar])
@@ -36,9 +36,9 @@ MY_ARG_ENABLE(
 )
 
 MY_ARG_ENABLE(
-	sio,
+	elp,
 	no,
-	[Select serial I/O driver (link cable) to built in.],
+	[Select External Link Port (ELP) driver to built in.],
 	[no]
 )
 
@@ -132,9 +132,9 @@ AC_SUBST(HAS_LCD, $(test "x$_enable_lcd" != "xno" && echo y))
 AC_SUBST(LCD_DEF, $(test "x$_enable_lcd" != "xno" && echo define || echo undef))
 AC_SUBST(LCD_TYPE, $(test "x$_enable_lcd" != "xno" && echo $_enable_lcd || echo none))
 
-AC_SUBST(HAS_SIO, $(test "x$enable_sio" != "xno" && echo y))
-AC_SUBST(SIO_DEF, $(test "x$enable_sio" != "xno" && echo define || echo undef))
-AC_SUBST(SIO_TYPE, $(test "x$enable_sio" != "xno" && echo $enable_sio || echo dummy))
+AC_SUBST(HAS_ELP, $(test "x$enable_elp" != "xno" && echo y))
+AC_SUBST(ELP_DEF, $(test "x$enable_elp" != "xno" && echo define || echo undef))
+AC_SUBST(ELP_TYPE, $(test "x$enable_elp" != "xno" && echo $enable_elp || echo dummy))
 
 _enable_cartridge="$enable_cartridge"
 if test "x$enable_cartridge" = "xauto"; then
@@ -236,7 +236,7 @@ echo "--- Hardware ---"
 echo "Board:                              $enable_board"
 echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" = "xyes" && echo " ($NUM_LEDS)")"
 echo "LCD:                                $_enable_lcd"
-echo "Serial I/O (link cable):            $enable_sio"
+echo "External Link Port:                 $enable_elp"
 echo "Host interface:                     $_enable_hostifc$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
 echo "GB Cartridge slot:                  $_enable_cartridge"
 echo "MBC emulation:                      $enable_mbc_emu"

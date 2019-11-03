@@ -52,4 +52,3 @@ module lcd_lh507x(
 	assign lcd_p_data   = p_px;
 
 endmodule
-

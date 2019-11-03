@@ -2,15 +2,16 @@
 
 (* nolatches *)
 module lr35902_tim(
+		input  wire        clk,
+		input  wire        reset,
+		output reg  [15:0] div,
+
 		output reg  [7:0]  dout,
 		input  wire [7:0]  din,
 		input  wire [1:0]  adr,
 		input  wire        read,
 		input  wire        write,
-		input  wire        clk,
-		input  wire        reset,
 		output reg         irq,
-		output reg  [15:0] div,
 	);
 
 	reg [1:0] r_adr;

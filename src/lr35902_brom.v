@@ -2,13 +2,16 @@
 `include "config.vh"
 
 (* nolatches *)
-module gb_bootrom(
+module lr35902_brom(
+		input  wire       clk,
+		input  wire       reset,
+
 		input  wire [7:0] adr,
 		output reg  [7:0] dout,
 		input  wire       read,
+
 		input  wire       write_reg,
-		input  wire       clk,
-		input  wire       reset,
+
 		output reg        hide,
 	);
 

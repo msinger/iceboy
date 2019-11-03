@@ -3,6 +3,7 @@
 (* nolatches *)
 module lr35902_hram(
 		input  wire       clk,
+
 		output reg  [7:0] dout,
 		input  wire [7:0] din,
 		input  wire [6:0] adr,

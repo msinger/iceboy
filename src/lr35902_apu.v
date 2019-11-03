@@ -23,16 +23,17 @@
 `define NR52 'h26
 
 (* nolatches *)
-module lr35902_snd(
-		output reg  [7:0]  dout,
-		input  wire [7:0]  din,
-		input  wire [5:0]  adr,
-		input  wire        read,
-		input  wire        write,
+module lr35902_apu(
 		input  wire        clk,
 		input  wire        pwmclk,
 		input  wire        reset,
 		input  wire [15:0] div,
+
+		output reg  [7:0]  dout,
+		input  wire [7:0]  din,
+		input  wire [5:0]  adr,
+		input  wire        write,
+
 		output wire        chl,
 		output wire        chr,
 		output wire        chm,
@@ -251,7 +252,7 @@ module lr35902_snd(
 		endcase
 	end
 
-	always @(posedge clk) if (read) begin
+	always @(posedge clk) begin
 		dout <= 'hff;
 
 		if (&adr[5:4])
@@ -755,7 +756,7 @@ module lr35902_snd(
 	                 (voc3_so2 ? voc3_out : 8) +
 	                 (voc4_so2 ? voc4_out : 8);
 
-	dom_gate so_gate(pwmclk, so_seq_new, so_seq);
+	cdc so_cdc(pwmclk, so_seq_new, so_seq);
 
 	always @(posedge pwmclk) if (so_seq != so_seq_old) begin
 		so1_compare <= so1_compare_new;

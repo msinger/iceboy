@@ -3,13 +3,14 @@
 (* nolatches *)
 module lr35902_oam(
 		input  wire        clk,
+		input  wire        reset,
+
 		output wire [7:0]  dout,
 		output reg  [15:0] dout16,
 		input  wire [7:0]  din,
 		input  wire [7:0]  adr,
 		input  wire        read,
 		input  wire        write,
-		input  wire        reset,
 	);
 
 	reg [6:0] r_rstcnt;

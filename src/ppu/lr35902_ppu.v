@@ -30,16 +30,19 @@ auto PPU::coincidence() -> bool {
 module lr35902_ppu(
 		input  wire        clk,
 		input  wire        reset,
+		input  wire [15:0] div,
+
+		input  wire [3:0]  reg_adr,
 		output reg  [7:0]  reg_dout,
 		input  wire [7:0]  reg_din,
-		input  wire [3:0]  reg_adr,
 		input  wire        reg_read,
 		input  wire        reg_write,
 		output wire        irq_vblank,
 		output wire        irq_stat,
+
+		output reg  [15:0] adr,
 		input  wire [7:0]  data,
 		input  wire [15:0] data16,
-		output reg  [15:0] adr,
 		output reg         read,
 
 		output reg         n_need_oam,  p_need_oam,
@@ -52,8 +55,6 @@ module lr35902_ppu(
 		output reg         n_ctrl,   p_ctrl,   /* Timing signal for switching on/off columns depending on pixels brightness. */
 		output reg         n_pclk,   p_pclk,
 		output reg  [1:0]  n_px,     p_px,     /* The color (brightness) of the pixel being shifted out. */
-
-		input  wire [15:0] div
 	);
 
 	reg r_preg_read,  preg_read;

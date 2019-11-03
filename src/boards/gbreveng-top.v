@@ -8,9 +8,11 @@ module top(
 		input  wire        clk16m,        /* 16 MiHz clock input */
 		output wire        clk16m_en = 1, /* 16 MiHz clock enable */
 		input  wire        reset,         /* Reset input */
+
 		output wire        chl,           /* left audio PWM channel */
 		output wire        chr,           /* right audio PWM channel */
 		output wire        chm,           /* mono audio PWM channel */
+
 		input  wire        p10,
 		input  wire        p11,
 		input  wire        p12,
@@ -65,8 +67,8 @@ module top(
 		output wire [`NUM_LEDS-1:0] led,
 `endif
 
-`ifdef HAS_SIO
-`include `SIO_PIN_HEADER
+`ifdef HAS_ELP
+`include `ELP_PIN_HEADER
 `endif
 
 `ifdef HAS_LCD
@@ -89,10 +91,9 @@ module top(
 	reg        n_crst_out;
 	wire       n_crst_in;
 
-	wire       clk1m;        /* 1 MiHz clock on cartridge slot; synced to CPU cycles */
-	wire       gbclk;        /* 4 MiHz    238 ns    (if r_slow, then 1 MiHz) */
-	reg  [3:0] r_gbclk_div;
-	reg        r_slow = 0;
+	wire       clk1m;        /* 1 MiHz clock on cartridge slot */
+	wire       gbclk;        /* 4 MiHz    238 ns */
+	reg  [1:0] r_gbclk_div;
 
 	wire [15:0] adr_cpu;
 	reg  [15:0] adr_ext;
@@ -111,8 +112,8 @@ module top(
 	wire rx_in,      rx_ext;
 	wire dtr_in,     dtr_ext;
 	wire n_rxled_in, n_txled_in;
-	dom_gate #(1) rx_gate (clk12m, rx_ext,  rx_in);
-	dom_gate #(1) dtr_gate(gbclk,  dtr_ext, dtr_in);
+	cdc #(1) rx_cdc (clk12m, rx_ext,  rx_in);
+	cdc #(1) dtr_cdc(gbclk,  dtr_ext, dtr_in);
 `endif
 `ifdef HAS_FT245
 	wire [7:0] ft245_d_out, ft245_d_in;
@@ -121,8 +122,8 @@ module top(
 	wire       ft245_n_txe_in, ft245_n_txe_ext;
 	wire       ft245_rd_dbg_out, ft245_rd_ld_out, ft245_wr_out;
 	wire       ft245_siwu_out;
-	dom_gate #(1) ft245_n_rxf_gate(gbclk, ft245_n_rxf_ext, ft245_n_rxf_in);
-	dom_gate #(1) ft245_n_txe_gate(gbclk, ft245_n_txe_ext, ft245_n_txe_in);
+	cdc #(1) ft245_n_rxf_cdc(gbclk, ft245_n_rxf_ext, ft245_n_rxf_in);
+	cdc #(1) ft245_n_txe_cdc(gbclk, ft245_n_txe_ext, ft245_n_txe_in);
 `endif
 
 `ifdef HAS_CARTRIDGE_OR_MBC
@@ -130,17 +131,17 @@ module top(
 `endif
 
 	wire reset_in, reset_ext;
-	dom_gate #(1) reset_gate(gbclk, reset_ext, reset_in);
+	cdc #(1) reset_cdc(gbclk, reset_ext, reset_in);
 
 	wire chl_out, chr_out, chm_out;
 
 	wire p10_in,  p11_in,  p12_in,  p13_in;
 	wire p10_ext, p11_ext, p12_ext, p13_ext;
 	wire p14_out, p15_out;
-	dom_gate #(1) p10_gate(gbclk, p10_ext, p10_in);
-	dom_gate #(1) p11_gate(gbclk, p11_ext, p11_in);
-	dom_gate #(1) p12_gate(gbclk, p12_ext, p12_in);
-	dom_gate #(1) p13_gate(gbclk, p13_ext, p13_in);
+	cdc #(1) p10_cdc(gbclk, p10_ext, p10_in);
+	cdc #(1) p11_cdc(gbclk, p11_ext, p11_in);
+	cdc #(1) p12_cdc(gbclk, p12_ext, p12_in);
+	cdc #(1) p13_cdc(gbclk, p13_ext, p13_in);
 
 	reg r_wr_ext;
 
@@ -156,8 +157,8 @@ module top(
 	wire cscpu_ext, cscpu_wram, cscpu_rom, cscpu_xram, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
 	wire csdma_ext, csdma_wram, csdma_rom, csdma_xram, csdma_vram;
 	wire csppu_vram, csppu_oam;
-	wire cs_io_joypad, cs_io_serial, cs_io_timer, cs_io_int_flag;
-	wire cs_io_sound, cs_io_ppu, cs_io_brom, cs_io_hram, cs_io_int_ena;
+	wire cs_io_p1, cs_io_elp, cs_io_tim, cs_io_if;
+	wire cs_io_apu, cs_io_ppu, cs_io_brom, cs_io_hram, cs_io_ie;
 
 	wire [7:0]  data_cpu_out;
 	reg  [7:0]  data_cpu_in;
@@ -169,10 +170,10 @@ module top(
 	wire [7:0]  data_ext_in;
 	wire [7:0]  data_ppu_out;
 	wire [7:0]  data_vram_out;
-	wire [7:0]  data_joy_out;
-	wire [7:0]  data_sio_out;
+	wire [7:0]  data_p1_out;
+	wire [7:0]  data_elp_out;
 	wire [7:0]  data_tim_out;
-	wire [7:0]  data_snd_out;
+	wire [7:0]  data_apu_out;
 	wire [7:0]  data_brom_out;
 	wire [7:0]  data_hram_out;
 	wire [7:0]  data_cpureg_out;
@@ -181,7 +182,7 @@ module top(
 	wire [7:0]  data_prog_out;
 `endif
 
-	wire irq_ppu_vblank, irq_ppu_stat, irq_timer, irq_serial, irq_joypad;
+	wire irq_ppu_vblank, irq_ppu_stat, irq_tim, irq_elp, irq_p1;
 
 `ifdef USE_DEBUGGER
 	wire [15:0] pc, sp;
@@ -261,7 +262,7 @@ module top(
 			.INPUT_CLK(gbclk),
 			.D_IN_0(n_emu_mbc_ext),
 		);
-	dom_gate #(1) n_emu_mbc_gate(gbclk, n_emu_mbc_ext, n_emu_mbc_in);
+	cdc #(1) n_emu_mbc_cdc(gbclk, n_emu_mbc_ext, n_emu_mbc_in);
 	always @(posedge gbclk) if (reset_state == `rst_assert) emu_mbc <= !n_emu_mbc_in;
 `else
 `ifdef HAS_CARTRIDGE_ONLY
@@ -373,7 +374,7 @@ module top(
 		);
 
 	wire n_crst_ext;
-	dom_gate #(1) n_crst_gate(gbclk, n_crst_ext, n_crst_in);
+	cdc #(1) n_crst_cdc(gbclk, n_crst_ext, n_crst_in);
 
 	SB_IO #(
 			.PIN_TYPE('b 1101_00),
@@ -568,12 +569,8 @@ module top(
 		);
 `endif
 
-	always @(posedge gbclk) begin
+	always @(posedge gbclk)
 		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
-
-//		if (adr_cpu == 'hff51 && wr_cpu)
-//			r_slow <= data_cpu_out == 'ha5;
-	end
 
 	always @* begin
 		data_cpu_in = 'hff;
@@ -582,17 +579,17 @@ module top(
 		case (1)
 		cs_io_hram:
 			data_cpu_in = data_hram_out;
-		cs_io_joypad:
-			data_cpu_in = data_joy_out;
-		cs_io_serial:
-			data_cpu_in = data_sio_out;
-		cs_io_timer:
+		cs_io_p1:
+			data_cpu_in = data_p1_out;
+		cs_io_elp:
+			data_cpu_in = data_elp_out;
+		cs_io_tim:
 			data_cpu_in = data_tim_out;
-		cs_io_sound:
-			data_cpu_in = data_snd_out;
+		cs_io_apu:
+			data_cpu_in = data_apu_out;
 		cs_io_ppu:
 			data_cpu_in = data_ppu_out;
-		cs_io_int_flag || cs_io_int_ena:
+		cs_io_if || cs_io_ie:
 			data_cpu_in = data_cpureg_out;
 		cscpu_brom:
 			data_cpu_in = data_brom_out;
@@ -691,24 +688,24 @@ module top(
 `ifdef HAS_FT245
 			!ft245_n_rxf_in, ft245_n_txe_in,
 `endif
-			r_slow, hide_bootrom, r_gb_on
+			hide_bootrom, r_gb_on
 		};
 `endif
 
 	assign cscpu_ext = cscpu_rom || cscpu_xram || cscpu_wram;
 	assign csdma_ext = csdma_rom || csdma_xram || csdma_wram;
 
-	assign cs_rom  = cscpu_rom || csdma_rom;
+	assign cs_rom  = cscpu_rom  || csdma_rom;
 	assign cs_xram = cscpu_xram || csdma_xram;
 	assign cs_wram = cscpu_wram || csdma_wram;
 
-	assign gbclk = r_gbclk_div[r_slow ? 3 : 1];
-
-	assign ppu_needs_oam  = ppu_n_needs_oam || ppu_p_needs_oam;
+	assign ppu_needs_oam  = ppu_n_needs_oam  || ppu_p_needs_oam;
 	assign ppu_needs_vram = ppu_n_needs_vram || ppu_p_needs_vram;
 
 	always @(posedge clk16m)
 		r_gbclk_div <= r_gbclk_div + 1;
+
+	assign gbclk = r_gbclk_div[1];
 
 	always @* begin
 		initial_reset_ticks = r_initial_reset_ticks;
@@ -761,22 +758,27 @@ module top(
 		r_gb_on               <= gb_on;
 	end
 
-	lr35902 cpu(
+	lr35902_cpu cpu(
 		.clk(gbclk),
-		.clk_out(clk1m),
+		.reset(reset_gb),
+		.div(div[1:0]),
+
 		.adr(adr_cpu),
 		.din(data_cpu_in),
 		.dout(data_cpu_out),
 		.write(wr_cpu),
 		.read(rd_cpu),
-		.reset(reset_gb),
-		.cs_iflag(cs_io_int_flag),
-		.cs_iena(cs_io_int_ena),
+		.irq({ irq_p1, irq_elp, irq_tim, irq_ppu_stat, irq_ppu_vblank }),
+
+		.cs_if(cs_io_if),
+		.cs_ie(cs_io_ie),
 		.din_reg(data_cpu_out),
 		.dout_reg(data_cpureg_out),
 		.write_reg(wr_cpu),
 		.read_reg(rd_cpu),
-		.irq({ irq_joypad, irq_serial, irq_timer, irq_ppu_stat, irq_ppu_vblank }),
+
+		.clk_out(clk1m),
+
 `ifdef USE_DEBUGGER
 		.r_pc(pc),
 		.r_sp(sp),
@@ -799,6 +801,7 @@ module top(
 	wire [7:0] dbg_data_tx;
 	wire       dbg_data_tx_seq;
 	wire       dbg_data_tx_ack;
+
 `ifdef HAS_UART
 	reg        reset_dbg_domC;
 	wire       reset_dbg_domU;
@@ -806,42 +809,53 @@ module top(
 	wire       dbg_data_rx_ack_domU;
 	wire       dbg_data_tx_seq_domU;
 	wire       dbg_data_tx_ack_domU;
+
 	always @(posedge gbclk) reset_dbg_domC <= reset_gb;
-	dom_gate reset_dbg_gate(clk12m, reset_dbg_domC, reset_dbg_domU);
-	dom_gate dbg_data_rx_seq_gate(gbclk,  dbg_data_rx_seq_domU, dbg_data_rx_seq);
-	dom_gate dbg_data_rx_ack_gate(clk12m, dbg_data_rx_ack,      dbg_data_rx_ack_domU);
-	dom_gate dbg_data_tx_seq_gate(clk12m, dbg_data_tx_seq,      dbg_data_tx_seq_domU);
-	dom_gate dbg_data_tx_ack_gate(gbclk,  dbg_data_tx_ack_domU, dbg_data_tx_ack);
+	cdc reset_dbg_cdc(clk12m, reset_dbg_domC, reset_dbg_domU);
+
+	cdc dbg_data_rx_seq_cdc(gbclk,  dbg_data_rx_seq_domU, dbg_data_rx_seq);
+	cdc dbg_data_rx_ack_cdc(clk12m, dbg_data_rx_ack,      dbg_data_rx_ack_domU);
+	cdc dbg_data_tx_seq_cdc(clk12m, dbg_data_tx_seq,      dbg_data_tx_seq_domU);
+	cdc dbg_data_tx_ack_cdc(gbclk,  dbg_data_tx_ack_domU, dbg_data_tx_ack);
+
 	uart_recv #(.BAUDDIV(12)) dbg_uart_rx(
 		.clk(clk12m),
 		.reset(!initial_reset_done),
 		.soft_reset(reset_dbg_domU),
+
 		.data(dbg_data_rx),
 		.valid(dbg_data_rx_valid),
 		.seq(dbg_data_rx_seq_domU),
 		.ack(dbg_data_rx_ack_domU),
+
 		.rx(rx_in),
 		.cts(cts),
 	);
+
 	uart_send #(.BAUDDIV(12)) dbg_uart_tx(
 		.clk(clk12m),
 		.reset(!initial_reset_done),
+
 		.data(dbg_data_tx),
 		.seq(dbg_data_tx_seq_domU),
 		.ack(dbg_data_tx_ack_domU),
+
 		.tx(tx),
 	);
 `endif
+
 `ifdef HAS_FT245
 	ft245_ifc dbg_ft245(
 		.clk(gbclk),
 		.reset(reset_gb),
+
 		.rx_data(dbg_data_rx),
 		.rx_seq(dbg_data_rx_seq),
 		.rx_ack(dbg_data_rx_ack),
 		.tx_data(dbg_data_tx),
 		.tx_seq(dbg_data_tx_seq),
 		.tx_ack(dbg_data_tx_ack),
+
 		.data_in(ft245_d_in),
 		.data_out(ft245_d_out),
 		.dir_out(ft245_dir_out),
@@ -851,11 +865,14 @@ module top(
 		.wr(ft245_wr_out),
 		.siwu(ft245_siwu_out),
 	);
+
 	assign dbg_data_rx_valid = 1;
 `endif
+
 	lr35902_dbg_ifc dbg_ifc(
 		.clk(gbclk),
 		.reset(!initial_reset_done),
+
 		.pc(pc),
 		.sp(sp),
 		.f(flags[7:4]),
@@ -865,6 +882,7 @@ module top(
 		.drv(ddrv_dbg),
 		.halt(halt),
 		.no_inc(no_inc),
+
 		.data_rx(dbg_data_rx),
 		.data_rx_valid(dbg_data_rx_valid),
 		.data_rx_seq(dbg_data_rx_seq),
@@ -889,59 +907,68 @@ module top(
 `endif
 `endif
 
-	gb_memmap cpu_map(
+	lr35902_map cpu_map(
+		.reset(0),
+
 		.adr(adr_cpu),
-		.reset(0),
 		.enable_bootrom(!hide_bootrom),
-		.sel_bootrom(cscpu_brom),
-		.sel_vram(cscpu_vram),
-		.sel_oam(cscpu_oam),
-		.sel_wram(cscpu_wram),
-		.sel_cart_rom(cscpu_rom),
-		.sel_cart_ram(cscpu_xram),
-		.sel_io(cscpu_io),
+
+		.cs_brom(cscpu_brom),
+		.cs_vram(cscpu_vram),
+		.cs_oam(cscpu_oam),
+		.cs_wram(cscpu_wram),
+		.cs_rom(cscpu_rom),
+		.cs_xram(cscpu_xram),
+		.cs_io(cscpu_io),
 	);
 
-	gb_memmap dma_map(
-		.adr(adr_dma_rd),
+	lr35902_map dma_map(
 		.reset(!dma_active),
+
+		.adr(adr_dma_rd),
 		.enable_bootrom(0),
-		.sel_vram(csdma_vram),
-		.sel_wram(csdma_wram),
-		.sel_cart_rom(csdma_rom),
-		.sel_cart_ram(csdma_xram),
+
+		.cs_vram(csdma_vram),
+		.cs_wram(csdma_wram),
+		.cs_rom(csdma_rom),
+		.cs_xram(csdma_xram),
 	);
 
-	gb_memmap ppu_map(
-		.adr(adr_ppu),
+	lr35902_map ppu_map(
 		.reset(0),
+
+		.adr(adr_ppu),
 		.enable_bootrom(0),
-		.sel_vram(csppu_vram),
-		.sel_oam(csppu_oam),
+
+		.cs_vram(csppu_vram),
+		.cs_oam(csppu_oam),
 	);
 
-	gb_iomap io_map(
-		.adr(adr_cpu[7:0]),
+	lr35902_iomap io_map(
 		.reset(!cscpu_io),
-		.sel_p1(cs_io_joypad),
-		.sel_ser(cs_io_serial),
-		.sel_tim(cs_io_timer),
-		.sel_if(cs_io_int_flag),
-		.sel_snd(cs_io_sound),
-		.sel_ppu(cs_io_ppu),
-		.sel_brom(cs_io_brom),
-		.sel_hram(cs_io_hram),
-		.sel_ie(cs_io_int_ena),
+
+		.adr(adr_cpu[7:0]),
+
+		.cs_p1(cs_io_p1),
+		.cs_elp(cs_io_elp),
+		.cs_tim(cs_io_tim),
+		.cs_if(cs_io_if),
+		.cs_apu(cs_io_apu),
+		.cs_ppu(cs_io_ppu),
+		.cs_brom(cs_io_brom),
+		.cs_hram(cs_io_hram),
+		.cs_ie(cs_io_ie),
 	);
 
-	lr35902_joy joy(
-		.reset(reset_gb),
-		.dout(data_joy_out),
-		.din(data_cpu_out),
-		.read(gbclk),
-		.write(wr_cpu && cs_io_joypad),
+	lr35902_p1 p1(
 		.clk(gbclk),
-		.irq(irq_joypad),
+		.reset(reset_gb),
+
+		.dout(data_p1_out),
+		.din(data_cpu_out),
+		.write(wr_cpu && cs_io_p1),
+		.irq(irq_p1),
+
 		.p10(p10_in),
 		.p11(p11_in),
 		.p12(p12_in),
@@ -950,63 +977,70 @@ module top(
 		.p15(p15_out),
 	);
 
-`ifdef HAS_SIO
-`include `SIO_GLUE_HEADER
+`ifdef HAS_ELP
+`include `ELP_GLUE_HEADER
 `endif
 
-	lr35902_sio_`SIO_TYPE sio(
-		.reset(reset_gb),
-		.dout(data_sio_out),
-		.din(data_cpu_out),
-		.read(gbclk),
-		.write(wr_cpu && cs_io_serial),
+	lr35902_elp_`ELP_TYPE elp(
 		.clk(gbclk),
+		.reset(reset_gb),
+
+		.dout(data_elp_out),
+		.din(data_cpu_out),
+		.write(wr_cpu && cs_io_elp),
 		.adr(adr_cpu[0]),
-		.irq(irq_serial),
-`ifdef HAS_SIO
-`include `SIO_ARG_HEADER
+		.irq(irq_elp),
+
+`ifdef HAS_ELP
+`include `ELP_ARG_HEADER
 `endif
 	);
 
 	lr35902_tim tim(
+		.clk(gbclk),
 		.reset(reset_gb),
+		.div(div),
+
 		.dout(data_tim_out),
 		.din(data_cpu_out),
-		.read(rd_cpu && cs_io_timer),
-		.write(wr_cpu && cs_io_timer),
-		.clk(gbclk),
+		.read(rd_cpu && cs_io_tim),
+		.write(wr_cpu && cs_io_tim),
 		.adr(adr_cpu[1:0]),
-		.irq(irq_timer),
-		.div(div),
+		.irq(irq_tim),
 	);
 
-	lr35902_snd snd(
-		.reset(reset_gb),
-		.dout(data_snd_out),
-		.din(data_cpu_out),
-		.read(gbclk),
-		.write(wr_cpu && cs_io_sound),
+	lr35902_apu apu(
 		.clk(gbclk),
 		.pwmclk(clk16m),
-		.adr(adr_cpu[5:0]),
+		.reset(reset_gb),
 		.div(div),
+
+		.dout(data_apu_out),
+		.din(data_cpu_out),
+		.write(wr_cpu && cs_io_apu),
+		.adr(adr_cpu[5:0]),
+
 		.chl(chl_out),
 		.chr(chr_out),
 		.chm(chm_out),
 	);
 
-	gb_bootrom bootrom(
+	lr35902_brom brom(
+		.clk(gbclk),
+		.reset(reset_gb),
+
 		.adr(adr_cpu[7:0]),
 		.dout(data_brom_out),
 		.read(rd_cpu && cscpu_brom),
+
 		.write_reg(wr_cpu && cs_io_brom),
-		.clk(gbclk),
-		.reset(reset_gb),
+
 		.hide(hide_bootrom),
 	);
 
 	lr35902_hram hram(
 		.clk(gbclk),
+
 		.adr(adr_cpu[6:0]),
 		.dout(data_hram_out),
 		.din(data_cpu_out),
@@ -1016,6 +1050,7 @@ module top(
 
 	lr35902_vram vram(
 		.clk(gbclk),
+
 		.adr(adr_vram),
 		.dout(data_vram_out),
 		.din(data_cpu_out),
@@ -1025,18 +1060,21 @@ module top(
 
 	lr35902_oam oam(
 		.clk(gbclk),
+		.reset(reset_gb),
+
 		.adr(adr_oam),
 		.dout(data_oam_out),
 		.dout16(data_oam_out16),
 		.din(data_oam_in),
 		.read(rd_oam),
 		.write(wr_oam),
-		.reset(reset_gb),
 	);
 
 	lr35902_ppu ppu(
 		.clk(gbclk),
 		.reset(reset_gb),
+		.div(div),
+
 		.reg_adr(adr_cpu[3:0]),
 		.reg_dout(data_ppu_out),
 		.reg_din(data_cpu_out),
@@ -1044,6 +1082,17 @@ module top(
 		.reg_write(wr_cpu && cs_io_ppu),
 		.irq_vblank(irq_ppu_vblank),
 		.irq_stat(irq_ppu_stat),
+
+		.adr(adr_ppu),
+		.data(data_vram_out),
+		.data16(data_oam_out16),
+		.read(rd_ppu),
+
+		.n_need_oam(ppu_n_needs_oam),
+		.p_need_oam(ppu_p_needs_oam),
+		.n_need_vram(ppu_n_needs_vram),
+		.p_need_vram(ppu_p_needs_vram),
+
 		.n_hsync(ppu_n_hsync),
 		.p_hsync(ppu_p_hsync),
 		.n_vsync(ppu_n_vsync),
@@ -1058,15 +1107,6 @@ module top(
 		.p_pclk(ppu_p_pclk),
 		.n_px(ppu_n_px),
 		.p_px(ppu_p_px),
-		.n_need_oam(ppu_n_needs_oam),
-		.p_need_oam(ppu_p_needs_oam),
-		.n_need_vram(ppu_n_needs_vram),
-		.p_need_vram(ppu_p_needs_vram),
-		.adr(adr_ppu),
-		.data(data_vram_out),
-		.data16(data_oam_out16),
-		.read(rd_ppu),
-		.div(div),
 	);
 
 `ifdef HAS_LCD
@@ -1075,6 +1115,7 @@ module top(
 	lcd_`LCD_TYPE lcd(
 		.clk(gbclk),
 		.reset(reset_gb),
+
 		.n_hsync(ppu_n_hsync),
 		.p_hsync(ppu_p_hsync),
 		.n_vsync(ppu_n_vsync),
@@ -1089,6 +1130,7 @@ module top(
 		.p_pclk(ppu_p_pclk),
 		.n_px(ppu_n_px),
 		.p_px(ppu_p_px),
+
 `include `LCD_ARG_HEADER
 	);
 `endif
@@ -1096,31 +1138,36 @@ module top(
 	lr35902_oam_dma dma(
 		.clk(gbclk),
 		.reset(reset_gb),
+
 		.reg_din(data_cpu_out),
 		.reg_write(wr_cpu && cs_io_ppu && adr_cpu[4:0] == 6),
+
 		.adr(adr_dma_rd),
-		.adr_oam(adr_dma_wr),
-		.dout(data_dma_out),
 		.din(data_dma_in),
 		.read(rd_dma),
+
+		.adr_oam(adr_dma_wr),
+		.dout(data_dma_out),
 		.write(wr_dma),
+
 		.active(dma_active),
 	);
 
 `ifdef HAS_MBC
-	mbc_chip #(
-		.GBREVENG_MAPPING(1),
-	) mbc(
+	mbc1 mbc(
 		.clk(gbclk),
-		.write(wr_ext && emu_mbc),
+		.reset(reset_gb),
+
+		.iadr(adr_ext[14:0]),
 		.data(data_cpu_out),
+		.write(wr_ext && emu_mbc),
 		.ics_rom(cs_rom && emu_mbc),
 		.ics_ram(cs_xram && emu_mbc),
-		.iadr(adr_ext[14:0]),
+
 		.oadr(adr21),
-		.reset(reset_gb),
-		.sel_rom(cs_crom),
-		.sel_ram(cs_cram),
+		.ocs_rom(cs_crom),
+		.ocs_ram(cs_cram),
+
 		.rom_size('h04),
 		.ram_size('h02),
 	);
@@ -1129,44 +1176,55 @@ module top(
 `ifdef USE_LOADER
 	wire [7:0] ld_data;
 	wire       ld_data_seq;
+
 `ifdef HAS_UART
 	reg        reset_ld_domC;
 	wire       reset_ld_domU;
 	wire       ld_data_seq_domU;
+
 	always @(posedge gbclk) reset_ld_domC <= reset_ld;
-	dom_gate reset_ld_gate(clk12m, reset_ld_domC, reset_ld_domU);
-	dom_gate ld_data_seq_gate(gbclk, ld_data_seq_domU, ld_data_seq);
+	cdc reset_ld_cdc(clk12m, reset_ld_domC, reset_ld_domU);
+	cdc ld_data_seq_cdc(gbclk, ld_data_seq_domU, ld_data_seq);
+
 	uart_recv #(.BAUDDIV(12)) ld_uart(
 		.clk(clk12m),
 		.reset(reset_ld_domU),
 		.soft_reset(0),
+
 		.data(ld_data),
 		.seq(ld_data_seq_domU),
 		.ack(ld_data_seq_domU), /* short circuit ack to seq */
+
 		.rx(rx_in),
 	);
 `endif
+
 `ifdef HAS_FT245
 	ft245_ifc ld_ft245(
 		.clk(gbclk),
 		.reset(reset_ld),
+
 		.rx_data(ld_data),
 		.rx_seq(ld_data_seq),
 		.rx_ack(ld_data_seq), /* short circuit ack to seq */
 		.tx_data(0),
 		.tx_seq(0),
+
 		.data_in(ft245_d_in),
 		.rxf(!ft245_n_rxf_in),
 		.txe(0),
 		.rd(ft245_rd_ld_out),
 	);
 `endif
+
 	prog_loader loader(
 		.clk(gbclk),
 		.reset(reset_ld),
-		.write(wr_prog),
-		.data(data_prog_out),
+
 		.adr(adr21_prog),
+		.data(data_prog_out),
+		.write(wr_prog),
+
 		.data_rx(ld_data),
 		.data_rx_seq(ld_data_seq),
 	);

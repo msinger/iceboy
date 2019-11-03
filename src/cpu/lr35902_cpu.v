@@ -19,17 +19,26 @@
 `define Z 7 /* zero */
 
 (* nolatches *)
-module lr35902(
+module lr35902_cpu(
 		input  wire        clk,
-		output wire        clk_out,
+		input  wire        reset,
+		input  wire [1:0]  div,
+
 		output reg  [15:0] adr,
 		input  wire [7:0]  din,
 		output reg  [7:0]  dout,
-
 		output reg         read,
 		output reg         write,
+		input  wire [4:0]  irq,
 
-		input  wire        reset,
+		input  wire        cs_if,
+		input  wire        cs_ie,
+		input  wire [7:0]  din_reg,
+		output wire [7:0]  dout_reg,
+		input  wire        write_reg,
+		input  wire        read_reg,
+
+		output wire        clk_out, /* TODO: remove when CPU gets current cycle from DIV */
 
 		output reg  [15:0] r_pc,
 		output reg  [15:0] r_sp,
@@ -38,15 +47,6 @@ module lr35902(
 		output wire [7:0]  dbg_probe,
 		input  wire        dbg_halt,
 		input  wire        dbg_no_inc,
-
-		input  wire        cs_iflag,
-		input  wire        cs_iena,
-		input  wire [7:0]  din_reg,
-		output wire [7:0]  dout_reg,
-		input  wire        write_reg,
-		input  wire        read_reg,
-
-		input  wire [4:0]  irq,
 	);
 
 	reg [15:0] r_adr;
@@ -1003,12 +1003,12 @@ module lr35902(
 		r_delay_ime <= delay_ime;
 	end
 
-	assign dout_reg = cs_iena ? r_iena : { 3'b111, r_iflag[4:0] };
+	assign dout_reg = cs_ie ? r_iena : { 3'b111, r_iflag[4:0] };
 
 	always @(posedge clk) begin
 		r_iflag <= r_iflag & iack | irq;
 
-		if (cs_iflag && write_reg)
+		if (cs_if && write_reg)
 			r_iflag <= din_reg;
 
 		if (reset)
@@ -1018,7 +1018,7 @@ module lr35902(
 	always @(posedge clk)
 		if (reset)
 			r_iena <= 0;
-		else if (cs_iena && write_reg)
+		else if (cs_ie && write_reg)
 			r_iena <= din_reg;
 
 	always @(posedge clk)

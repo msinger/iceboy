@@ -13,6 +13,7 @@ module lr35902_dbg_ifc #(
 	) (
 		input  wire        clk,
 		input  wire        reset,
+
 		input  wire [7:0]  probe,  /* content of the currently selected register */
 		input  wire [15:0] pc,
 		input  wire [15:0] sp,

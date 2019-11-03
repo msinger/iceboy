@@ -9,14 +9,18 @@
 module lr35902_oam_dma(
 		input  wire        clk,
 		input  wire        reset,
+
 		input  wire [7:0]  reg_din,
 		input  wire        reg_write,
+
 		output wire [15:0] adr,
-		output wire [7:0]  adr_oam,
-		output wire [7:0]  dout,
 		input  wire [7:0]  din,
 		output wire        read,
+
+		output wire [7:0]  adr_oam,
+		output wire [7:0]  dout,
 		output wire        write,
+
 		output reg         active,
 	);
 
