@@ -20,7 +20,24 @@ module lr35902_brom(
 	initial $readmemh("bootrom.hex", rom, 0, 255);
 `else
 	integer i;
-	initial for (i = 0; i < 256; i = i + 1) rom[i] <= 0;
+	initial begin
+		/* fill with NOPs */
+		for (i = 0; i < 256; i = i + 1)
+			rom[i] <= 0;
+
+		/* LD SP, $fffe */
+		rom[0]   <= 'h31;
+		rom[1]   <= 'hfe;
+		rom[2]   <= 'hff;
+
+		/* LD A, $01 */
+		rom[252] <= 'h3e;
+		rom[253] <= 'h01;
+
+		/* LD ($ff00+$50), A */
+		rom[254] <= 'he0;
+		rom[255] <= 'h50;
+	end
 `endif
 
 	always @(posedge clk) begin
