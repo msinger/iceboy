@@ -55,5 +55,4 @@ set_io n_crst    R4
 # Level Shifters
 set_io n_coe     P9  # output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13]
 set_io n_coed    M7  # output enable for data[7:0]
-set_io n_cdir    T13 # direction for data[7:0]
-
+set_io cdir      T13 # direction for data[7:0]

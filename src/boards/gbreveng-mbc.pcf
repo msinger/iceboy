@@ -42,4 +42,3 @@ set_io n_prog    R9
 set_io n_cs_wram R16 # WRAM
 set_io n_cs_crom N12 # onboard cartridge ROM
 set_io n_cs_cram L11 # onboard cartridge RAM
-

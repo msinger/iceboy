@@ -33,7 +33,7 @@ module top(
 		inout  wire        n_crst,    /* bi-directional !reset on cartridge slot */
 		output wire        n_coe,     /* output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13] */
 		output wire        n_coed,    /* output enable for data[7:0] */
-		output wire        n_cdir,    /* direction for data[7:0] */
+		output wire        cdir,      /* direction for data[7:0] */
 		output wire        n_cs_rom,  /* chip select for cartridge ROM */
 		output wire        n_cs_xram, /* chip select for cartridge RAM */
 `endif
@@ -291,8 +291,8 @@ module top(
 
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
-		) n_cdir_io (
-			.PACKAGE_PIN(n_cdir),
+		) cdir_io (
+			.PACKAGE_PIN(cdir),
 			.OUTPUT_CLK(gbclk),
 			.D_OUT_0(!rd_ext),
 		);
