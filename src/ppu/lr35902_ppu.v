@@ -183,29 +183,29 @@ module lr35902_ppu(
 
 	task acquire_oam(input clk_edge);
 		case (clk_edge)
-		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b_11;
-		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b110;
+		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  11;
+		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 110;
 		endcase
 	endtask
 
 	task release_oam(input clk_edge);
 		case (clk_edge)
-		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b_01;
-		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b000;
+		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  01;
+		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 000;
 		endcase
 	endtask
 
 	task acquire_vram(input clk_edge);
 		case (clk_edge)
-		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b_11;
-		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b110;
+		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  11;
+		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 110;
 		endcase
 	endtask
 
 	task release_vram(input clk_edge);
 		case (clk_edge)
-		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b_01;
-		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b000;
+		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  01;
+		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 000;
 		endcase
 	endtask
 

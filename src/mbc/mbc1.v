@@ -57,18 +57,18 @@ module mbc1 #(
 
 		casez ({ ics_rom, ics_ram, iadr })
 		/* ROM RAM  A14...A8 A7.....A0 */
-		'b__1___?___0??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
+		'b  1___?___0??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
 			begin
 				oadr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] } & rom_mask;
 				ocs_rom = 1;
 			end
-		'b__1___?___1??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
+		'b  1___?___1??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
 			begin
 				/* banks #0, #32, #64 and #96 can't be selected, instead the next one (+1) is selected */
 				oadr    = { bank[6:0] | !bank[4:0], iadr[13:0] } & rom_mask;
 				ocs_rom = 1;
 			end
-		'b__?___1___01?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
+		'b  ?___1___01?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
 			begin
 				if (HX8K_BRK_MAPPING)
 					oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
@@ -90,13 +90,13 @@ module mbc1 #(
 		if (pwrite && !write && ics_rom) begin
 			casez (iadr)
 			/* A14...A8 A7.....A0 */
-			'b_00?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */
+			'b 00?_????_????_????: /* 0x0000-0x1fff: enable/disable RAM access */
 				ena_ram <= data[3:0] == 'b1010; /* 0x?a enables RAM access */
-			'b_01?_????_????_????: /* 0x2000-0x3fff: select bank (bits 0-4) */
+			'b 01?_????_????_????: /* 0x2000-0x3fff: select bank (bits 0-4) */
 				bank[4:0] <= data[4:0];
-			'b_10?_????_????_????: /* 0x4000-0x5fff: select bank (bits 5-6) */
+			'b 10?_????_????_????: /* 0x4000-0x5fff: select bank (bits 5-6) */
 				bank[6:5] <= data[1:0];
-			'b_11?_????_????_????: /* 0x6000-0x7fff: set banking mode */
+			'b 11?_????_????_????: /* 0x6000-0x7fff: set banking mode */
 				mode <= data[0];
 			endcase
 		end
