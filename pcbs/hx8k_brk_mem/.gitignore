@@ -1,0 +1,9 @@
+*.bak
+*.kicad_pcb-bak
+*.bck
+/out/
+*.net
+*.dsn
+*.ses
+*.rules
+*.bin
