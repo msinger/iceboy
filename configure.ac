@@ -22,6 +22,13 @@ MY_ARG_ENABLE(
 )
 
 MY_ARG_ENABLE(
+	ext-bus,
+	auto,
+	[Build with external memory bus for connecting WRAM and cartridge.],
+	[yes, no, auto, onboard, memmodule, prototype]
+)
+
+MY_ARG_ENABLE(
 	leds,
 	auto,
 	[Build with diagnostic LEDs enabled.],
@@ -65,9 +72,9 @@ MY_ARG_ENABLE(
 
 MY_ARG_ENABLE(
 	mbc-emu,
-	mbc1-2m32k,
+	auto,
 	[Build with internal MBC emulation. Exposes 21 bit addresses and additional chip selects on the external bus.],
-	[no, mbc1-2m32k]
+	[no, auto, mbc1-2m32k]
 )
 
 MY_ARG_ENABLE(
@@ -85,14 +92,39 @@ MY_ARG_WITH(
 )
 
 AC_SUBST(BOARD, $enable_board)
-NUM_ADR=21
-if test "x$enable_board" = "xhx8k_brk"; then
-	NUM_ADR=20
+
+_enable_ext_bus="$enable_ext_bus"
+if test "x$enable_ext_bus" = "xauto"; then
+	_enable_ext_bus=no
+	if test "x$enable_board" = "xgbreveng"; then
+		_enable_ext_bus=onboard
+	fi
+	if test "x$enable_board" = "xhx8k_brk"; then
+		_enable_ext_bus=memmodule
+	fi
 fi
-if test "x$enable_mbc_emu" = "xno"; then
-	NUM_ADR=15
-	if test "x$enable_cartridge" != "xyes"; then
-		NUM_ADR=0
+if test "x$enable_ext_bus" = "xyes"; then
+	if test "x$enable_board" = "xgbreveng"; then
+		_enable_ext_bus=onboard
+	fi
+fi
+AC_SUBST(HAS_EXTBUS, $(test "x$_enable_ext_bus" != "xno" && echo y))
+AC_SUBST(EXTBUS_DEF, $(test "x$_enable_ext_bus" != "xno" && echo define || echo undef))
+AC_SUBST(EXTBUS_TYPE, $(test "x$_enable_ext_bus" != "xno" && echo $_enable_ext_bus || echo none))
+AC_SUBST(HAS_EXTBUS_ONBOARD, $(test "x$_enable_ext_bus" = "xonboard" && echo y))
+AC_SUBST(EXTBUS_ONBOARD_DEF, $(test "x$_enable_ext_bus" = "xonboard" && echo define || echo undef))
+AC_SUBST(HAS_EXTBUS_MEMMODULE, $(test "x$_enable_ext_bus" = "xmemmodule" && echo y))
+AC_SUBST(EXTBUS_MEMMODULE_DEF, $(test "x$_enable_ext_bus" = "xmemmodule" && echo define || echo undef))
+AC_SUBST(HAS_EXTBUS_PROTOTYPE, $(test "x$_enable_ext_bus" = "xprototype" && echo y))
+AC_SUBST(EXTBUS_PROTOTYPE_DEF, $(test "x$_enable_ext_bus" = "xprototype" && echo define || echo undef))
+
+NUM_ADR=0
+if test "x$_enable_ext_bus" != "xno"; then
+	NUM_ADR=21
+fi
+if test "x$enable_board" = "xhx8k_brk"; then
+	if test "x$_enable_ext_bus" = "xprototype"; then
+		NUM_ADR=20
 	fi
 fi
 AC_SUBST(NUM_ADR)
@@ -140,25 +172,44 @@ _enable_cartridge="$enable_cartridge"
 if test "x$enable_cartridge" = "xauto"; then
 	_enable_cartridge=no
 	if test "x$enable_board" = "xgbreveng"; then
-		_enable_cartridge=yes
+		if test "x$_enable_ext_bus" = "xonboard"; then
+			_enable_cartridge=yes
+		fi
 	fi
 fi
 AC_SUBST(HAS_CARTRIDGE, $(test "x$_enable_cartridge" = "xyes" && echo y))
 AC_SUBST(CARTRIDGE_DEF, $(test "x$_enable_cartridge" = "xyes" && echo define || echo undef))
 
-AC_SUBST(HAS_MBC, $(test "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(MBC_DEF, $(test "x$enable_mbc_emu" != "xno" && echo define || echo undef))
-AC_SUBST(MBC_TYPE, $(test "x$enable_mbc_emu" != "xno" && ( echo $enable_mbc_emu | sed -e 's,-.*,,' ) || echo none))
+_enable_mbc_emu="$enable_mbc_emu"
+if test "x$enable_mbc_emu" = "xauto"; then
+	_enable_mbc_emu=no
+	if test "x$enable_board" = "xgbreveng"; then
+		if test "x$_enable_ext_bus" = "xonboard"; then
+			_enable_mbc_emu=mbc1-2m32k
+		fi
+	fi
+	if test "x$enable_board" = "xhx8k_brk"; then
+		if test "x$_enable_ext_bus" = "xmemmodule"; then
+			_enable_mbc_emu=mbc1-2m32k
+		fi
+		if test "x$_enable_ext_bus" = "xprototype"; then
+			_enable_mbc_emu=mbc1-2m32k
+		fi
+	fi
+fi
+AC_SUBST(HAS_MBC, $(test "x$_enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(MBC_DEF, $(test "x$_enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(MBC_TYPE, $(test "x$_enable_mbc_emu" != "xno" && ( echo $_enable_mbc_emu | sed -e 's,-.*,,' ) || echo none))
 
 # Verilog has a very useless preprocessor, so we need to define every combination here
-AC_SUBST(HAS_CARTRIDGE_ONLY, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo y))
-AC_SUBST(CARTRIDGE_ONLY_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" = "xno" && echo define || echo undef))
-AC_SUBST(HAS_MBC_ONLY, $(test "x$_enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(MBC_ONLY_DEF, $(test "x$_enable_cartridge" != "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
-AC_SUBST(HAS_CARTRIDGE_AND_MBC, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(CARTRIDGE_AND_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$enable_mbc_emu" != "xno" && echo define || echo undef))
-AC_SUBST(HAS_CARTRIDGE_OR_MBC, $(test "x$_enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo y))
-AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -o "x$enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_ONLY, $(test "x$_enable_cartridge" = "xyes" -a "x$_enable_mbc_emu" = "xno" && echo y))
+AC_SUBST(CARTRIDGE_ONLY_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$_enable_mbc_emu" = "xno" && echo define || echo undef))
+AC_SUBST(HAS_MBC_ONLY, $(test "x$_enable_cartridge" != "xyes" -a "x$_enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(MBC_ONLY_DEF, $(test "x$_enable_cartridge" != "xyes" -a "x$_enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_AND_MBC, $(test "x$_enable_cartridge" = "xyes" -a "x$_enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(CARTRIDGE_AND_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -a "x$_enable_mbc_emu" != "xno" && echo define || echo undef))
+AC_SUBST(HAS_CARTRIDGE_OR_MBC, $(test "x$_enable_cartridge" = "xyes" -o "x$_enable_mbc_emu" != "xno" && echo y))
+AC_SUBST(CARTRIDGE_OR_MBC_DEF, $(test "x$_enable_cartridge" = "xyes" -o "x$_enable_mbc_emu" != "xno" && echo define || echo undef))
 
 _enable_hostifc="$enable_hostifc"
 if test "x$enable_hostifc" = "xauto"; then
@@ -192,7 +243,7 @@ _enable_loader="$enable_loader"
 if test "x$enable_loader" = "xauto"; then
 	_enable_loader=no
 	if test "x$_enable_hostifc" != "xno"; then
-		if test "x$enable_mbc_emu" != "xno"; then
+		if test "x$_enable_mbc_emu" != "xno"; then
 			_enable_loader=yes
 		fi
 	fi
@@ -234,12 +285,13 @@ echo "IceProg:                            $ICEPROG"
 echo
 echo "--- Hardware ---"
 echo "Board:                              $enable_board"
+echo "External Memory Bus:                $_enable_ext_bus"
 echo "LEDs:                               $_enable_leds$(test "x$_enable_leds" = "xyes" && echo " ($NUM_LEDS)")"
 echo "LCD:                                $_enable_lcd"
 echo "External Link Port:                 $enable_elp"
 echo "Host interface:                     $_enable_hostifc$(test "x$_enable_debugger" = "xyes" && echo ", with debugger")$(test "x$_enable_loader" = "xyes" && echo ", with program loader")"
 echo "GB Cartridge slot:                  $_enable_cartridge"
-echo "MBC emulation:                      $enable_mbc_emu"
+echo "MBC emulation:                      $_enable_mbc_emu"
 echo
 echo "--- Files ---"
 echo "Boot ROM:                           $with_bootrom"

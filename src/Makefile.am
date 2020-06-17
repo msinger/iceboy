@@ -46,16 +46,13 @@ lcds/lcd_uc1611-pins.vh
 
 PCF_FILES = \
 boards/gbreveng.pcf \
-boards/gbreveng-cart.pcf \
-boards/gbreveng-mbc.pcf \
-boards/gbreveng-cart+mbc.pcf \
+boards/gbreveng-extbus-onboard.pcf \
 boards/gbreveng-uart.pcf \
 boards/gbreveng-ft245.pcf \
 boards/gbreveng-leds.pcf \
 boards/hx8k_brk.pcf \
-boards/hx8k_brk-cart.pcf \
-boards/hx8k_brk-mbc.pcf \
-boards/hx8k_brk-cart+mbc.pcf \
+boards/hx8k_brk-extbus-memmodule.pcf \
+boards/hx8k_brk-extbus-prototype.pcf \
 boards/hx8k_brk-uart.pcf \
 boards/hx8k_brk-leds.pcf \
 lcds/lcd_lh507x-gbreveng.pcf \
@@ -96,9 +93,7 @@ $(if @HAS_LCD@,$(foreach suf,args glue pins,lcds/lcd_@LCD_TYPE@-$(suf).vh))
 
 USED_PCF_FILES = \
 boards/@BOARD@.pcf \
-$(if @HAS_CARTRIDGE_ONLY@,boards/@BOARD@-cart.pcf) \
-$(if @HAS_MBC_ONLY@,boards/@BOARD@-mbc.pcf) \
-$(if @HAS_CARTRIDGE_AND_MBC@,boards/@BOARD@-cart+mbc.pcf) \
+$(if @HAS_EXTBUS@,boards/@BOARD@-extbus-@EXTBUS_TYPE@.pcf) \
 $(if @HAS_UART@,boards/@BOARD@-uart.pcf) \
 $(if @HAS_FT245@,boards/@BOARD@-ft245.pcf) \
 $(if @HAS_LEDS@,boards/@BOARD@-leds.pcf) \

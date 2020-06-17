@@ -20,24 +20,20 @@ module top(
 		output wire        p14,
 		output wire        p15,
 
-`ifdef HAS_CARTRIDGE_OR_MBC
+`ifdef HAS_EXTBUS
 		output wire [`NUM_ADR-1:0] adr,
 		inout  wire [7:0]  data,
 		output wire        n_read,
 		output wire        n_write,
-`ifdef HAS_CARTRIDGE_AND_MBC
 		input  wire        n_emu_mbc, /* emulate MBC chip of cartridge for continuous 21 bit address bus */
-`endif
-`ifdef HAS_CARTRIDGE
 		output wire        clk1m_out, /* 1 MiHz clock output */
 		inout  wire        n_crst,    /* bi-directional !reset on cartridge slot */
 		output wire        n_coe,     /* output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13] */
 		output wire        n_coed,    /* output enable for data[7:0] */
 		output wire        cdir,      /* direction for data[7:0] */
-		output wire        n_cs_rom,  /* chip select for cartridge ROM */
-		output wire        n_cs_xram, /* chip select for cartridge RAM */
-`endif
-		output wire        n_cs_wram, /* chip select for WRAM */
+		output wire        n_cs_rom,  /* chip select for cartridge mask ROM */
+		output wire        n_cs_xram, /* chip select for cartridge external expansion RAM */
+		output wire        n_cs_wram, /* chip select for work RAM */
 		output wire        n_cs_crom, /* chip select for onboard cartridge ROM (only when emulating MBC chip) */
 		output wire        n_cs_cram, /* chip select for onboard cartridge RAM (only when emulating MBC chip) */
 		output wire        n_prog,    /* !wr signal for onboard cartridge ROM (only when emulating MBC chip) */
@@ -102,11 +98,8 @@ module top(
 	wire [7:0]  adr_dma_wr;
 	reg  [12:0] adr_vram;
 	reg  [7:0]  adr_oam;
-	wire [20:0] adr21;
-`ifdef USE_LOADER
-	wire [20:0] adr21_prog;
-`endif
 	wire [`NUM_ADR-1:0] adr_out;
+	wire [`NUM_ADR-1:0] adr_prog;
 
 `ifdef HAS_UART
 	wire rx_in,      rx_ext;
@@ -126,9 +119,7 @@ module top(
 	cdc #(1) ft245_n_txe_cdc(gbclk, ft245_n_txe_ext, ft245_n_txe_in);
 `endif
 
-`ifdef HAS_CARTRIDGE_OR_MBC
 	reg emu_mbc;
-`endif
 
 	wire reset_in, reset_ext;
 	cdc #(1) reset_cdc(gbclk, reset_ext, reset_in);
@@ -178,9 +169,7 @@ module top(
 	wire [7:0]  data_hram_out;
 	wire [7:0]  data_cpureg_out;
 	wire [7:0]  data_dbg_out;
-`ifdef USE_LOADER
 	wire [7:0]  data_prog_out;
-`endif
 
 	wire irq_ppu_vblank, irq_ppu_stat, irq_tim, irq_elp, irq_p1;
 
@@ -207,19 +196,14 @@ module top(
 
 	wire [15:0] div;
 
-`ifdef HAS_CARTRIDGE_OR_MBC
+`ifdef HAS_EXTBUS
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
 		) adr_io[`NUM_ADR-1:0] (
 			.PACKAGE_PIN(adr),
 			.OUTPUT_CLK(gbclk),
-			.D_OUT_0(adr_out),
+			.D_OUT_0(gb_on ? adr_out : adr_prog),
 		);
-`ifdef USE_LOADER
-	assign adr_out = gb_on ? adr21 : adr21_prog;
-`else
-	assign adr_out = adr21;
-`endif
 
 	SB_IO #(
 			.PIN_TYPE('b 1101_01),
@@ -228,11 +212,7 @@ module top(
 			.PACKAGE_PIN(data),
 			.OUTPUT_CLK(gbclk),
 			.OUTPUT_ENABLE(reset_done && (gb_on ? (wr_ext || r_wr_ext) : 1)),
-`ifdef USE_LOADER
 			.D_OUT_0(gb_on ? data_cpu_out : data_prog_out),
-`else
-			.D_OUT_0(data_cpu_out),
-`endif
 			.D_IN_0(data_ext_in),
 		);
 
@@ -253,22 +233,27 @@ module top(
 		);
 
 `ifdef HAS_CARTRIDGE_AND_MBC
-	wire n_emu_mbc_in, n_emu_mbc_ext;
+	wire n_emu_mbc_ext;
+`endif
 	SB_IO #(
 			.PIN_TYPE('b 0000_00),
 			.PULLUP(0),
 		) n_emu_mbc_io (
 			.PACKAGE_PIN(n_emu_mbc),
+`ifdef HAS_CARTRIDGE_AND_MBC
 			.INPUT_CLK(gbclk),
 			.D_IN_0(n_emu_mbc_ext),
+`endif
 		);
+`ifdef HAS_CARTRIDGE_AND_MBC
+	wire n_emu_mbc_in;
 	cdc #(1) n_emu_mbc_cdc(gbclk, n_emu_mbc_ext, n_emu_mbc_in);
 	always @(posedge gbclk) if (reset_state == `rst_assert) emu_mbc <= !n_emu_mbc_in;
 `else
 `ifdef HAS_CARTRIDGE_ONLY
-	assign emu_mbc = 0;
+	always @* emu_mbc = 0;
 `else
-	assign emu_mbc = 1;
+	always @* emu_mbc = 1;
 `endif
 `endif
 
@@ -312,6 +297,12 @@ module top(
 			.OUTPUT_CLK(gbclk),
 			.D_OUT_0(!reset_done || !cs_xram || emu_mbc),
 		);
+`else
+	assign n_coe     = 1;
+	assign n_coed    = 1;
+	assign cdir      = 1;
+	assign n_cs_rom  = 1;
+	assign n_cs_xram = 1;
 `endif
 
 	SB_IO #(
@@ -351,18 +342,6 @@ module top(
 	assign n_cs_cram = 1;
 	assign n_prog    = 1;
 `endif
-`else /* if !(HAS_CARTRIDGE || HAS_MBC) */
-	assign data_ext_in = 'hff;
-`endif
-
-	SB_IO #(
-			.PIN_TYPE('b 0000_00),
-			.PULLUP(0),
-		) reset_io (
-			.PACKAGE_PIN(reset),
-			.INPUT_CLK(gbclk),
-			.D_IN_0(reset_ext),
-		);
 
 `ifdef HAS_CARTRIDGE
 	SB_IO #(
@@ -388,8 +367,29 @@ module top(
 			.D_IN_0(n_crst_ext),
 		);
 `else
+	assign clk1m_out = 1;
 	assign n_crst_in = 1;
+	SB_IO #(
+			.PIN_TYPE('b 0000_01),
+			.PULLUP(1),
+		) n_crst_io (
+			.PACKAGE_PIN(n_crst),
+		);
 `endif
+`else /* if !HAS_EXTBUS */
+	assign data_ext_in = 'hff;
+	assign n_crst_in = 1;
+	always @* emu_mbc = 0;
+`endif
+
+	SB_IO #(
+			.PIN_TYPE('b 0000_00),
+			.PULLUP(0),
+		) reset_io (
+			.PACKAGE_PIN(reset),
+			.INPUT_CLK(gbclk),
+			.D_IN_0(reset_ext),
+		);
 
 	SB_IO #(
 			.PIN_TYPE('b 0101_01),
@@ -1154,7 +1154,12 @@ module top(
 	);
 
 `ifdef HAS_MBC
-	mbc1 mbc(
+	mbc1 #(
+		.ADR_WIDTH(`NUM_ADR),
+`ifdef HAS_EXTBUS_ONBOARD
+		.GBREVENG_ONBOARD_MAPPING(1),
+`endif
+	) mbc(
 		.clk(gbclk),
 		.reset(reset_gb),
 
@@ -1164,13 +1169,15 @@ module top(
 		.ics_rom(cs_rom && emu_mbc),
 		.ics_ram(cs_xram && emu_mbc),
 
-		.oadr(adr21),
+		.oadr(adr_out),
 		.ocs_rom(cs_crom),
 		.ocs_ram(cs_cram),
 
 		.rom_size('h04),
 		.ram_size('h02),
 	);
+`else
+	assign adr_out = adr_ext[14:0];
 `endif
 
 `ifdef USE_LOADER
@@ -1217,11 +1224,11 @@ module top(
 	);
 `endif
 
-	prog_loader loader(
+	prog_loader #(.ADR_WIDTH(`NUM_ADR)) loader(
 		.clk(gbclk),
 		.reset(reset_ld),
 
-		.adr(adr21_prog),
+		.adr(adr_prog),
 		.data(data_prog_out),
 		.write(wr_prog),
 
@@ -1229,7 +1236,9 @@ module top(
 		.data_rx_seq(ld_data_seq),
 	);
 `else
-	assign wr_prog = 0;
+	assign adr_prog        = 0;
+	assign data_prog_out   = 'bx;
+	assign wr_prog         = 0;
 `ifdef HAS_FT245
 	assign ft245_rd_ld_out = 0;
 `endif

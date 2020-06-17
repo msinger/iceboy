@@ -6,24 +6,26 @@
 `define WR_INC      3
 
 (* nolatches *)
-module prog_loader(
-		input  wire        clk,
-		input  wire        reset,
+module prog_loader #(
+		parameter ADR_WIDTH = 21,
+	) (
+		input  wire                 clk,
+		input  wire                 reset,
 
-		output reg  [20:0] adr,
-		output reg  [7:0]  data,
-		output reg         write,
+		output reg  [ADR_WIDTH-1:0] adr,
+		output reg  [7:0]           data,
+		output reg                  write,
 
-		input  wire [7:0]  data_rx,
-		input  wire        data_rx_seq,
+		input  wire [7:0]           data_rx,
+		input  wire                 data_rx_seq,
 	);
 
-	reg [20:0] r_adr;
-	reg [7:0]  r_data;
+	reg [ADR_WIDTH-1:0] r_adr;
+	reg [7:0]           r_data;
 
-	reg [1:0]  r_wr_state, wr_state;
+	reg [1:0]           r_wr_state, wr_state;
 
-	reg        r_data_wr_seq, data_wr_seq;
+	reg                 r_data_wr_seq, data_wr_seq;
 
 	always @* begin
 		adr         = r_adr;

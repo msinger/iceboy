@@ -2,7 +2,8 @@
 
 (* nolatches *)
 module mbc1 #(
-		parameter HX8K_BRK_MAPPING = 0,
+		parameter ADR_WIDTH                  = 21,
+		parameter GBREVENG_ONBOARD_MAPPING   = 0,
 	) (
 		input  wire        clk,
 		input  wire        reset,
@@ -13,7 +14,7 @@ module mbc1 #(
 		input  wire        ics_rom,
 		input  wire        ics_ram,
 
-		output reg  [20:0] oadr,
+		output wire [ADR_WIDTH-1:0] oadr,
 		output reg         ocs_rom,
 		output reg         ocs_ram,
 
@@ -30,15 +31,19 @@ module mbc1 #(
 	reg [20:0] rom_mask;
 	reg [14:0] ram_mask;
 
+	reg [20:0] adr;
+
+	assign oadr = adr;
+
 	always @* begin
 		ocs_rom  = 0;
 		ocs_ram  = 0;
 		rom_mask = 'bx;
 		ram_mask = 'bx;
-		oadr     = { 'bx, iadr }; /* pass-through lower address lines for WRAM and cartridge slot */
+		adr      = { 'bx, iadr }; /* pass-through lower address lines for WRAM and cartridge slot */
 
-		if (!HX8K_BRK_MAPPING)
-			oadr[17:16] = 0; /* default to 0 for pass-through WRAM access */
+		if (GBREVENG_ONBOARD_MAPPING)
+			adr[17:16] = 0; /* default to 0 for pass-through WRAM access */
 
 		case (rom_size)
 		'h00: rom_mask = 'h007fff; /*  32kB */
@@ -59,23 +64,23 @@ module mbc1 #(
 		/* ROM RAM  A14...A8 A7.....A0 */
 		'b  1___?___0??_????_????_????: /* 0x0000-0x3fff: 16k cartridge ROM bank #0, #32, #64 or #96 */
 			begin
-				oadr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] } & rom_mask;
+				// TODO: check if this is true
+				adr    = { bank[6:5] & {2{ mode }}, 5'b00000, iadr[13:0] } & rom_mask;
 				ocs_rom = 1;
 			end
 		'b  1___?___1??_????_????_????: /* 0x4000-0x7fff: 16k switchable cartridge ROM bank #1..#127 */
 			begin
 				/* banks #0, #32, #64 and #96 can't be selected, instead the next one (+1) is selected */
-				oadr    = { bank[6:0] | !bank[4:0], iadr[13:0] } & rom_mask;
+				adr    = { bank[6:0] | !bank[4:0], iadr[13:0] } & rom_mask;
 				ocs_rom = 1;
 			end
 		'b  ?___1___01?_????_????_????: /* 0xa000-0xbfff: 8k switchable cartridge RAM bank #0..#3 */
 			begin
-				if (HX8K_BRK_MAPPING)
-					oadr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
-				else begin
-					oadr[12:0]  = iadr[12:0] & ram_mask[12:0];
-					oadr[19:16] = bank[6:5] & {2{ mode }} & ram_mask[14:13];
-				end
+				if (GBREVENG_ONBOARD_MAPPING) begin
+					adr[12:0]  = iadr[12:0] & ram_mask[12:0];
+					adr[19:16] = bank[6:5] & {2{ mode }} & ram_mask[14:13];
+				end else
+					adr[14:0] = { bank[6:5] & {2{ mode }}, iadr[12:0] } & ram_mask;
 				ocs_ram = ena_ram & |ram_size;
 			end
 		endcase

@@ -1,8 +1,7 @@
 # For the iCE40HX-8K Breakout Board
 
-# Clock & Reset
+# Clock
 set_io clk12m    J3
-set_io n_reset   D15
 
 # Audio PWMs
 set_io chl       T1

@@ -21,6 +21,7 @@ set_io adr[16]   G16
 set_io adr[17]   F15
 set_io adr[18]   F16
 set_io adr[19]   E14
+set_io adr[20]   E16
 
 # Ext. Data Bus
 set_io data[0]   A9
@@ -35,8 +36,9 @@ set_io data[7]   C6
 # Ext. R/W
 set_io n_read    B6
 set_io n_write   A5
+set_io n_prog    A10
 
 # Ext. Chip Selects
-set_io n_cs_wram D16 # WRAM
-set_io n_cs_crom B16 # onboard cartridge ROM
-set_io n_cs_cram C16 # onboard cartridge RAM
+set_io n_cs_wram D16 # work RAM
+set_io n_cs_cram C16 # external expansion RAM
+set_io n_cs_crom B16 # mask ROM
