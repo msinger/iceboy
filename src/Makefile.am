@@ -4,6 +4,7 @@ lr35902_iomap.v \
 cpu/lr35902_cpu.v \
 cpu/lr35902_hram.v \
 cpu/lr35902_dbg_ifc.v \
+cpu/sm83_alu.sv \
 ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \

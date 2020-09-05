@@ -166,6 +166,18 @@ if test -z "$ICEPROG"; then
 fi
 ])dnl
 dnl
+AC_DEFUN([MY_PROG_SBY],
+[dnl
+# SymbiYosis
+AC_ARG_VAR(SBY, [SymbiYosis (overrides auto detection)])
+if test -z "$SBY"; then
+	AC_PATH_PROG(SBY, sby, [])
+	if test -z "$SBY"; then
+		AC_MSG_WARN([sby not found])
+	fi
+fi
+])dnl
+dnl
 AC_DEFUN([MY_ARG_ENABLE],
 [dnl
 m4_do(

@@ -15,6 +15,7 @@ Makefile.in
 /depcomp
 /install-sh
 /missing
+/test-driver
 /autoscan.log
 /configure.scan
 /ltmain.sh

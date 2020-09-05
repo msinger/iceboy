@@ -13,6 +13,7 @@ MY_PROG_NEXTPNR
 MY_PROG_ICEPACK
 MY_PROG_ICEPLL
 MY_PROG_ICEPROG
+MY_PROG_SBY
 
 MY_ARG_ENABLE(
 	board,
@@ -266,7 +267,9 @@ AC_SUBST(NEED_PLL, $(test "x$need_pll" = "xyes" && echo y))
 
 AC_CONFIG_FILES([
 src/config.vh
+tests/alu.sby
 src/Makefile
+tests/Makefile
 Makefile
 ])
 
@@ -282,6 +285,7 @@ echo "nextpnr:                            $NEXTPNR"
 echo "IcePack:                            $ICEPACK"
 echo "IcePLL:                             $ICEPLL"
 echo "IceProg:                            $ICEPROG"
+echo "SymbiYosis:                         $SBY"
 echo
 echo "--- Hardware ---"
 echo "Board:                              $enable_board"
