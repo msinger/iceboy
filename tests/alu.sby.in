@@ -1,13 +1,12 @@
 [tasks]
-add_bmc add bmc
-sub_bmc sub bmc
+add_bmc add bmc add_sub
+sub_bmc sub bmc add_sub
 
 [options]
 bmc: mode bmc
 append 10
 expect pass
-add: depth 64
-sub: depth 64
+add_sub:    depth 64
 
 [engines]
 smtbmc

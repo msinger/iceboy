@@ -52,7 +52,7 @@
 	endtask
 
 	task undef_inputs();
-		set_inputs('b xxx_xx_x_xxx_xxxxxxxx_xxxx_x_xxx);
+		set_inputs($anyseq);
 	endtask
 
 	input_t line0, line1, line2;
@@ -64,13 +64,38 @@
 		logic [7:0] r;
 		logic       co, ho;
 
-		line0 = 'b xxx_x0_x_00x_xxxxxxxx_1xxx_x_xxx;
-		line1 = 'b 000_00_x_00x_xxxxxxxx_0100_0_xxx;
-		line2 = 'b 000_0x_x_xxx_xxxxxxxx_000x_1_xxx;
-
+		line0    = $anyseq;
+		line0.dp = 0;
+		line0.sl = 0;
+		line0.sr = 0;
 		line0.op = a;
-		line1.op = b;
+		line0.la = 1;
+
+		line1    = $anyseq;
+		line1.r  = 0;
+		line1.s  = 0;
+		line1.v  = 0;
+		line1.ne = 0;
+		line1.dp = 0;
 		line1.ci = c;
+		line1.sl = 0;
+		line1.sr = 0;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 0;
+		line2.s  = 0;
+		line2.v  = 0;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
 
 		if (cyc == scyc)     set_inputs(line0);
 		if (cyc == scyc + 1) set_inputs(line1);
@@ -93,13 +118,38 @@
 		logic [7:0] r;
 		logic       co, ho;
 
-		line0 = 'b xxx_x0_x_00x_xxxxxxxx_1xxx_x_xxx;
-		line1 = 'b 000_10_x_00x_xxxxxxxx_0100_0_xxx;
-		line2 = 'b 000_1x_x_xxx_xxxxxxxx_000x_1_xxx;
-
+		line0    = $anyseq;
+		line0.dp = 0;
+		line0.sl = 0;
+		line0.sr = 0;
 		line0.op = a;
-		line1.op = b;
+		line0.la = 1;
+
+		line1    = $anyseq;
+		line1.r  = 0;
+		line1.s  = 0;
+		line1.v  = 0;
+		line1.ne = 1;
+		line1.dp = 0;
 		line1.ci = c;
+		line1.sl = 0;
+		line1.sr = 0;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 0;
+		line2.s  = 0;
+		line2.v  = 0;
+		line2.ne = 1;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
 
 		if (cyc == scyc)     set_inputs(line0);
 		if (cyc == scyc + 1) set_inputs(line1);
