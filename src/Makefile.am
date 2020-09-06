@@ -22,7 +22,7 @@ NODIST_SRC =
 
 COND_SRC = \
 boards/gbreveng-top.v \
-boards/hx8k_evk-top.v \
+boards/hx8k_brk-top.v \
 elp/lr35902_elp_dummy.v \
 lcds/lcd_lh507x.v \
 lcds/lcd_uc1611.v \
