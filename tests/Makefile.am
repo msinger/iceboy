@@ -4,7 +4,12 @@ alu.sby
 ALU_TESTS = \
 alu.svh \
 alu_add.sv \
-alu_sub.sv
+alu_sub.sv \
+alu_xor.sv \
+alu_and.sv \
+alu_or.sv \
+alu_neg.sv \
+alu_cpl.sv
 
 TESTBENCH_FILES = \
 $(ALU_TESTS)

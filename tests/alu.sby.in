@@ -1,12 +1,19 @@
 [tasks]
 add_bmc add bmc add_sub
 sub_bmc sub bmc add_sub
+xor_bmc xor bmc xor_and_or
+and_bmc and bmc xor_and_or
+or_bmc  or  bmc xor_and_or
+neg_bmc neg bmc neg_cpl
+cpl_bmc cpl bmc neg_cpl
 
 [options]
 bmc: mode bmc
 append 10
 expect pass
 add_sub:    depth 64
+xor_and_or: depth 36
+neg_cpl:    depth 44
 
 [engines]
 smtbmc
@@ -14,6 +21,11 @@ smtbmc
 [script]
 add: read_verilog -sv -formal alu_add.sv sm83_alu.sv
 sub: read_verilog -sv -formal alu_sub.sv sm83_alu.sv
+xor: read_verilog -sv -formal alu_xor.sv sm83_alu.sv
+and: read_verilog -sv -formal alu_and.sv sm83_alu.sv
+or:  read_verilog -sv -formal alu_or.sv  sm83_alu.sv
+neg: read_verilog -sv -formal alu_neg.sv sm83_alu.sv
+cpl: read_verilog -sv -formal alu_cpl.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
@@ -22,3 +34,8 @@ assertpmux
 @srcdir@/alu.svh
 add: @srcdir@/alu_add.sv
 sub: @srcdir@/alu_sub.sv
+xor: @srcdir@/alu_xor.sv
+and: @srcdir@/alu_and.sv
+or:  @srcdir@/alu_or.sv
+neg: @srcdir@/alu_neg.sv
+cpl: @srcdir@/alu_cpl.sv
