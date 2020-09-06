@@ -13,15 +13,15 @@
 
 `@LCD_DEF@ HAS_LCD
 `define LCD_TYPE @LCD_TYPE@
-`define LCD_PIN_HEADER "lcds/lcd_@LCD_TYPE@-pins.vh"
-`define LCD_ARG_HEADER "lcds/lcd_@LCD_TYPE@-args.vh"
-`define LCD_GLUE_HEADER "lcds/lcd_@LCD_TYPE@-glue.vh"
+`define LCD_PIN_HEADER "@srcdir@/lcds/lcd_@LCD_TYPE@-pins.vh"
+`define LCD_ARG_HEADER "@srcdir@/lcds/lcd_@LCD_TYPE@-args.vh"
+`define LCD_GLUE_HEADER "@srcdir@/lcds/lcd_@LCD_TYPE@-glue.vh"
 
 `@ELP_DEF@ HAS_ELP
 `define ELP_TYPE @ELP_TYPE@
-`define ELP_PIN_HEADER "elp/lr35902_elp_@ELP_TYPE@-pins.vh"
-`define ELP_ARG_HEADER "elp/lr35902_elp_@ELP_TYPE@-args.vh"
-`define ELP_GLUE_HEADER "elp/lr35902_elp_@ELP_TYPE@-glue.vh"
+`define ELP_PIN_HEADER "@srcdir@/elp/lr35902_elp_@ELP_TYPE@-pins.vh"
+`define ELP_ARG_HEADER "@srcdir@/elp/lr35902_elp_@ELP_TYPE@-args.vh"
+`define ELP_GLUE_HEADER "@srcdir@/elp/lr35902_elp_@ELP_TYPE@-glue.vh"
 
 `@CARTRIDGE_DEF@ HAS_CARTRIDGE
 
