@@ -56,41 +56,41 @@
  *             1   1  1  1  0  0  0  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     A|B         0    0  Z
  * -----------------------------------------------------------------------------------------
- *  NEG        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?
+ *  NEG        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?
  *             1   0  0  0  1  0  0  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
  *             2   0  0  0  1  x  x  x  x  x  x  0  0  0  x  1  x     -B          C'   H  Z
  * -----------------------------------------------------------------------------------------
- *  CPL        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?
+ *  CPL        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?
  *             1   1  1  1  1  0  1  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   1  1  1  1  x  x  x  x  x  x  0  0  0  x  1  x     ~B          1    1  Z
+ *             2   1  1  1  1  x  x  x  x  x  x  0  0  0  x  1  x     ~B          0    1  Z
  * -----------------------------------------------------------------------------------------
  * Operation  Cyc  R  S  V  Ne Dp Ci Sl Sr Ro Op La Lb Ls Lx Mx Bs    Res         Co   Hc Ze
  * -----------------------------------------------------------------------------------------
- *  SLA        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,0,1,0,0,B
+ *  SLA        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,0,1,0,0,B
  *             1   1  1  1  0  0  0  1  0  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {B[6:0],0}  B[7] 0  Z
  * -----------------------------------------------------------------------------------------
- *  RL         0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,C,1,0,0,B
+ *  RL         0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,C,1,0,0,B
  *             1   1  1  1  0  0  C  1  0  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {B[6:0],C}  B[7] 0  Z
  * -----------------------------------------------------------------------------------------
- *  SRL        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,0,0,1,0,B
+ *  SRL        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,0,0,1,0,B
  *             1   1  1  1  0  0  0  0  1  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {0,B[7:1]}  B[0] 0  Z
  * -----------------------------------------------------------------------------------------
- *  RR         0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,C,0,1,0,B
+ *  RR         0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,C,0,1,0,B
  *             1   1  1  1  0  0  C  0  1  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {C,B[7:1]}  B[0] 0  Z
  * -----------------------------------------------------------------------------------------
- *  SRA        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Op=0,1,1,B
+ *  SRA        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Op=0,1,1,B
  *             1   1  1  1  0  0  x  1  1  x  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[7,7:1]    0    0  Z
  * -----------------------------------------------------------------------------------------
- *  RLC        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Ro,Op=0,1,0,1,B
+ *  RLC        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Ro,Op=0,1,0,1,B
  *             1   1  1  1  0  0  x  1  0  1  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[6:0,7]    B[7] 0  Z
  * -----------------------------------------------------------------------------------------
- *  RRC        0   x  x  x  x  x  x  x  x  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Ro,Op=0,0,1,1,B
+ *  RRC        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Ro,Op=0,0,1,1,B
  *             1   1  1  1  0  0  x  0  1  1  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[0,7:1]    B[0] 0  Z
  * -----------------------------------------------------------------------------------------
