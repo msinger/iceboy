@@ -786,6 +786,57 @@
 		end
 	endtask
 
+	task test_swap(input integer     scyc,
+	               input logic [7:0] b,
+	);
+		logic [7:0] r;
+
+		line0    = $anyseq;
+		line0.dp = 1;
+		line0.sl = 0;
+		line0.sr = 0;
+		line0.op = b;
+		line0.la = 1;
+		line0.lb = 1;
+		line0.ls = 0;
+		line0.lx = 1;
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.ci = 0;
+		line1.op = 0;
+		line1.la = 1;
+		line1.lb = 0;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			r = { b[3:0], b[7:4] };
+			assert(result == r);
+			assert(zero   == !r);
+			assert(!carry);
+			assert(!halfcarry);
+		end
+	endtask
+
 	integer cyc = 0;
 
 	always_ff @(posedge clk) cyc++;
