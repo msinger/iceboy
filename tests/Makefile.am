@@ -9,7 +9,14 @@ alu_xor.sv \
 alu_and.sv \
 alu_or.sv \
 alu_neg.sv \
-alu_cpl.sv
+alu_cpl.sv \
+alu_sla.sv \
+alu_rl.sv \
+alu_srl.sv \
+alu_rr.sv \
+alu_sra.sv \
+alu_rlc.sv \
+alu_rrc.sv
 
 TESTBENCH_FILES = \
 $(ALU_TESTS)
@@ -18,7 +25,7 @@ ALU_HW_TESTS = \
 alu_test1.sv \
 alu_test2.sv
 
-ALU_UUT = ../src/cpu/sm83_alu.sv
+ALU_UUT = cpu/sm83_alu.sv
 
 HW_TESTS = \
 $(ALU_HW_TESTS)
@@ -55,8 +62,8 @@ hwtests: $(HW_TESTS:.sv=.bin)
 
 YOSYS_SYNTH_ARGS = -q -p "synth_ice40 -abc2 -json $1"
 
-$(ALU_HW_TESTS:.sv=.json): %.json: $(srcdir)/%.sv Makefile $(addprefix $(srcdir)/,$(ALU_UUT))
-	$(YOSYS) $(YOSYSFLAGS) $(call YOSYS_SYNTH_ARGS,$@) $< $(addprefix $(srcdir)/,$(ALU_UUT))
+$(ALU_HW_TESTS:.sv=.json): %.json: $(srcdir)/%.sv Makefile $(addprefix $(top_srcdir)/src/,$(ALU_UUT))
+	$(YOSYS) $(YOSYSFLAGS) $(call YOSYS_SYNTH_ARGS,$@) $< $(addprefix $(top_srcdir)/src/,$(ALU_UUT))
 
 $(HW_TESTS:.sv=.asc): %.asc: %.json $(srcdir)/$(HW_TESTS_PCF) Makefile
 	$(NEXTPNR) $(NEXTPNRFLAGS) --hx8k --package ct256 --pcf $(srcdir)/$(HW_TESTS_PCF) --json $< --asc $@

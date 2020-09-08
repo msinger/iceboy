@@ -6,6 +6,13 @@ and_bmc and bmc xor_and_or
 or_bmc  or  bmc xor_and_or
 neg_bmc neg bmc neg_cpl
 cpl_bmc cpl bmc neg_cpl
+sla_bmc sla bmc shift
+rl_bmc  rl  bmc shift
+srl_bmc srl bmc shift
+rr_bmc  rr  bmc shift
+sra_bmc sra bmc shift
+rlc_bmc rlc bmc shift
+rrc_bmc rrc bmc shift
 
 [options]
 bmc: mode bmc
@@ -14,6 +21,7 @@ expect pass
 add_sub:    depth 64
 xor_and_or: depth 36
 neg_cpl:    depth 44
+shift:      depth 36
 
 [engines]
 smtbmc
@@ -26,11 +34,18 @@ and: read_verilog -sv -formal alu_and.sv sm83_alu.sv
 or:  read_verilog -sv -formal alu_or.sv  sm83_alu.sv
 neg: read_verilog -sv -formal alu_neg.sv sm83_alu.sv
 cpl: read_verilog -sv -formal alu_cpl.sv sm83_alu.sv
+sla: read_verilog -sv -formal alu_sla.sv sm83_alu.sv
+rl:  read_verilog -sv -formal alu_rl.sv  sm83_alu.sv
+srl: read_verilog -sv -formal alu_srl.sv sm83_alu.sv
+rr:  read_verilog -sv -formal alu_rr.sv  sm83_alu.sv
+sra: read_verilog -sv -formal alu_sra.sv sm83_alu.sv
+rlc: read_verilog -sv -formal alu_rlc.sv sm83_alu.sv
+rrc: read_verilog -sv -formal alu_rrc.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
-@srcdir@/../src/cpu/sm83_alu.sv
+@top_srcdir@/src/cpu/sm83_alu.sv
 @srcdir@/alu.svh
 add: @srcdir@/alu_add.sv
 sub: @srcdir@/alu_sub.sv
@@ -39,3 +54,10 @@ and: @srcdir@/alu_and.sv
 or:  @srcdir@/alu_or.sv
 neg: @srcdir@/alu_neg.sv
 cpl: @srcdir@/alu_cpl.sv
+sla: @srcdir@/alu_sla.sv
+rl:  @srcdir@/alu_rl.sv
+srl: @srcdir@/alu_srl.sv
+rr:  @srcdir@/alu_rr.sv
+sra: @srcdir@/alu_sra.sv
+rlc: @srcdir@/alu_rlc.sv
+rrc: @srcdir@/alu_rrc.sv

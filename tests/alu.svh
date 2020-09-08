@@ -420,6 +420,372 @@
 		end
 	endtask
 
+	task test_sla(input integer     scyc,
+	              input logic [7:0] b,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.ci = 0;
+		line1.sl = 1;
+		line1.sr = 0;
+		line1.ro = 0;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			{ co, r } = b << 1;
+			assert(result == r);
+			assert(carry  == co);
+			assert(zero   == !r);
+			assert(!halfcarry);
+		end
+	endtask
+
+	task test_rl(input integer     scyc,
+	             input logic [7:0] b,
+	             input logic       c,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.ci = c;
+		line1.sl = 1;
+		line1.sr = 0;
+		line1.ro = 0;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			/* somehow yosys messes up concatenation inside this task; don't know why */
+			//{ co, r } = { b, c };
+			r[7:1] = b[6:0];
+			r[0]   = c;
+			co     = b[7];
+			assert(result == r);
+			assert(carry  == co);
+			assert(zero   == !r);
+			assert(!halfcarry);
+		end
+	endtask
+
+	task test_srl(input integer     scyc,
+	              input logic [7:0] b,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.ci = 0;
+		line1.sl = 0;
+		line1.sr = 1;
+		line1.ro = 0;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			{ r, co } = b;
+			assert(result == r);
+			assert(carry  == co);
+			assert(zero   == !r);
+			assert(!halfcarry);
+		end
+	endtask
+
+	task test_rr(input integer     scyc,
+	             input logic [7:0] b,
+	             input logic       c,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.ci = c;
+		line1.sl = 0;
+		line1.sr = 1;
+		line1.ro = 0;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			{ r, co } = { c, b };
+			assert(result == r);
+			assert(carry  == co);
+			assert(zero   == !r);
+			assert(!halfcarry);
+		end
+	endtask
+
+	task test_sra(input integer     scyc,
+	              input logic [7:0] b,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.sl = 1;
+		line1.sr = 1;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			r = signed'(b) >>> 1;
+			assert(result == r);
+			assert(zero   == !r);
+			assert(!carry);
+			assert(!halfcarry);
+		end
+	endtask
+
+	task test_rlc(input integer     scyc,
+	              input logic [7:0] b,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.sl = 1;
+		line1.sr = 0;
+		line1.ro = 1;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			{ co, r } = { b, b[7] };
+			assert(result == r);
+			assert(carry  == co);
+			assert(zero   == !r);
+			assert(!halfcarry);
+		end
+	endtask
+
+	task test_rrc(input integer     scyc,
+	              input logic [7:0] b,
+	);
+		logic [7:0] r;
+		logic       co;
+
+		line0    = $anyseq;
+		line0.op = 0;
+		line0.la = 1;
+		/* allow shift as long as there is no carry shifted into the zero operand */
+		assume(!line0.ci || line0.sl == line0.sr || line0.ro);
+
+		line1    = $anyseq;
+		line1.r  = 1;
+		line1.s  = 1;
+		line1.v  = 1;
+		line1.ne = 0;
+		line1.dp = 0;
+		line1.sl = 0;
+		line1.sr = 1;
+		line1.ro = 1;
+		line1.op = b;
+		line1.la = 0;
+		line1.lb = 1;
+		line1.ls = 0;
+		line1.lx = 0;
+		line1.mx = 0;
+
+		line2    = $anyseq;
+		line2.r  = 1;
+		line2.s  = 1;
+		line2.v  = 1;
+		line2.ne = 0;
+		line2.la = 0;
+		line2.lb = 0;
+		line2.ls = 0;
+		line2.mx = 1;
+
+		if (cyc == scyc)     set_inputs(line0);
+		if (cyc == scyc + 1) set_inputs(line1);
+		if (cyc == scyc + 2) set_inputs(line2);
+
+		if (cyc == scyc + 3) begin
+			{ r, co } = { b[0], b };
+			assert(result == r);
+			assert(carry  == co);
+			assert(zero   == !r);
+			assert(!halfcarry);
+		end
+	endtask
+
 	integer cyc = 0;
 
 	always_ff @(posedge clk) cyc++;
