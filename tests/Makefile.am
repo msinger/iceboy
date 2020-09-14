@@ -17,7 +17,10 @@ alu_rr.sv \
 alu_sra.sv \
 alu_rlc.sv \
 alu_rrc.sv \
-alu_swap.sv
+alu_swap.sv \
+alu_set.sv \
+alu_res.sv \
+alu_bit.sv
 
 TESTBENCH_FILES = \
 $(ALU_TESTS)

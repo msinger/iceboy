@@ -14,16 +14,20 @@ sra_bmc  sra  bmc shift
 rlc_bmc  rlc  bmc shift
 rrc_bmc  rrc  bmc shift
 swap_bmc swap bmc
+set_bmc  set  bmc set_res_bit
+res_bmc  res  bmc set_res_bit
+bit_bmc  bit  bmc set_res_bit
 
 [options]
 bmc: mode bmc
 append 10
 expect pass
-add_sub:    depth 64
-xor_and_or: depth 36
-neg_cpl:    depth 44
-shift:      depth 36
-swap:       depth 36
+add_sub:     depth 64
+xor_and_or:  depth 36
+neg_cpl:     depth 44
+shift:       depth 36
+swap:        depth 36
+set_res_bit: depth 64
 
 [engines]
 smtbmc
@@ -44,6 +48,9 @@ sra:  read_verilog -sv -formal alu_sra.sv  sm83_alu.sv
 rlc:  read_verilog -sv -formal alu_rlc.sv  sm83_alu.sv
 rrc:  read_verilog -sv -formal alu_rrc.sv  sm83_alu.sv
 swap: read_verilog -sv -formal alu_swap.sv sm83_alu.sv
+set:  read_verilog -sv -formal alu_set.sv  sm83_alu.sv
+res:  read_verilog -sv -formal alu_res.sv  sm83_alu.sv
+bit:  read_verilog -sv -formal alu_bit.sv  sm83_alu.sv
 prep -top testbench
 assertpmux
 
@@ -65,3 +72,6 @@ sra:  @srcdir@/alu_sra.sv
 rlc:  @srcdir@/alu_rlc.sv
 rrc:  @srcdir@/alu_rrc.sv
 swap: @srcdir@/alu_swap.sv
+set:  @srcdir@/alu_set.sv
+res:  @srcdir@/alu_res.sv
+bit:  @srcdir@/alu_bit.sv
