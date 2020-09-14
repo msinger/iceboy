@@ -101,15 +101,15 @@
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[3:0,7:4]  0    0  Z
  * -----------------------------------------------------------------------------------------
  *  SET        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   1  1  1  0  x  0  0  0  x  x  0  x  1  0  0  B      ?          ?    ?  ?  <- could be merged with line 0
+ *             1   1  1  1  0  x  0  0  0  x  x  0  1  1  0  0  B      ?          ?    ?  ?  <- could be merged with line 0
  *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     A|(1<<B)    0    0  Z
  * -----------------------------------------------------------------------------------------
  *  RES        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  1  0  1  0  0  0  0  x  x  0  x  1  0  0  B      ?          ?    ?  ?
- *             2   0  1  0  1  x  x  x  x  x  x  0  0  0  x  1  x     A&~(1<<B)   0    1  Z
+ *             1   0  1  0  1  x  0  0  0  x  x  0  1  1  0  0  B      ?          ?    ?  ?
+ *             2   0  1  0  1  x  x  x  x  x  x  0  0  0  x  1  x     A&~(1<<B)   0    0  Z
  * -----------------------------------------------------------------------------------------
  *  BIT        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  1  0  0  0  1  0  0  x  x  0  x  1  0  0  B      ?          ?    ?  ?
+ *             1   0  1  0  0  x  1  0  0  x  x  0  1  1  0  0  B      ?          ?    ?  ?
  *             2   0  1  0  0  x  x  x  x  x  x  0  0  0  x  1  x     A&(1<<B)    0    1  !A[B]
  *
  */
@@ -253,8 +253,8 @@ module sm83_alu
 	always_ff @(posedge clk) if (!mux) res_lo = core_result;
 	assign result = { core_result, res_lo };
 
-	assign                             carry     = (force_carry ? 0 : (negate ? ~core_c_out : core_c_out)) | carry_shift;
-	always_ff @(posedge clk) if (!mux) halfcarry =                     negate ? ~core_c_out : core_c_out;
+	assign                             carry     = (force_carry ? 0 : (negate != core_c_out)) | carry_shift;
+	always_ff @(posedge clk) if (!mux) halfcarry =                     negate != core_c_out;
 
 	assign zero = !result;
 endmodule
