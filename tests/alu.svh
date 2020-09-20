@@ -517,11 +517,7 @@
 		if (cyc == scyc + 2) set_inputs(line2);
 
 		if (cyc == scyc + 3) begin
-			/* somehow yosys messes up concatenation inside this task; don't know why */
-			//{ co, r } = { b, c };
-			r[7:1] = b[6:0];
-			r[0]   = c;
-			co     = b[7];
+			{ co, r } = { b, c };
 			assert(result == r);
 			assert(carry  == co);
 			assert(zero   == !r);
