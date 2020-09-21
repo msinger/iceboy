@@ -1,117 +1,7 @@
 /*
  * Implemented ALU based on this information:
  * http://www.righto.com/2013/09/the-z-80-has-4-bit-alu-heres-how-it.html
- *
- * == Legend ==
- *  R  = no_carry_out
- *  S  = force_carry
- *  V  = ignore_carry
- *  Ne = negate
- *  Dp = duplicate
- *  Ci = carry_in
- *  Sl = shift_l
- *  Sr = shift_r
- *  Ro = rotate
- *  x  = don't care
- *
- * == Overview ==
- * Operation   R  S  V  Ne Dp Ci Sl Sr Ro
- *  ADD        0  0  0  0  0  x  0  0  x
- *  SUB/CP     0  0  0  1  0  x  0  0  x
- *  XOR        1  0  0  0  0  0  0  0  x
- *  AND        0  1  0  0  0  1  0  0  x
- *  OR         1  1  1  0  0  0  0  0  x
- *  NEG        0  0  0  1  0  0  0  0  x  A=0
- *  CPL        1  1  1  1  0  1  0  0  x  A=0
- *  SLA/RL     1  1  1  0  0  x  1  0  0  A=0 or A=B   Ci=0 for SLA
- *  SRL/RR     1  1  1  0  0  x  0  1  0  A=0 or A=B   Ci=0 for SRL
- *  SRA        1  1  1  0  0  x  1  1  x  A=0 or A=B
- *  RLC        1  1  1  0  0  x  1  0  1  A=0 or A=B
- *  RRC        1  1  1  0  0  x  0  1  1  A=0 or A=B
- *  SWAP       1  1  1  0  1  0  0  0  x  A=B, then A=0
- *  SET        1  1  1  0  0  0  0  0  x
- *  RES        0  1  0  1  0  0  0  0  x
- *  BIT        0  1  0  0  0  1  0  0  x
- *
- * == Detailed ==
- * Operation  Cyc  R  S  V  Ne Dp Ci Sl Sr Ro Op La Lb Ls Lx Mx Bs    Res         Co   Hc Ze
- * -----------------------------------------------------------------------------------------
- *  ADD        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  0  0  0  0  C  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   0  0  0  0  x  x  x  x  x  x  0  0  0  x  1  x     A+B+C       C'   H  Z
- * -----------------------------------------------------------------------------------------
- *  SUB/CP     0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  0  0  1  0  C  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   0  0  0  1  x  x  x  x  x  x  0  0  0  x  1  x     A-B-C       C'   H  Z
- * -----------------------------------------------------------------------------------------
- *  XOR        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   1  0  0  0  0  0  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   1  0  0  0  x  x  x  x  x  x  0  0  0  x  1  x     A^B         0    0  Z
- * -----------------------------------------------------------------------------------------
- *  AND        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  1  0  0  0  1  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   0  1  0  0  x  x  x  x  x  x  0  0  0  x  1  x     A&B         0    1  Z
- * -----------------------------------------------------------------------------------------
- *  OR         0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   1  1  1  0  0  0  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     A|B         0    0  Z
- * -----------------------------------------------------------------------------------------
- *  NEG        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  0  0  1  0  0  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   0  0  0  1  x  x  x  x  x  x  0  0  0  x  1  x     -B          C'   H  Z
- * -----------------------------------------------------------------------------------------
- *  CPL        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   1  1  1  1  0  1  0  0  x  B  0  1  0  0  0  x      ?          ?    ?  ?
- *             2   1  1  1  1  x  x  x  x  x  x  0  0  0  x  1  x     ~B          0    1  Z
- * -----------------------------------------------------------------------------------------
- * Operation  Cyc  R  S  V  Ne Dp Ci Sl Sr Ro Op La Lb Ls Lx Mx Bs    Res         Co   Hc Ze
- * -----------------------------------------------------------------------------------------
- *  SLA        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,0,1,0,0,B
- *             1   1  1  1  0  0  0  1  0  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {B[6:0],0}  B[7] 0  Z
- * -----------------------------------------------------------------------------------------
- *  RL         0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,C,1,0,0,B
- *             1   1  1  1  0  0  C  1  0  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {B[6:0],C}  B[7] 0  Z
- * -----------------------------------------------------------------------------------------
- *  SRL        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,0,0,1,0,B
- *             1   1  1  1  0  0  0  0  1  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {0,B[7:1]}  B[0] 0  Z
- * -----------------------------------------------------------------------------------------
- *  RR         0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Ci,Sl,Sr,Ro,Op=0,C,0,1,0,B
- *             1   1  1  1  0  0  C  0  1  0  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     {C,B[7:1]}  B[0] 0  Z
- * -----------------------------------------------------------------------------------------
- *  SRA        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Op=0,1,1,B
- *             1   1  1  1  0  0  x  1  1  x  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[7,7:1]    0    0  Z
- * -----------------------------------------------------------------------------------------
- *  RLC        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Ro,Op=0,1,0,1,B
- *             1   1  1  1  0  0  x  1  0  1  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[6:0,7]    B[7] 0  Z
- * -----------------------------------------------------------------------------------------
- *  RRC        0   x  x  x  x  x  x  0  0  x  0  1  x  x  x  x  x      ?          ?    ?  ?   <- or Dp,Sl,Sr,Ro,Op=0,0,1,1,B
- *             1   1  1  1  0  0  x  0  1  1  B  0  1  0  0  0  x      ?          ?    ?  ?   <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[0,7:1]    B[0] 0  Z
- * -----------------------------------------------------------------------------------------
- * Operation  Cyc  R  S  V  Ne Dp Ci Sl Sr Ro Op La Lb Ls Lx Mx Bs    Res         Co   Hc Ze
- * -----------------------------------------------------------------------------------------
- *  SWAP       0   x  x  x  x  1  x  0  0  x  B  1  1  0  1  x  x      ?          ?    ?  ?
- *             1   1  1  1  0  x  0  x  x  x  0  1  0  0  0  0  x      ?          ?    ?  ?
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     B[3:0,7:4]  0    0  Z
- * -----------------------------------------------------------------------------------------
- *  SET        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   1  1  1  0  x  0  0  0  x  x  0  1  1  0  0  B      ?          ?    ?  ?  <- could be merged with line 0
- *             2   1  1  1  0  x  x  x  x  x  x  0  0  0  x  1  x     A|(1<<B)    0    0  Z
- * -----------------------------------------------------------------------------------------
- *  RES        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  1  0  1  x  0  0  0  x  x  0  1  1  0  0  B      ?          ?    ?  ?
- *             2   0  1  0  1  x  x  x  x  x  x  0  0  0  x  1  x     A&~(1<<B)   0    0  Z
- * -----------------------------------------------------------------------------------------
- *  BIT        0   x  x  x  x  0  x  0  0  x  A  1  x  x  x  x  x      ?          ?    ?  ?
- *             1   0  1  0  0  x  1  0  0  x  x  0  1  1  0  0  B      ?          ?    ?  ?
- *             2   0  1  0  0  x  x  x  x  x  x  0  0  0  x  1  x     A&(1<<B)    0    1  !A[B]
- *
+ * https://baltazarstudios.com/
  */
 
 `default_nettype none
@@ -119,19 +9,28 @@
 (* nolatches *)
 module sm83_alu
 	#(
-		parameter integer ALU_WIDTH = 4,
+		parameter ALU_WIDTH = 4,
 	) (
 		input  logic                   clk,
 
-		input  logic                   load_a, load_b,   /* Load operand into A or B register. */
-		input  logic                   load_b_from_bs,   /* Load bitmask generated from bit_select into B register. */
-		input  logic                   load_b_from_muxa, /* Load half word from A selected by mux into low half word of B. */
-		input  logic                   duplicate,        /* If load_a, load both half words of A with high half word of operand. If load_b, load both half words of B with low half word of operand. */
-		input  logic [WORD_SIZE-1:0]   op,               /* The operand that gets loaded by load_a and load_b. */
-		input  logic                   shift_l, shift_r, /* Shift operand left or right on load. (Set both for arith. right) */
-		input  logic                   rotate,           /* Do rotate instad of shift. */
+		input  logic [WORD_SIZE-1:0]   din,
+		output logic [WORD_SIZE-1:0]   dout,
+
+		input  logic                   load_a, load_b,   /* Load bus into A or B register. */
+		input  logic                   load_a_low,       /* Load bus high nibble into lower A. */
+		input  logic                   load_a_zero,      /* Load A with zero. */
+		input  logic                   load_b_lq,        /* Load core A into lower B and bus low nibble into higher B.*/
+		input  logic                   load_b_zero,      /* Load B with zero. */
+		input  logic                   shift_l, shift_r, /* Shift left or right. */
+		input  logic                   shift_in,         /* Bit that gets shifted in when shift_l or shift_r is high. */
 		input  logic                   carry_in,         /* Carry input */
-		input  logic [BITNUM_SIZE-1:0] bit_select,       /* Selects bit when operand B gets loaded by load_b_from_bs. */
+		input  logic [BITNUM_SIZE-1:0] bsel,             /* Selects bit when operand B gets loaded by load_b_from_bs. */
+
+		input  logic                   result_oe,        /* Selects core result to be output to the ALU bus. */
+		input  logic                   shift_oe,         /* Selects shift result to be output to the ALU bus. */
+		input  logic                   op_a_oe,          /* Selects operand A to be output to the ALU bus. */
+		input  logic                   op_b_oe,          /* Selects operand B to be output to the ALU bus. */
+		input  logic                   bs_oe,            /* Selects bitmask generated from bsel to be output to the ALU bus. */
 
 		/*
 		 * See R, S & V signals here:
@@ -141,12 +40,17 @@ module sm83_alu
 		input  logic                   force_carry,      /* S signal */
 		input  logic                   ignore_carry,     /* V signal */
 		input  logic                   negate,           /* Invert operand B when muxed into ALU core. */
-		input  logic                   mux,              /* Selects which half is calculated. (0=L 1=H) */
+		input  logic                   mux,              /* Selects which half of op A is fed into core. (0=L 1=H) */
+		input  logic                   op_b_mux,         /* Selects which half of op B is fed into core. (0=L 1=H) */
 
-		output logic [WORD_SIZE-1:0]   result,           /* ALU result, available when mux=1 */
 		output logic                   carry,            /* Carry output */
-		output logic                   halfcarry,        /* Half carry output */
 		output logic                   zero,             /* Zero output */
+
+		output logic                   shift_dbh,        /* MSB used for shift carry out or sign extend. */
+		output logic                   shift_dbl,        /* LSB used for shift carry out. */
+		output logic                   daa_l_gt_9,       /* Lower A greater than 9? */
+		output logic                   daa_h_gt_9,       /* Higher A greater than 9? */
+		output logic                   daa_h_eq_9,       /* Higher A equals 9? */
 	);
 
 	localparam WORD_SIZE   = ALU_WIDTH * 2;
@@ -168,93 +72,102 @@ module sm83_alu
 	endtask
 
 	hword_t core_op_a, core_op_b, core_result;
-	logic   core_c_in, core_c_out;
 
 	always_comb begin :alu_core
 		integer i;
 		logic   c;
-		c = core_c_in;
+		c = carry_in;
 		for (i = 0; i < ALU_WIDTH; i = i + 1)
 			alu_slice(core_op_a[i], core_op_b[i], c, core_result[i], c);
-		core_c_out = c;
+		carry = c;
 	end
 
 	word_t op_a, op_b;
-	word_t op_a_reg, op_b_reg;
 
 	always_comb unique case (mux)
-	0: begin
-		core_op_a = op_a.l;
-		core_op_b = negate ? ~op_b.l    : op_b.l;
-		core_c_in = negate ? ~carry_in  : carry_in;
-		if (shift_l || shift_r) core_c_in = 0;
-	end
-	1: begin
-		core_op_a = op_a.h;
-		core_op_b = negate ? ~op_b.h    : op_b.h;
-		core_c_in = negate ? ~halfcarry : halfcarry;
-	end
+		0: core_op_a = op_a.l;
+		1: core_op_a = op_a.h;
 	endcase
 
-	logic carry_shift, carry_shift_comb;
-	word_t shifted_op;
-
-	always_comb unique case ({ shift_l, shift_r })
-	'b 00: begin /* no shift */
-		carry_shift_comb        = 0;
-		shifted_op              = op;
-	end
-	'b 01: begin /* logical right shift */
-		carry_shift_comb        = op[0];
-		shifted_op              = op >> 1;
-		shifted_op[WORD_SIZE-1] = rotate ? carry_shift_comb : carry_in;
-	end
-	'b 10: begin /* left shift */
-		carry_shift_comb        = op[WORD_SIZE-1];
-		shifted_op              = op << 1;
-		shifted_op[0]           = rotate ? carry_shift_comb : carry_in;
-	end
-	'b 11: begin /* arithmetic right shift */
-		carry_shift_comb        = 0; /* SRA instruction has no carry out */
-		shifted_op              = signed'(op) >>> 1;
-	end
+	always_comb unique case (op_b_mux)
+		0: core_op_b = negate ? ~op_b.l : op_b.l;
+		1: core_op_b = negate ? ~op_b.h : op_b.h;
 	endcase
 
-	always_comb if (load_a)
-		op_a = duplicate ? {2{ shifted_op.h }} : shifted_op;
-	else
-		op_a = op_a_reg;
+	word_t shifted;
 
-	word_t op_bs = 1 << bit_select;
-
-	/* load_b_from_bs and load_b_from_muxa must not be set at the same time */
+	/* shift_l and shift_r must not be set at the same time */
 `ifdef FORMAL
-	assume property(!load_b_from_bs || !load_b_from_muxa);
+	assume property (!shift_l || !shift_r);
 `endif
-	always_comb unique casez ({ load_b, load_b_from_bs })
-		'b 10:  op_b.h = duplicate ? shifted_op.l : shifted_op.h;
-		'b ?1:  op_b.h = op_bs.h;
-		'b 00:  op_b.h = op_b_reg.h;
-	endcase
-	always_comb unique casez ({ load_b, load_b_from_bs, load_b_from_muxa })
-		'b 100: op_b.l = shifted_op.l;
-		'b ?1?: op_b.l = op_bs.l;
-		'b ??1: op_b.l = core_op_a;
-		'b 000: op_b.l = op_b_reg.l;
+	always_comb unique casez ({ shift_l, shift_r })
+		'b 00: shifted = din;                              /* no shift */
+		'b ?1: shifted = { shift_in, din[WORD_SIZE-1:1] }; /* right shift */
+		'b 1?: shifted = { din[WORD_SIZE-2:0], shift_in }; /* left shift */
 	endcase
 
-	always_ff @(posedge clk) if (load_b)
-		carry_shift = carry_shift_comb;
+	assign shift_dbh = din[WORD_SIZE-1];
+	assign shift_dbl = din[0];
 
-	always_ff @(posedge clk) op_a_reg = op_a;
-	always_ff @(posedge clk) op_b_reg = op_b;
+	word_t op_bs = 1 << bsel;
 
-	logic [ALU_WIDTH-1:0] res_lo;
+	word_t bus;
+
+	/* only one of *_oe can be set at the same time */
+`ifdef FORMAL
+	assume property (result_oe + shift_oe + op_a_oe + op_b_oe + bs_oe <= 1);
+`endif
+	always_comb unique casez ({ result_oe, shift_oe, op_a_oe, op_b_oe, bs_oe })
+		'b 1????: bus = result;
+		'b ?1???: bus = shifted;
+		'b ??1??: bus = op_a;
+		'b ???1?: bus = op_b;
+		'b ????1: bus = op_bs;
+		'b 00000: bus = {WORD_SIZE{1'b1}};
+	endcase
+
+	/* only one of load_a* can be set at the same time */
+`ifdef FORMAL
+	assume property (load_a + load_a_low + load_a_zero <= 1);
+`endif
+	always_ff @(negedge clk) unique casez ({ load_a, load_a_low, load_a_zero })
+		'b 1??: op_a.l = bus.l;
+		'b ?1?: op_a.l = bus.h;
+		'b ??1: op_a.l = 0;
+		'b 000: ;
+	endcase
+	always_ff @(negedge clk) unique casez ({ load_a, load_a_zero })
+		'b 1?: op_a.h = bus.h;
+		'b ?1: op_a.h = 0;
+		'b 00: ;
+	endcase
+
+	/* only one of load_b* can be set at the same time */
+`ifdef FORMAL
+	assume property (load_b + load_b_lq + load_b_zero <= 1);
+`endif
+	always_ff @(negedge clk) unique casez ({ load_b, load_b_lq, load_b_zero })
+		'b 1??: op_b.l = bus.l;
+		'b ?1?: op_b.l = core_op_a;
+		'b ??1: op_b.l = 0;
+		'b 000: ;
+	endcase
+	always_ff @(negedge clk) unique casez ({ load_b, load_b_lq, load_b_zero })
+		'b 1??: op_b.h = bus.h;
+		'b ?1?: op_b.h = bus.l;
+		'b ??1: op_b.h = 0;
+		'b 000: ;
+	endcase
+
+	assign daa_l_gt_9 = op_a.l > 9;
+	assign daa_h_gt_9 = op_a.h > 9;
+	assign daa_h_eq_9 = op_a.h == 9;
+
+	hword_t res_lo;
 	always_ff @(posedge clk) if (!mux) res_lo = core_result;
-	assign result = { core_result, res_lo };
 
-	assign                             carry     = (force_carry ? 0 : (negate != core_c_out)) | carry_shift;
-	always_ff @(posedge clk) if (!mux) halfcarry =                     negate != core_c_out;
+	word_t result = { core_result, res_lo };
 
-	assign zero = !result;
+	assign dout = bus;
+	assign zero = !bus;
 endmodule
