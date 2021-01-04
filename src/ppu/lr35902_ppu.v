@@ -181,84 +181,84 @@ module lr35902_ppu(
 		{ n_px,     p_px,     cp_px     } = { r_cp_px     ? r_p_px     : r_n_px,     r_p_px,     1'b0 };
 	endtask
 
-	task acquire_oam(input clk_edge);
+	task acquire_oam(input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  11;
 		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 110;
 		endcase
 	endtask
 
-	task release_oam(input clk_edge);
+	task release_oam(input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  01;
 		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 000;
 		endcase
 	endtask
 
-	task acquire_vram(input clk_edge);
+	task acquire_vram(input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  11;
 		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 110;
 		endcase
 	endtask
 
-	task release_vram(input clk_edge);
+	task release_vram(input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  01;
 		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 000;
 		endcase
 	endtask
 
-	task hsync(input state, input clk_edge);
+	task hsync(input state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {          p_hsync, cp_hsync } = {      state, 1'b1 };
 		`NEG_EDGE: { n_hsync, p_hsync, cp_hsync } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task vsync(input state, input clk_edge);
+	task vsync(input state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {          p_vsync, cp_vsync } = {      state, 1'b1 };
 		`NEG_EDGE: { n_vsync, p_vsync, cp_vsync } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task latch(input state, input clk_edge);
+	task latch(input state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {          p_latch, cp_latch } = {      state, 1'b1 };
 		`NEG_EDGE: { n_latch, p_latch, cp_latch } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task altsig(input state, input clk_edge);
+	task altsig(input state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {           p_altsig, cp_altsig } = {      state, 1'b1 };
 		`NEG_EDGE: { n_altsig, p_altsig, cp_altsig } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task toggle_altsig(input clk_edge);
+	task toggle_altsig(input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: altsig(!n_altsig,   `POS_EDGE);
 		`NEG_EDGE: altsig(!r_p_altsig, `NEG_EDGE);
 		endcase
 	endtask
 
-	task ctrl(input state, input clk_edge);
+	task ctrl(input state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {         p_ctrl, cp_ctrl } = {      state, 1'b1 };
 		`NEG_EDGE: { n_ctrl, p_ctrl, cp_ctrl } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task pclk(input state, input clk_edge);
+	task pclk(input state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {         p_pclk, cp_pclk } = {      state, 1'b1 };
 		`NEG_EDGE: { n_pclk, p_pclk, cp_pclk } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task px(input [1:0] state, input clk_edge);
+	task px(input [1:0] state, input integer clk_edge);
 		case (clk_edge)
 		`POS_EDGE: {       p_px, cp_px } = {      state, 1'b1 };
 		`NEG_EDGE: { n_px, p_px, cp_px } = { {2{state}}, 1'b0 };
