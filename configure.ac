@@ -270,6 +270,7 @@ src/config.vh
 tests/alu.sby
 src/Makefile
 tests/Makefile
+sim/Makefile
 Makefile
 ])
 

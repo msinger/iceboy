@@ -2,7 +2,7 @@ EXTRA_DIST = m4
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = src tests
+SUBDIRS = src tests sim
 
 sub_targets = run prog view
 
