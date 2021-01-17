@@ -61,6 +61,7 @@ module sm83(
 		.aout(adr), .ain(al_out_ext),
 		.dout(dout), .din(io_din), .ext_din(din),
 		.ext_data_oe(oe), .ext_data_lh(lh),
+		.dl_we(ctl_io_data_we),
 
 		.p_rd, .n_rd, .p_wr, .n_wr,
 	);
@@ -142,7 +143,8 @@ module sm83(
 		.clk, .reset,
 		.ain(al_in), .aout(al_out), .aout_ext(al_out_ext),
 
-		.al_we(ctl_al_we),
+		.al_hi_we(ctl_al_hi_we),
+		.al_lo_we(ctl_al_lo_we),
 		.carry(ctl_inc_carry),
 	);
 
@@ -193,7 +195,7 @@ module sm83(
 	logic ctl_reg_pc_we;
 	logic ctl_inc_oe;
 	logic ctl_inc_carry;
-	logic ctl_al_we;
+	logic ctl_al_hi_we, ctl_al_lo_we;
 	logic ctl_aout_al;
 	logic ctl_db_c2l_oe, ctl_db_l2c_oe;
 	logic ctl_db_l2h_oe, ctl_db_h2l_oe;

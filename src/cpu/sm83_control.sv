@@ -20,7 +20,7 @@ module sm83_control(
 		output logic                 ctl_reg_pc_we,
 		output logic                 ctl_inc_oe,
 		output logic                 ctl_inc_carry,
-		output logic                 ctl_al_we,
+		output logic                 ctl_al_hi_we, ctl_al_lo_we,
 		output logic                 ctl_aout_al,
 		output logic                 ctl_db_c2l_oe, ctl_db_l2c_oe,
 		output logic                 ctl_db_l2h_oe, ctl_db_h2l_oe,
@@ -131,7 +131,16 @@ module sm83_control(
 	/* Write PC to address latch */
 	task pc_to_adr();
 		ctl_reg_pc_oe |= t4;
-		ctl_al_we     |= t4; /* posedge */
+		ctl_al_hi_we  |= t4; /* posedge */
+		ctl_al_lo_we  |= t4; /* posedge */
+	endtask
+
+	/* Write register to address latch */
+	task reg_to_adr(input logic [1:0] r);
+		if (t4) reg_sel = r;
+		ctl_reg_adr_oe |= t4;
+		ctl_al_hi_we   |= t4; /* posedge */
+		ctl_al_lo_we   |= t4; /* posedge */
 	endtask
 
 	/* Write address latch +1 to PC */
@@ -152,6 +161,22 @@ module sm83_control(
 		ctl_mread |= m2 && t4;
 	endtask
 
+	task read_m4();
+		ctl_mread |= m3 && t4;
+	endtask
+
+	task write_m2();
+		ctl_mwrite |= m1 && t4;
+	endtask
+
+	task write_m3();
+		ctl_mwrite |= m2 && t4;
+	endtask
+
+	task write_m4();
+		ctl_mwrite |= m3 && t4;
+	endtask
+
 	task read_imm_m2();
 		read_m2();
 		if (m1) pc_to_adr();
@@ -164,8 +189,47 @@ module sm83_control(
 		if (m3) pc_from_adr_inc();
 	endtask
 
+	task read_indreg_m2(input logic [1:0] r);
+		read_m2();
+		if (m1) reg_to_adr(r);
+	endtask
+
+	task write_indreg_m2(input logic [1:0] r);
+		write_m2();
+		if (m1) reg_to_adr(r);
+	endtask
+
+	task write_indreg_m3(input logic [1:0] r);
+		write_m3();
+		if (m2) reg_to_adr(r);
+	endtask
+
 	task last_mcyc(input logic last);
 		set_m1 |= last && t4;
+	endtask
+
+	task read_gp0(input logic t, input bit cross_hl);
+		if (t) begin
+			reg_sel       = opcode[2:1];
+			ctl_reg_hi_oe = op_gp0_hi;
+			ctl_reg_lo_oe = !op_gp0_hi;
+			if (cross_hl) begin
+				ctl_db_h2l_oe = op_gp0_hi;
+				ctl_db_l2h_oe = !op_gp0_hi;
+			end
+		end
+	endtask
+
+	task read_gp3(input logic t, input bit cross_hl);
+		if (t) begin
+			reg_sel       = opcode[5:4];
+			ctl_reg_hi_oe = op_gp3_hi;
+			ctl_reg_lo_oe = !op_gp3_hi;
+			if (cross_hl) begin
+				ctl_db_h2l_oe = op_gp3_hi;
+				ctl_db_l2h_oe = !op_gp3_hi;
+			end
+		end
 	endtask
 
 	task write_gp0(input logic t);
@@ -218,7 +282,8 @@ module sm83_control(
 		ctl_reg_pc_we        = 0;
 		ctl_inc_oe           = 0;
 		ctl_inc_carry        = 0;
-		ctl_al_we            = 0;
+		ctl_al_hi_we         = 0;
+		ctl_al_lo_we         = 0;
 		ctl_aout_al          = 0;
 		ctl_db_c2l_oe        = 0;
 		ctl_db_l2c_oe        = 0;
@@ -273,11 +338,11 @@ module sm83_control(
 		ctl_alu_fl_sel_c2    = 0;
 
 		unique case (1)
-			/* nop -- no operation */
+			/* NOP -- No operation */
 			nop:
 				last_mcyc(m1);
 
-			/* ld r, n -- load register with immediate */
+			/* LD r, n -- Load register r with immediate value n */
 			ld_r_n && !ld_hl_n: begin
 				last_mcyc(m2);
 
@@ -287,13 +352,200 @@ module sm83_control(
 				if (m2) begin
 					/* Write fetched immediate from data latch into register selected by opcode[3:5] */
 					ctl_io_data_oe |= t4;
-					ctl_reg_hi_in  |= t4;
-					ctl_reg_lo_in  |= t4;
 					ctl_db_c2l_oe  |= t4;
 					ctl_db_l2h_oe  |= t4;
+					ctl_reg_hi_in  |= t4;
+					ctl_reg_lo_in  |= t4;
 					write_gp3(t4);        /* posedge */
 				end
 			end
+
+			/* LD r, r' -- Load register r with value from register r' */
+			ld_r_r && !ld_r_hl && !ld_hl_r: begin
+				last_mcyc(m1);
+
+				if (m1) begin
+					/* Read register selected by opcode[0:2] into ALU operand A */
+					read_gp0(t1, 1);
+					ctl_alu_sh_oe    |= t1;
+					ctl_alu_op_a_bus |= t1; /* negedge */
+
+					/* Write ALU operand A into register selected by opcode[3:5] */
+					ctl_alu_op_a_oe  |= t2;
+					ctl_alu_oe       |= t2;
+					ctl_db_h2l_oe    |= t2;
+					ctl_reg_hi_in    |= t2;
+					ctl_reg_lo_in    |= t2;
+					write_gp3(t2);          /* posedge */
+				end
+			end
+
+			/* LD r, (HL) -- Load register r with value stored at address in HL */
+			ld_r_hl: begin
+				last_mcyc(m2);
+
+				/* Read value from bus at address in HL into data latch during M2 */
+				read_indreg_m2(HL);
+
+				if (m2) begin
+					/* Write fetched value from data latch into register selected by opcode[3:5] */
+					ctl_io_data_oe |= t4;
+					ctl_db_c2l_oe  |= t4;
+					ctl_db_l2h_oe  |= t4;
+					ctl_reg_hi_in  |= t4;
+					ctl_reg_lo_in  |= t4;
+					write_gp3(t4);        /* posedge */
+				end
+			end
+
+			/* LD (HL), r -- Load register r to address in HL */
+			ld_hl_r: begin
+				last_mcyc(m2);
+
+				if (m2) begin
+					/* Read register selected by opcode[0:2] into data latch */
+					read_gp0(t1, 1);
+					ctl_db_l2c_oe    |= t1;
+					ctl_io_data_we   |= t1; /* negedge */
+				end
+
+				/* Write value from data latch to address in HL during M2 */
+				write_indreg_m2(HL);
+			end
+
+			/* LD (HL), n -- Load immediate value n to address in HL */
+			ld_hl_n: begin
+				last_mcyc(m3);
+
+				/* Read immediate value from bus into data latch during M2 and incement PC */
+				read_imm_m2();
+
+				/* Write value from data latch to address in HL during M3 */
+				write_indreg_m3(HL);
+			end
+
+			/* LD (BC), A -- Load A to address in BC */
+			/* LD (DE), A -- Load A to address in DE */
+			ld_xx_a && ld_x_dir: begin
+				last_mcyc(m2);
+
+				if (m2) begin
+					/* Read A into data latch */
+					if (t1) reg_sel  = AF;
+					ctl_reg_hi_oe   |= t1;
+					ctl_db_h2l_oe   |= t1;
+					ctl_db_l2c_oe   |= t1;
+					ctl_io_data_we  |= t1; /* negedge */
+				end
+
+				/* Write value from data latch to address in BC/DE during M2 */
+				write_indreg_m2(opcode[5:4]);
+			end
+
+			/* LD A, (BC) -- Load A with value stored at address in BC */
+			/* LD A, (DE) -- Load A with value stored at address in DE */
+			ld_xx_a && !ld_x_dir: begin
+				last_mcyc(m2);
+
+				/* Read value from bus at address in BC/DE into data latch during M2 */
+				read_indreg_m2(opcode[5:4]);
+
+				if (m2) begin
+					/* Write fetched value from data latch into A */
+					ctl_io_data_oe  |= t4;
+					ctl_db_c2l_oe   |= t4;
+					ctl_db_l2h_oe   |= t4;
+					ctl_reg_hi_in   |= t4;
+					ctl_reg_lo_in   |= t4;
+					if (t4) reg_sel  = opcode[5:4];
+					ctl_reg_hi_we   |= t4;          /* posedge */
+				end
+			end
+
+			/* LD (HLI), A -- Load A to address in HL and post-increment HL */
+			/* LD (HLD), A -- Load A to address in HL and post-decrement HL */
+			ld_xx_a && ld_x_dir: begin
+				last_mcyc(m2);
+				// TODO: implement
+			end
+
+			/* LD A, (HLI) -- Load A with value stored at address in HL and post-increment HL */
+			/* LD A, (HLD) -- Load A with value stored at address in HL and post-decrement HL */
+			ld_xx_a && !ld_x_dir: begin
+				last_mcyc(m2);
+				// TODO: implement
+			end
+
+			/* LDX (nn), A -- Load A to immediate address nn */
+			/* LDX A, (nn) -- Load A with value stored at immediate address nn */
+			ld_nn_a: begin
+				last_mcyc(m4);
+
+				/* Read immediate value from bus into data latch during M2 and incement PC */
+				read_imm_m2();
+
+				if (m3) begin
+					/* Write fetched immediate from data latch into ALU operand A */
+					ctl_io_data_oe   |= t1;
+					ctl_db_c2l_oe    |= t1;
+					ctl_db_l2h_oe    |= t1;
+					ctl_alu_sh_oe    |= t1;
+					ctl_alu_op_a_bus |= t1; /* negedge */
+				end
+
+				/* Read immediate value from bus into data latch during M3 and incement PC */
+				read_imm_m3();
+
+				if (m3) begin
+					/* Write ALU operand A into low byte of address latch */
+					ctl_alu_op_a_oe |= t2;
+					ctl_alu_oe      |= t2;
+					ctl_db_h2l_oe   |= t2;
+					ctl_reg_hi_in   |= t2;
+					ctl_reg_lo_in   |= t2;
+					ctl_reg_adr_oe  |= t2;
+					ctl_al_lo_we    |= t2; /* posedge */
+
+					/* Write fetched immediate from data latch into high byte of address latch */
+					ctl_io_data_oe |= t4;
+					ctl_db_c2l_oe  |= t4;
+					ctl_db_l2h_oe  |= t4;
+					ctl_reg_hi_in  |= t4;
+					ctl_reg_lo_in  |= t4;
+					ctl_reg_adr_oe |= t4;
+					ctl_al_hi_we   |= t4; /* posedge */
+				end
+
+				/* Transfer A from/to data bus, depending on direction of opcode */
+				if (ld_n_dir) begin /* LDX (nn), A */
+					if (m4) begin
+						/* Write A into data latch */
+						if (t1) reg_sel  = AF;
+						ctl_reg_hi_oe   |= t1;
+						ctl_db_h2l_oe   |= t1;
+						ctl_db_l2c_oe   |= t1;
+						ctl_io_data_we  |= t1; /* negedge */
+					end
+
+					/* Write data latch to bus during M4 */
+					write_m4();
+				end else begin /* LDX A, (nn) */
+					/* Read value from bus into data latch during M4 */
+					read_m4();
+
+					if (m4) begin
+						/* Write value from data latch into A */
+						ctl_io_data_oe  |= t4;
+						ctl_db_c2l_oe   |= t4;
+						ctl_db_l2h_oe   |= t4;
+						ctl_reg_hi_in   |= t4;
+						ctl_reg_lo_in   |= t4;
+						if (t4) reg_sel  = AF;
+						ctl_reg_hi_we   |= t4; /* posedge */
+					end
+				end
+			end
+
 		endcase
 
 		/* Instruction fetch initiated when set_m1 is true on T4; copy PC into address latch */

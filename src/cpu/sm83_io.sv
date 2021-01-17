@@ -19,6 +19,7 @@ module sm83_io
 		input  logic [WORD_SIZE-1:0]   ext_din,
 		output logic                   ext_data_oe,
 		output logic                   ext_data_lh,
+		input  logic                   dl_we,
 
 		output logic                   p_rd, n_rd,
 		output logic                   p_wr, n_wr,
@@ -77,7 +78,7 @@ module sm83_io
 
 	always_ff @(negedge clk) unique case (1)
 		rd_seq && t4: dout = ext_din;
-		wr_seq && t2: dout = din;
+		dl_we:        dout = din;
 		default;
 	endcase
 
