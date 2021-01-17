@@ -7,8 +7,7 @@
 `default_nettype none
 
 (* nolatches *)
-module sm83_alu_control
-	(
+module sm83_alu_control(
 		input  logic                   clk,
 
 		output logic [WORD_SIZE-1:0]   daa_out,          /* Outputs 0x00, 0x06, 0x60 or 0x66, depending on comparators in ALU. */

@@ -65,9 +65,9 @@ module sm83_alu_flags
 `ifdef FORMAL
 		assume (flags_bus != flags_alu);
 `endif
-		unique casez ({ flags_alu, flags_bus })
-			'b?1: new_zero = din[Z];
-			'b1?: new_zero = zero_in;
+		unique case (1)
+			flags_bus: new_zero = din[Z];
+			flags_alu: new_zero = zero_in;
 		endcase
 
 		if (zero_loop)
@@ -88,9 +88,9 @@ module sm83_alu_flags
 `ifdef FORMAL
 		assume (flags_bus != flags_alu);
 `endif
-		unique casez ({ flags_alu, flags_bus })
-			'b?1: write_carry = din[bitnum];
-			'b1?: write_carry = carry_in;
+		unique case (1)
+			flags_bus: write_carry = din[bitnum];
+			flags_alu: write_carry = carry_in;
 		endcase
 	endfunction
 

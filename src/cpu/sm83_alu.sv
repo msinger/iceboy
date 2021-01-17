@@ -123,40 +123,36 @@ module sm83_alu
 		'b ??1??: bus = op_a;
 		'b ???1?: bus = op_b;
 		'b ????1: bus = op_bs;
-		'b 00000: bus = {WORD_SIZE{1'b1}};
+		'b 00000: bus = 'bx;
 	endcase
 
 	/* only one of load_a* can be set at the same time */
 `ifdef FORMAL
 	assume property (load_a + load_a_low + load_a_zero <= 1);
 `endif
-	always_ff @(negedge clk) unique casez ({ load_a, load_a_low, load_a_zero })
-		'b 1??: op_a.l = bus.l;
-		'b ?1?: op_a.l = bus.h;
-		'b ??1: op_a.l = 0;
-		'b 000: ;
+	always_ff @(negedge clk) if (load_a || load_a_low || load_a_zero) unique case (1)
+		load_a:      op_a.l = bus.l;
+		load_a_low:  op_a.l = bus.h;
+		load_a_zero: op_a.l = 0;
 	endcase
-	always_ff @(negedge clk) unique casez ({ load_a, load_a_zero })
-		'b 1?: op_a.h = bus.h;
-		'b ?1: op_a.h = 0;
-		'b 00: ;
+	always_ff @(negedge clk) if (load_a || load_a_zero) unique case (1)
+		load_a:      op_a.h = bus.h;
+		load_a_zero: op_a.h = 0;
 	endcase
 
 	/* only one of load_b* can be set at the same time */
 `ifdef FORMAL
 	assume property (load_b + load_b_lq + load_b_zero <= 1);
 `endif
-	always_ff @(negedge clk) unique casez ({ load_b, load_b_lq, load_b_zero })
-		'b 1??: op_b.l = bus.l;
-		'b ?1?: op_b.l = core_op_a;
-		'b ??1: op_b.l = 0;
-		'b 000: ;
+	always_ff @(negedge clk) if (load_b || load_b_lq || load_b_zero) unique case (1)
+		load_b:      op_b.l = bus.l;
+		load_b_lq:   op_b.l = core_op_a;
+		load_b_zero: op_b.l = 0;
 	endcase
-	always_ff @(negedge clk) unique casez ({ load_b, load_b_lq, load_b_zero })
-		'b 1??: op_b.h = bus.h;
-		'b ?1?: op_b.h = bus.l;
-		'b ??1: op_b.h = 0;
-		'b 000: ;
+	always_ff @(negedge clk) if (load_b || load_b_lq || load_b_zero) unique case (1)
+		load_b:      op_b.h = bus.h;
+		load_b_lq:   op_b.h = bus.l;
+		load_b_zero: op_b.h = 0;
 	endcase
 
 	assign daa_l_gt_9 = op_a.l > 9;

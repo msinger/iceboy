@@ -4,7 +4,16 @@ lr35902_iomap.v \
 cpu/lr35902_cpu.v \
 cpu/lr35902_hram.v \
 cpu/lr35902_dbg_ifc.v \
+cpu/sm83.sv \
+cpu/sm83_io.sv \
 cpu/sm83_alu.sv \
+cpu/sm83_alu_control.sv \
+cpu/sm83_alu_flags.sv \
+cpu/sm83_adr_inc.sv \
+cpu/sm83_control.sv \
+cpu/sm83_sequencer.sv \
+cpu/sm83_decode.sv \
+cpu/sm83_int.sv \
 ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \
