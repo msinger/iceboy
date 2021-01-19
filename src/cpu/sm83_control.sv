@@ -546,6 +546,79 @@ module sm83_control(
 				end
 			end
 
+			/* LD (n), A -- Load A to immediate address $hff00+n */
+			ld_n_a && ld_n_dir: begin
+				last_mcyc(m3);
+				// TODO: implement
+			end
+
+			/* LD A, (n) -- Load A with value stored at immediate address $ff00+n */
+			ld_n_a && !ld_n_dir: begin
+				last_mcyc(m3);
+				// TODO: implement
+			end
+
+			/* LD (C), A -- Load A to immediate address $hff00+C */
+			ld_c_a && ld_n_dir: begin
+				last_mcyc(m2);
+				// TODO: implement
+			end
+
+			/* LD A, (C) -- Load A with value stored at immediate address $ff00+C */
+			ld_c_a && !ld_n_dir: begin
+				last_mcyc(m2);
+				// TODO: implement
+			end
+
+			/* LD dd, nn -- Load register dd with immediate value nn */
+			ld_dd_nn: begin
+				last_mcyc(m3);
+				// TODO: implement
+			end
+
+			/* LD SP, HL -- Load SP with value from HL */
+			ld_sp_hl: begin
+				last_mcyc(m2);
+				// TODO: implement
+			end
+
+			/* LD (nn), SP -- Load SP to immediate address nn */
+			ld_nn_sp: begin
+				last_mcyc(m5);
+				// TODO: implement
+			end
+
+			/* LDHL SP, e -- Load HL with the sum of SP and the signed immediate value e */
+			ld_hl_sp_e: begin
+				last_mcyc(m3);
+				// TODO: implement
+			end
+
+			/* PUSH qq -- Decrements SP, then loads register qq to address in SP */
+			push_pop && push_qq: begin
+				last_mcyc(m4);
+				// TODO: implement
+			end
+
+			/* POP qq -- Loads register qq with value stored at address in SP, then increments SP */
+			push_pop && !push_qq: begin
+				last_mcyc(m3);
+				// TODO: implement
+			end
+
+			/* ADD A, r -- Add register r to A */
+			/* ADC A, r -- Add register r and carry flag to A */
+			/* SUB A, r -- Subtract register r from A */
+			/* SBC A, r -- Subtract register r and carry flag from A */
+			/* AND r    -- Perform bitwise AND operation on A and register r and store result in A */
+			/* XOR r    -- Perform bitwise exclusive-OR operation on A and register r and store result in A */
+			/* OR r     -- Perform bitwise OR operation on A and register r and store result in A */
+			/* CP r     -- Subtract register r from A without keeping the result in A */
+			add_r && !add_hl: begin
+				last_mcyc(m1);
+				// TODO: implement
+			end
+
 		endcase
 
 		/* Instruction fetch initiated when set_m1 is true on T4; copy PC into address latch */
