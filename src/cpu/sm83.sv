@@ -9,8 +9,8 @@ module sm83(
 		output logic [ADR_WIDTH-1:0] adr,
 		input  logic [WORD_SIZE-1:0] din,
 		output logic [WORD_SIZE-1:0] dout,
-		output logic                 oe, lh, /* data output enable and latch hold */
-		output logic                 p_rd, n_rd,
+		output logic                 lh,         /* data latch hold */
+		output logic                 p_rd, n_rd, /* invert rd for data output enable */
 		output logic                 p_wr, n_wr,
 
 		input  logic [NUM_IRQS-1:0]  irq,
@@ -26,9 +26,10 @@ module sm83(
 		output logic        dbg_bank_cb,
 		output logic [1:0]  dbg_t,
 		output logic [2:0]  dbg_m,
-		output logic [15:0] dbg_al_in,
-		output logic [15:0] dbg_al_out,
-		output logic [15:0] dbg_al_out_ext,
+		output logic [15:0] dbg_al,
+		output logic [7:0]  dbg_dl,
+		output logic        dbg_mread,
+		output logic        dbg_mwrite,
 	);
 
 	localparam WORD_SIZE = 8;
@@ -51,19 +52,28 @@ module sm83(
 	logic m1, m2, m3, m4, m5, m6;
 	logic t1, t2, t3, t4;
 
-	adr_t al_in, al_out, al_out_ext;
+	adr_t al_in, al_out;
+
+	word_t opcode;
+	logic  bank_cb;
 
 	sm83_io #(.ADR_WIDTH(ADR_WIDTH), .WORD_SIZE(WORD_SIZE)) io(
 		.clk, .reset,
 		.t1, .t2, .t3, .t4,
 		.mread(ctl_mread), .mwrite(ctl_mwrite),
 
-		.aout(adr), .ain(al_out_ext),
-		.dout(dout), .din(io_din), .ext_din(din),
-		.ext_data_oe(oe), .ext_data_lh(lh),
+		.aout(adr), .ain(al_out),
+		.dout(io_din), .din(io_dout),
+		.ext_dout(dout), .ext_din(din),
+		.ext_data_lh(lh),
+		.al_we(ctl_io_adr_we),
 		.dl_we(ctl_io_data_we),
 
-		.p_rd, .n_rd, .p_wr, .n_wr,
+		.n_rd, .p_rd, .n_wr, .p_wr,
+
+		.opcode, .bank_cb,
+		.ctl_ir_we, .ctl_ir_bank_we, .ctl_ir_bank_cb_set,
+		.ctl_zero_data_oe,
 	);
 
 	logic alu_shift_dbh, alu_shift_dbl;
@@ -141,11 +151,11 @@ module sm83(
 
 	sm83_adr_inc #(.ADR_WIDTH(ADR_WIDTH)) adr_inc(
 		.clk, .reset,
-		.ain(al_in), .aout(al_out), .aout_ext(al_out_ext),
+		.ain(al_in), .aout(al_out),
 
-		.al_hi_we(ctl_al_hi_we),
-		.al_lo_we(ctl_al_lo_we),
-		.carry(ctl_inc_carry),
+		.ctl_al_hi_we, .ctl_al_lo_we,
+		.ctl_inc_dec, .ctl_inc_cy,
+		.ctl_inc_oe,
 	);
 
 	function [WORD_SIZE-1:0] db_mux(input logic [6:0]           sel,
@@ -193,13 +203,15 @@ module sm83(
 	logic ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel;
 	logic ctl_reg_pc_oe, ctl_reg_pc_not_oe;
 	logic ctl_reg_pc_we;
-	logic ctl_inc_oe;
-	logic ctl_inc_carry;
+	logic ctl_al_oe;
 	logic ctl_al_hi_we, ctl_al_lo_we;
-	logic ctl_aout_al;
+	logic ctl_inc_dec, ctl_inc_cy;
+	logic ctl_inc_oe;
+	logic ctl_adr_op_oe, ctl_adr_ff_oe;
 	logic ctl_db_c2l_oe, ctl_db_l2c_oe;
 	logic ctl_db_l2h_oe, ctl_db_h2l_oe;
 	logic ctl_io_data_oe, ctl_io_data_we;
+	logic ctl_io_adr_we;
 	logic ctl_zero_data_oe;
 	logic ctl_ir_we;
 	logic ctl_ir_bank_we;
@@ -221,20 +233,6 @@ module sm83(
 	logic ctl_alu_fl_carry_we, ctl_alu_fl_carry_set, ctl_alu_fl_carry_cpl;
 	logic ctl_alu_fl_c2_we, ctl_alu_fl_c2_sh, ctl_alu_fl_c2_daa, ctl_alu_fl_sel_c2;
 
-	word_t opcode;
-	logic  bank_cb;
-
-	always_ff @(negedge clk) begin
-		if (ctl_ir_we)
-			opcode  = dbc;
-		if (ctl_ir_bank_we)
-			bank_cb = ctl_ir_bank_cb_set;
-		if (reset) begin
-			opcode  = 0;
-			bank_cb = 0;
-		end
-	end
-
 	sm83_control ctl(.*);
 
 	reg_t reg_bc, reg_de, reg_hl, reg_af, reg_sp, reg_pc;
@@ -242,9 +240,10 @@ module sm83(
 
 	/* common data bus matrix */
 	logic [1:0] dbc_sel = { ctl_io_data_oe, ctl_db_l2c_oe };
-	word_t dbc      = db_mux(dbc_sel, db_l2c, din, 'bx, 'bx, 'bx, 'bx, 'bx);
-	word_t db_c2l   = db_mux(dbc_sel,    'bx, din, 'bx, 'bx, 'bx, 'bx, 'bx);
-	word_t io_din   = db_mux(dbc_sel, db_l2c, 'bx, 'bx, 'bx, 'bx, 'bx, 'bx);
+	word_t dbc     = db_mux(dbc_sel, db_l2c, io_din, 'bx, 'bx, 'bx, 'bx, 'bx);
+	word_t db_c2l  = db_mux(dbc_sel,    'bx, io_din, 'bx, 'bx, 'bx, 'bx, 'bx);
+	word_t io_din;
+	word_t io_dout = db_mux(dbc_sel, db_l2c,    'bx, 'bx, 'bx, 'bx, 'bx, 'bx);
 
 	/* low data bus matrix */
 	logic [4:0] dbl_sel = { ctl_alu_fl_oe, ctl_alu_daa_oe | ctl_alu_daa66_oe, ctl_reg_lo_oe, ctl_db_h2l_oe, ctl_db_c2l_oe };
@@ -293,7 +292,7 @@ module sm83(
 	end
 
 	/* address bus matrix */
-	logic [2:0] ab_sel = { ctl_inc_oe, ctl_reg_pc_oe, ctl_reg_adr_oe };
+	logic [2:0] ab_sel = { ctl_al_oe, ctl_reg_pc_oe, ctl_reg_adr_oe };
 	adr_t ab        = ab_mux(ab_sel, reg_gp2a, reg_pc, al_out);
 	assign reg_a2gp = ab_mux(ab_sel,      'bx, reg_pc, al_out);
 	assign al_in    = ab_mux(ab_sel, reg_gp2a, reg_pc,    'bx);
@@ -315,7 +314,8 @@ module sm83(
 	assign dbg_bank_cb = bank_cb;
 	always_comb unique case (1) t1: dbg_t = 0; t2: dbg_t = 1; t3: dbg_t = 2; t4: dbg_t = 3; endcase
 	always_comb unique case (1) m1: dbg_m = 0; m2: dbg_m = 1; m3: dbg_m = 2; m4: dbg_m = 3; m5: dbg_m = 4; m6: dbg_m = 5; endcase
-	assign dbg_al_in = al_in;
-	assign dbg_al_out = al_out;
-	assign dbg_al_out_ext = al_out_ext;
+	assign dbg_al = al_out;
+	assign dbg_dl = io_din;
+	assign dbg_mread = ctl_mread;
+	assign dbg_mwrite = ctl_mwrite;
 endmodule

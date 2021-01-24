@@ -63,8 +63,8 @@ module sm83_alu
 		hword_t l;
 	} word_t;
 
-	task alu_slice(input  a, b, c_in,
-	               output r,    c_out);
+	task alu_slice(input  logic a, b, c_in,
+	               output logic r,    c_out);
 		logic nc;
 		nc    = !(((a | b) & c_in) | (a & b) | force_carry);
 		r     = (a & b & c_in) | ((a | b | c_in) & (ignore_carry | nc));
