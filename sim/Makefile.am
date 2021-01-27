@@ -1,16 +1,20 @@
-CPU_BASIC_HDL = \
-cpu_basic.sv
+noinst_PROGRAMS = \
+sm83_sim
 
-CPU_BASIC_CC = \
-cpu_basic.cc
+sm83_sim_SOURCES = \
+sm83_sim.cc
 
-HDL_FILES = \
-$(CPU_BASIC_HDL)
+nodist_sm83_sim_SOURCES = \
+sm83_sim_design.cc
 
-CC_FILES = \
-$(CPU_BASIC_CC)
+BUILT_SOURCES = \
+$(nodist_sm83_sim_SOURCES)
 
-CPU_UUT = \
+CLEANFILES = \
+$(nodist_sm83_sim_SOURCES) \
+sm83_sim_design.h
+
+SM83_UUT = \
 cpu/sm83.sv \
 cpu/sm83_io.sv \
 cpu/sm83_sequencer.sv \
@@ -22,14 +26,9 @@ cpu/sm83_alu_control.sv \
 cpu/sm83_alu_flags.sv \
 cpu/sm83_int.sv
 
-EXTRA_DIST = \
-$(HDL_FILES) \
-$(CC_FILES)
+AM_CPPFLAGS = -I@YOSYS_INCLUDEDIR@
 
-YOSYS_CXXRTL_ARGS = -q -p "write_cxxrtl $1"
+YOSYS_CXXRTL_ARGS = -q -p "write_cxxrtl -header -namespace $(patsubst %.cc,%,$1) $1"
 
-cpu_basic_top.cc: $(CPU_BASIC_HDL) Makefile $(addprefix $(top_srcdir)/src/,$(CPU_UUT))
-	$(YOSYS) $(YOSYSFLAGS) $(call YOSYS_CXXRTL_ARGS,$@) $(CPU_BASIC_HDL) $(addprefix $(top_srcdir)/src/,$(CPU_UUT))
-
-cpu_basic: $(CPU_BASIC_CC) cpu_basic_top.cc
-	$(CXX) -g -O3 -I `yosys-config --datdir`/include -o $@ $<
+sm83_sim_design.cc: Makefile $(addprefix $(top_srcdir)/src/,$(SM83_UUT))
+	$(YOSYS) $(YOSYSFLAGS) $(call YOSYS_CXXRTL_ARGS,$@) $(addprefix $(top_srcdir)/src/,$(SM83_UUT))

@@ -1,2 +1,3 @@
-/cpu_basic
-/cpu_basic_top.cc
+*.o
+/sm83_sim
+/sm83_sim_design.*

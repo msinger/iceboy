@@ -34,6 +34,18 @@ fi
 AC_ARG_VAR(YOSYSFLAGS, [Additional arguments passed to Yosys])
 ])dnl
 dnl
+AC_DEFUN([MY_PROG_YOSYS_CONFIG],
+[dnl
+# Yosys config
+AC_ARG_VAR(YOSYS_CONFIG, [Yosys open synthesis suite configuration (overrides auto detection)])
+if test -z "$YOSYS_CONFIG"; then
+	AC_PATH_PROG(YOSYS_CONFIG, yosys-config, [])
+	if test -z "$YOSYS_CONFIG"; then
+		AC_MSG_ERROR([yosys-config not found])
+	fi
+fi
+])dnl
+dnl
 AC_DEFUN([MY_PROG_ARACHNE],
 [dnl
 # arachne-pnr
