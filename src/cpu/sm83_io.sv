@@ -94,7 +94,10 @@ module sm83_io
 	endcase
 	always_ff @(posedge clk) if (rd_seq && t4) dout_r = ext_din;
 
-	always_ff @(negedge clk) if (dl_we) ext_dout = din;
+	always_ff @(negedge clk) priority case (1)
+		dl_we:        ext_dout = din;
+		rd_seq && t4: ext_dout = ext_din;
+	endcase
 
 	/* Emulate latch behaviour for opcode register.
 	 * Input data is already latched at IO port, but only for one tick (during T4). */
