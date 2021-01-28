@@ -35,7 +35,7 @@ static int get_t(const sm83_sim_design::p_sm83& sm83)
 	return sm83.p_dbg__t.get<uint16_t>() + 1;
 }
 
-static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83)
+static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83, const std::string& endl)
 {
 	stm <<
 		"   " <<
@@ -54,7 +54,7 @@ static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83)
 		"   " <<
 		" MR=" << std::dec << std::setw(1) << sm83.p_dbg__mread.get<uint16_t>() <<
 		" MW=" << std::dec << std::setw(1) << sm83.p_dbg__mwrite.get<uint16_t>() <<
-		std::endl <<
+		endl <<
 		"   " <<
 		" ADR=0x" << std::hex << std::setw(4) << std::setfill('0') << sm83.p_adr.get<uint16_t>() <<
 		" AL=0x" << std::hex << std::setw(4) << std::setfill('0') << sm83.p_dbg__al.get<uint16_t>() <<
@@ -62,7 +62,7 @@ static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83)
 		" DOUT=0x" << std::hex << std::setw(2) << std::setfill('0') << sm83.p_dout.get<uint16_t>() <<
 		" DIN=0x" << std::hex << std::setw(2) << std::setfill('0') << sm83.p_din.get<uint16_t>() <<
 		" DL=0x" << std::hex << std::setw(2) << std::setfill('0') << sm83.p_dbg__dl.get<uint16_t>() <<
-		std::endl <<
+		endl <<
 		"   " <<
 		" IR=0x" << std::hex << std::setw(2) << std::setfill('0') << sm83.p_dbg__opcode.get<uint16_t>() <<
 		" BANK=" << std::dec << std::setw(1) << sm83.p_dbg__bank__cb.get<uint16_t>() <<
@@ -76,9 +76,9 @@ static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83)
 		std::endl;
 }
 
-static void edge(std::ostream& stm, int t, bool e)
+static void edge(std::ostream& stm, int t, bool e, const std::string& endl)
 {
-	stm << std::dec << t << (e ? "@posedge" : "@negedge") << std::endl;
+	stm << std::dec << t << (e ? "@posedge" : "@negedge") << endl;
 }
 
 static void dio(sm83_sim_design::p_sm83& sm83, sm83_mem& mem)
@@ -95,21 +95,24 @@ int main(int argc, char** argv)
 	std::ostream* log = &std::cout;
 	int           ticks(32), rticks(4);
 	uint16_t      wr_adr(0x8000), wr_mask(0x8000);
-	bool          bin_in(false), dump_mem(false);
+	bool          bin_in(false), dump_mem(false), vrst(false);
+	std::string   endl("\n");
 
 	static const option ops[] = {
 		{ "binary",        no_argument,       NULL, 'b' },
 		{ "ticks",         required_argument, NULL, 't' },
 		{ "reset-ticks",   required_argument, NULL, 'r' },
 		{ "dump-mem",      no_argument,       NULL, 'd' },
+		{ "one-line",      no_argument,       NULL, 'l' },
+		{ "verbose-reset", no_argument,       NULL, 'R' },
 		{ "write-address", required_argument, NULL, 0   },
 		{ "write-mask",    required_argument, NULL, 1   },
 		{ NULL,            0,                 NULL, 0   }
 	};
 
-	int i, c;
+	int i, j, c;
 
-	while ((c = getopt_long(argc, argv, "bt:r:d", ops, &i)) != -1) {
+	while ((c = getopt_long(argc, argv, "bt:r:dlR", ops, &i)) != -1) {
 		switch (c) {
 		case 'b':
 			bin_in = true;
@@ -123,6 +126,12 @@ int main(int argc, char** argv)
 		case 'd':
 			log = &std::clog;
 			dump_mem = true;
+			break;
+		case 'l':
+			endl = " ";
+			break;
+		case 'R':
+			vrst = true;
 			break;
 		case 0:
 			wr_adr = std::stoi(optarg, NULL, 0);
@@ -149,31 +158,45 @@ int main(int argc, char** argv)
 	sm83_sim_design::p_sm83 sm83;
 
 	step(sm83);
-	*log << "[Initial state]" << std::endl;
-	debug(*log, sm83);
+	if (vrst) {
+		*log << "[Initial state]" << std::endl;
+		*log << "@init" << endl;
+		debug(*log, sm83, endl);
+	}
 
 	sm83.p_reset.set<bool>(true);
 	dio(sm83, mem);
 	step(sm83);
-	*log << "[RESET asserted]" << std::endl;
-	debug(*log, sm83);
+	if (vrst) {
+		*log << "[RESET asserted]" << std::endl;
+		*log << "@reset" << endl;
+		debug(*log, sm83, endl);
+	}
 
 	for (i = 0; i < rticks; i++) {
 		sm83.p_clk.set<bool>(true);
 		dio(sm83, mem);
 		step(sm83);
-		edge(*log, i, true);
-		debug(*log, sm83);
+		if (vrst) {
+			*log << "R";
+			edge(*log, i, true, endl);
+			debug(*log, sm83, endl);
+		}
 		sm83.p_clk.set<bool>(false);
 		step(sm83);
-		edge(*log, i, false);
-		debug(*log, sm83);
+		if (vrst) {
+			*log << "R";
+			edge(*log, i, false, endl);
+			debug(*log, sm83, endl);
+		}
 	}
 
 	sm83.p_reset.set<bool>(false);
-	*log << "[RESET deasserted]" << std::endl;
+	if (vrst) *log << "[RESET deasserted]" << std::endl;
 
-	for (i = 0; i < ticks; i++) {
+	bool v(vrst), pre(true);
+
+	for (i = 0, j = 0; i < ticks; i = pre ? 0 : (i + 1), j++) {
 		bool rd(false), wr(false);
 		if (get_t(sm83) == 4) {
 			rd = sm83.p_dbg__mread.get<bool>();
@@ -184,25 +207,33 @@ int main(int argc, char** argv)
 		step(sm83);
 		if (get_t(sm83) == 1) {
 			if (get_m(sm83) == 1) {
+				pre = false;
+				v   = true;
 				*log << "----------------------------------------------------------------------------" << std::endl;
 				if (rd)
 					*log << "[IFETCH cycle]" << std::endl;
 			}
 			if (rd && !wr && get_m(sm83) != 1)
-				*log << "[READ cycle]" << std::endl;
+				if (v) *log << "[READ cycle]" << std::endl;
 			if (!rd && wr)
-				*log << "[WRITE cycle]" << std::endl;
+				if (v) *log << "[WRITE cycle]" << std::endl;
 			if (!rd && !wr)
-				*log << "[NO-MEM cycle]" << std::endl;
+				if (v) *log << "[NO-MEM cycle]" << std::endl;
 			if (rd && wr)
-				*log << "[INVALID cycle]" << std::endl;
+				if (v) *log << "[INVALID cycle]" << std::endl;
 		}
-		edge(*log, i, true);
-		debug(*log, sm83);
+		if (v) {
+			if (pre) *log << "P";
+			edge(*log, pre ? j : i, true, endl);
+			debug(*log, sm83, endl);
+		}
 		sm83.p_clk.set<bool>(false);
 		step(sm83);
-		edge(*log, i, false);
-		debug(*log, sm83);
+		if (v) {
+			if (pre) *log << "P";
+			edge(*log, pre ? j : i, false, endl);
+			debug(*log, sm83, endl);
+		}
 	}
 
 	if (dump_mem)
