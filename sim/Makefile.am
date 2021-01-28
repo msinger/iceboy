@@ -26,6 +26,13 @@ cpu/sm83_alu_control.sv \
 cpu/sm83_alu_flags.sv \
 cpu/sm83_int.sv
 
+TESTS = \
+test/sm83/ld8.sh
+
+TEST_EXTENSIONS = .sh
+SH_LOG_COMPILER = $(SH)
+AM_SH_LOG_FLAGS =
+
 AM_CPPFLAGS = -I@YOSYS_INCLUDEDIR@
 
 YOSYS_CXXRTL_ARGS = -q -p "write_cxxrtl -header -namespace $(patsubst %.cc,%,$1) $1"
