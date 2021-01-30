@@ -1,5 +1,26 @@
 #!/bin/sh
 
+# Tests for 8 bit load instructions on simulated SM83 CPU:
+#  LD r, r'
+#  LD r, n
+#  LD r, (HL)
+#  LD (HL), r
+#  LD (HL), n
+#  LD (BC), A
+#  LD (DE), A
+#  LD (HLI), A
+#  LD (HLD), A
+#  LD A, (BC)
+#  LD A, (DE)
+#  LD A, (HLI)
+#  LD A, (HLD)
+#  LD (n), A
+#  LD A, (n)
+#  LD (C), A
+#  LD A, (C)
+#  LDX (nn), A
+#  LDX A, (nn)
+
 set -e
 
 function drop_comments () {
@@ -11,20 +32,83 @@ function drop_comments () {
 	done
 }
 
-{ drop_comments | ./sm83_sim -dlt72 2>sm83_sim_ld8.out | hexdump -x >sm83_sim_ld8.mem; } <<EOF
+{ drop_comments | ./sm83_sim -dlt276 2>sm83_sim_ld8.out | hexdump -x >sm83_sim_ld8.mem; } <<"EOF"
+# @tick #0
 # LD m, n    (m is r or (HL))
-06 11   0e 22
-16 33   1e 44
-26 aa   2e bb
-36 cc   3e dd
+06 aa   0e 11
+16 bb   1e 22
+26 cc   2e 33
+36 dd   3e 44
+# 68 ticks
+
+# @tick #68
+# LD A, $55; LD (BC), A
+3e 55 02
+# 16 ticks
+
+# @tick #84
+# LD A, $66; LD (DE), A
+3e 66 12
+# 16 ticks
+
+# @tick #100
+# LD L, $40; LD A, $77; LD (HLI), A
+2e 40 3e 77 22
+# 24 ticks
+
+# @tick #124
+# LD A, $88; LD (HLD), A
+3e 88 32
+# 16 ticks
+
+# @tick #140
+# LD A, (BC); LD A, (DE); LD A, (HLI); LD A, (HLD)
+0a 1a 2a 3a
+# 32 ticks
+
+# @tick #172
+# LD r, r'   (with r == r')
+40 49 52 5b 64 6d 7f
+# 28 ticks
+
+# @tick #200
+# LD C, B; LD E, D; LD L, H; LD B, A
+48 5a 6c 47
+# 16 ticks
+
+# @tick #216
+# LD A, C; LD D, B; LD L, E; LD B, C
+79 50 6b 41
+# 16 ticks
+
+# @tick #232
+# LD (HL), H; LD L, (HL); LD A, (HL); LD (HL), D; LD B, (HL)
+74 6e 7e 72 46
+# 40 ticks
+
+# @tick #272
 EOF
 
-diff -aiEZbwB sm83_sim_ld8.mem - <<EOF
-0000000    1106    220e    3316    441e    aa26    bb2e    cc36    dd3e
-0000010    0000    0000    0000    0000    0000    0000    0000    0000
+diff -aiEZbwB sm83_sim_ld8.mem - <<"EOF"
+0000000    aa06    110e    bb16    221e    cc26    332e    dd36    443e
+0000010    553e    3e02    1266    402e    773e    3e22    3288    1a0a
+0000020    3a2a    4940    5b52    6d64    487f    6c5a    7947    6b50
+0000030    7441    7e6e    4672    0000    0000    0000    0000    0000
+0000040    0000    0000    0000    0000    0000    0000    0000    0000
 *
-000aab0    0000    0000    0000    0000    0000    cc00    0000    0000
-000aac0    0000    0000    0000    0000    0000    0000    0000    0000
+000aa10    5500    0000    0000    0000    0000    0000    0000    0000
+000aa20    0000    0000    0000    0000    0000    0000    0000    0000
+*
+000bb20    0000    0066    0000    0000    0000    0000    0000    0000
+000bb30    0000    0000    0000    0000    0000    0000    0000    0000
+*
+000cc30    0000    dd00    0000    0000    0000    0000    0000    0000
+000cc40    8877    0000    0000    0000    0000    0000    0000    0000
+000cc50    0000    0000    0000    0000    0000    0000    0000    0000
+*
+000ccb0    0000    0000    0000    0000    0000    cc00    0000    0000
+000ccc0    0000    0000    0000    0000    0000    0000    0088    0000
+000ccd0    0000    0000    0000    0000    0000    0000    0000    0000
 *
 0010000
 EOF
@@ -42,7 +126,28 @@ function needlines () {
 	done
 }
 
-needlines <<EOF
+needlines <<"EOF"
 # Check registers after the 8 "LD m, n" instructions. They require 68 ticks plus 4 overlapped = 72.
-71@posedge     M=1 T=4    CLK=1 RST=0 PHI=0    nRD=1 pRD=1 nWR=0 pWR=0 LH=.    MR=. MW=.     ADR=0x0010 AL=0x0011    DOUT=0x.. DIN=0x.. DL=0x..     IR=0x.. BANK=.    PC=0x0011 SP=0x.... BC=0x1122 DE=0x3344 HL=0xaabb AF=0xdd..
+71@posedge     M=1 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc33 AF=0x44..
+
+# Check if HL gets incremented/decremented by "LD (HLI), A" and "LD (HLD), A".
+123@posedge     M=2 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc41 AF=0x77..
+139@posedge     M=2 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc40 AF=0x88..
+
+# Check content of A after "LD A, BC", "LD A, DE", "LD A, (HLI)" and "LD A, (HLD)"
+# and if HL gets incremented/decremented by the latter two.
+151@posedge     M=1 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc40 AF=0x55..
+159@posedge     M=1 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc40 AF=0x66..
+167@posedge     M=1 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc41 AF=0x77..
+175@posedge     M=1 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc40 AF=0x88..
+
+# Check that there is no change after the 7 "LD r, r'" with r == r'.
+203@posedge     M=1 T=4    .* BC=0xaa11 DE=0xbb22 HL=0xcc40 AF=0x88..
+
+# Check results of non-nop "LD r, r'" instructions.
+219@posedge     M=1 T=4    .* BC=0x88aa DE=0xbbbb HL=0xcccc AF=0x88..
+235@posedge     M=1 T=4    .* BC=0xaaaa DE=0x88bb HL=0xccbb AF=0xaa..
+
+# Check results of "LD r, (HL)" instructions.
+275@posedge     M=1 T=4    .* BC=0x88aa DE=0x88bb HL=0xcccc AF=0x00..
 EOF
