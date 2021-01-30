@@ -74,8 +74,7 @@ module sm83_io
 				p_rd = t4;
 				n_wr = t3;
 				p_wr = t2 || t3;
-				/* Data is output as long as RD is off. */
-				/* (Data output enable = !RD) */
+				/* Data is output as long as p_wr is on. Switches at posedge only. */
 			end
 
 			!rd_seq && !wr_seq:;

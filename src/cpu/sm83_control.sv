@@ -415,9 +415,9 @@ module sm83_control(
 
 				if (m2) begin
 					/* Read register selected by opcode[0:2] into data latch */
-					read_gp0(t1, 1);
-					ctl_db_l2c_oe    |= t1;
-					ctl_io_data_we   |= t1; /* negedge */
+					read_gp0(t2, 1);
+					ctl_db_l2c_oe    |= t2;
+					ctl_io_data_we   |= t2; /* negedge */
 				end
 
 				/* Write value from data latch to address in HL during M2 */
@@ -442,11 +442,11 @@ module sm83_control(
 
 				if (m2) begin
 					/* Read A into data latch */
-					if (t1) reg_sel  = AF;
-					ctl_reg_hi_oe   |= t1;
-					ctl_db_h2l_oe   |= t1;
-					ctl_db_l2c_oe   |= t1;
-					ctl_io_data_we  |= t1; /* negedge */
+					if (t2) reg_sel  = AF;
+					ctl_reg_hi_oe   |= t2;
+					ctl_db_h2l_oe   |= t2;
+					ctl_db_l2c_oe   |= t2;
+					ctl_io_data_we  |= t2; /* negedge */
 				end
 
 				/* Write value from data latch to address in BC/DE during M2 */
@@ -524,11 +524,11 @@ module sm83_control(
 				if (ld_n_dir) begin /* LDX (nn), A */
 					if (m4) begin
 						/* Write A into data latch */
-						if (t1) reg_sel  = AF;
-						ctl_reg_hi_oe   |= t1;
-						ctl_db_h2l_oe   |= t1;
-						ctl_db_l2c_oe   |= t1;
-						ctl_io_data_we  |= t1; /* negedge */
+						if (t2) reg_sel  = AF;
+						ctl_reg_hi_oe   |= t2;
+						ctl_db_h2l_oe   |= t2;
+						ctl_db_l2c_oe   |= t2;
+						ctl_io_data_we  |= t2; /* negedge */
 					end
 
 					/* Write data latch to bus during M4 */
