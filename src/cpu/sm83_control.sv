@@ -468,7 +468,7 @@ module sm83_control(
 					ctl_db_l2h_oe   |= t3;
 					ctl_reg_hi_in   |= t3;
 					ctl_reg_lo_in   |= t3;
-					if (t3) reg_sel  = opcode[5:4];
+					if (t3) reg_sel  = AF;
 					ctl_reg_hi_we   |= t3; /* posedge */
 				end
 			end
