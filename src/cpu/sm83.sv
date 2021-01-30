@@ -155,7 +155,7 @@ module sm83(
 
 		.ctl_al_hi_we, .ctl_al_lo_we,
 		.ctl_inc_dec, .ctl_inc_cy,
-		.ctl_inc_oe,
+		.ctl_inc_oe, .ctl_al_ff,
 	);
 
 	function [WORD_SIZE-1:0] db_mux(input logic [6:0]           sel,
@@ -203,7 +203,7 @@ module sm83(
 	logic ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel;
 	logic ctl_reg_pc_oe, ctl_reg_pc_not_oe;
 	logic ctl_reg_pc_we;
-	logic ctl_al_oe;
+	logic ctl_al_oe, ctl_al_ff;
 	logic ctl_al_hi_we, ctl_al_lo_we;
 	logic ctl_inc_dec, ctl_inc_cy;
 	logic ctl_inc_oe;

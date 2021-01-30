@@ -18,7 +18,7 @@ module sm83_control(
 		output logic                 ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel,
 		output logic                 ctl_reg_pc_oe, ctl_reg_pc_not_oe,
 		output logic                 ctl_reg_pc_we,
-		output logic                 ctl_al_oe,
+		output logic                 ctl_al_oe, ctl_al_ff,
 		output logic                 ctl_al_hi_we, ctl_al_lo_we,
 		output logic                 ctl_inc_dec, ctl_inc_cy,
 		output logic                 ctl_inc_oe,
@@ -302,6 +302,7 @@ module sm83_control(
 		ctl_reg_pc_not_oe    = 0;
 		ctl_reg_pc_we        = 0;
 		ctl_al_oe            = 0;
+		ctl_al_ff            = 0;
 		ctl_al_hi_we         = 0;
 		ctl_al_lo_we         = 0;
 		ctl_inc_dec          = 0;
@@ -563,7 +564,7 @@ module sm83_control(
 					ctl_al_hi_we   |= t4; /* negedge */
 
 					/* Apply address latch to external bus */
-					ctl_io_adr_we  |= t4; /* posedge */
+					ctl_io_adr_we |= t4; /* posedge */
 				end
 
 				/* Transfer A from/to data bus, depending on direction of opcode */
@@ -596,28 +597,104 @@ module sm83_control(
 				end
 			end
 
-			/* LD (n), A -- Load A to immediate address $hff00+n */
-			ld_n_a && ld_n_dir: begin
-				last_mcyc(m3);
-				// TODO: implement
-			end
-
+			/* LD (n), A -- Load A to immediate address $ff00+n */
 			/* LD A, (n) -- Load A with value stored at immediate address $ff00+n */
-			ld_n_a && !ld_n_dir: begin
+			ld_n_a: begin
 				last_mcyc(m3);
-				// TODO: implement
+
+				/* Read immediate value from bus into data latch during M2 and incement PC */
+				read_imm_m2();
+
+				if (m2) begin
+					/* Write immediate fetched during M2 from data latch into low byte of address latch while
+					   setting high byte to $ff */
+					ctl_io_data_oe |= t4;
+					ctl_db_c2l_oe  |= t4;
+					ctl_reg_lo_in  |= t4;
+					ctl_reg_adr_oe |= t4;
+					ctl_al_ff      |= t4;
+					ctl_al_hi_we   |= t4; /* negedge */
+					ctl_al_lo_we   |= t4; /* negedge */
+
+					/* Apply address latch to external bus */
+					ctl_io_adr_we |= t4; /* posedge */
+				end
+
+				/* Transfer A from/to data bus, depending on direction of opcode */
+				if (ld_n_dir) begin /* LD (n), A */
+					if (m3) begin
+						/* Write A into data latch */
+						if (t2) reg_sel  = AF;
+						ctl_reg_hi_oe   |= t2;
+						ctl_db_h2l_oe   |= t2;
+						ctl_db_l2c_oe   |= t2;
+						ctl_io_data_we  |= t2; /* negedge */
+					end
+
+					/* Write data latch to bus during M3 */
+					write_m3();
+				end else begin /* LD A, (n) */
+					/* Read value from bus into data latch during M3 */
+					read_m3();
+
+					if (m1) begin
+						/* Write value from data latch into A */
+						ctl_io_data_oe  |= t3;
+						ctl_db_c2l_oe   |= t3;
+						ctl_db_l2h_oe   |= t3;
+						ctl_reg_hi_in   |= t3;
+						ctl_reg_lo_in   |= t3;
+						if (t3) reg_sel  = AF;
+						ctl_reg_hi_we   |= t3; /* posedge */
+					end
+				end
 			end
 
-			/* LD (C), A -- Load A to immediate address $hff00+C */
-			ld_c_a && ld_n_dir: begin
-				last_mcyc(m2);
-				// TODO: implement
-			end
-
+			/* LD (C), A -- Load A to immediate address $ff00+C */
 			/* LD A, (C) -- Load A with value stored at immediate address $ff00+C */
-			ld_c_a && !ld_n_dir: begin
+			ld_c_a: begin
 				last_mcyc(m2);
-				// TODO: implement
+
+				if (m1) begin
+					/* Write C into low byte of address latch while setting high byte to $ff */
+					if (t4) reg_sel  = BC;
+					ctl_reg_adr_oe  |= t4;
+					ctl_al_ff       |= t4;
+					ctl_al_hi_we    |= t4; /* negedge */
+					ctl_al_lo_we    |= t4; /* negedge */
+
+					/* Apply address latch to external bus */
+					ctl_io_adr_we |= t4; /* posedge */
+				end
+
+				/* Transfer A from/to data bus, depending on direction of opcode */
+				if (ld_n_dir) begin /* LD (C), A */
+					if (m2) begin
+						/* Write A into data latch */
+						if (t2) reg_sel  = AF;
+						ctl_reg_hi_oe   |= t2;
+						ctl_db_h2l_oe   |= t2;
+						ctl_db_l2c_oe   |= t2;
+						ctl_io_data_we  |= t2; /* negedge */
+					end
+
+					/* Write data latch to bus during M2 */
+					write_m2();
+				end else begin /* LD A, (C) */
+					/* Read value from bus into data latch during M2 */
+					read_m2();
+
+					if (m1) begin
+						/* Write value from data latch into A */
+						ctl_io_data_oe  |= t3;
+						ctl_db_c2l_oe   |= t3;
+						ctl_db_l2h_oe   |= t3;
+						ctl_reg_hi_in   |= t3;
+						ctl_reg_lo_in   |= t3;
+						if (t3) reg_sel  = AF;
+						ctl_reg_hi_we   |= t3; /* posedge */
+					end
+				end
 			end
 
 			/* LD dd, nn -- Load register dd with immediate value nn */

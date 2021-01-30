@@ -12,7 +12,7 @@ module sm83_adr_inc
 
 		input  logic                   ctl_al_hi_we, ctl_al_lo_we,
 		input  logic                   ctl_inc_dec, ctl_inc_cy,
-		input  logic                   ctl_inc_oe,
+		input  logic                   ctl_inc_oe, ctl_al_ff,
 	);
 
 	localparam WORD_SIZE = ADR_WIDTH / 2;
@@ -39,9 +39,19 @@ module sm83_adr_inc
 	assign aout     = al;
 
 	always_ff @(negedge clk) begin
-		if (ctl_al_hi_we) al.hi = ctl_inc_oe ? inc.hi : bus.hi;
-		if (ctl_al_lo_we) al.lo = ctl_inc_oe ? inc.lo : bus.lo;
-		if (reset)        al    = 0;
+		if (ctl_al_hi_we) unique case (1)
+			ctl_inc_oe: al.hi = inc.hi;
+			ctl_al_ff:  al.hi = 'hff;
+			default:    al.hi = bus.hi;
+		endcase
+
+		if (ctl_al_lo_we) unique case (1)
+			ctl_inc_oe: al.lo = inc.lo;
+			default:    al.lo = bus.lo;
+		endcase
+
+		if (reset)
+			al = 0;
 	end
 
 	always_comb begin :inc_dec
