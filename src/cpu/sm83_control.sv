@@ -157,6 +157,20 @@ module sm83_control(
 		ctl_reg_pc_we |= t1; /* posedge */
 	endtask
 
+	/* Write address latch +/-1 to HL */
+	task hl_from_adr_inc(input logic dec);
+		ctl_inc_cy      |= t1;
+		ctl_inc_dec     |= t1 && dec;
+		ctl_inc_oe      |= t1;
+		ctl_al_hi_we    |= t1; /* negedge */
+		ctl_al_lo_we    |= t1; /* negedge */
+		ctl_al_oe       |= t1;
+		ctl_reg_adr_in  |= t1;
+		if (t1) reg_sel  = HL;
+		ctl_reg_hi_we   |= t1; /* posedge */
+		ctl_reg_lo_we   |= t1; /* posedge */
+	endtask
+
 	/*  */
 	assign in_halt = 0;
 
@@ -475,16 +489,48 @@ module sm83_control(
 
 			/* LD (HLI), A -- Load A to address in HL and post-increment HL */
 			/* LD (HLD), A -- Load A to address in HL and post-decrement HL */
-			ld_xx_a && ld_x_dir: begin
+			ld_hl_a && ld_x_dir: begin
 				last_mcyc(m2);
-				// TODO: implement
+
+				if (m2) begin
+					/* Write A into data latch */
+					if (t2) reg_sel  = AF;
+					ctl_reg_hi_oe   |= t2;
+					ctl_db_h2l_oe   |= t2;
+					ctl_db_l2c_oe   |= t2;
+					ctl_io_data_we  |= t2; /* negedge */
+				end
+
+				/* Write value from data latch to address in HL during M2 */
+				write_indreg_m2(HL);
+
+				/* Write incremented or decremented address latch back into HL */
+				if (m2)
+					hl_from_adr_inc(opcode[4]);
 			end
 
 			/* LD A, (HLI) -- Load A with value stored at address in HL and post-increment HL */
 			/* LD A, (HLD) -- Load A with value stored at address in HL and post-decrement HL */
-			ld_xx_a && !ld_x_dir: begin
+			ld_hl_a && !ld_x_dir: begin
 				last_mcyc(m2);
-				// TODO: implement
+
+				/* Read value from bus at address in HL into data latch during M2 */
+				read_indreg_m2(HL);
+
+				/* Write incremented or decremented address latch back into HL */
+				if (m2)
+					hl_from_adr_inc(opcode[4]);
+
+				if (m1) begin
+					/* Write fetched value from data latch into A */
+					ctl_io_data_oe  |= t3;
+					ctl_db_c2l_oe   |= t3;
+					ctl_db_l2h_oe   |= t3;
+					ctl_reg_hi_in   |= t3;
+					ctl_reg_lo_in   |= t3;
+					if (t3) reg_sel  = AF;
+					ctl_reg_hi_we   |= t3; /* posedge */
+				end
 			end
 
 			/* LDX (nn), A -- Load A to immediate address nn */
