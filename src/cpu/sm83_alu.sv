@@ -40,8 +40,8 @@ module sm83_alu
 		input  logic                   force_carry,      /* S signal */
 		input  logic                   ignore_carry,     /* V signal */
 		input  logic                   negate,           /* Invert operand B when muxed into ALU core. */
-		input  logic                   mux,              /* Selects which half of op A is fed into core. (0=L 1=H) */
-		input  logic                   op_b_mux,         /* Selects which half of op B is fed into core. (0=L 1=H) */
+		input  logic                   op_low,           /* Selects which half of op A is fed into core. (1=L 0=H) */
+		input  logic                   op_b_high,        /* Selects which half of op B is fed into core. (0=L 1=H) */
 
 		output logic                   carry,            /* Carry output */
 		output logic                   zero,             /* Zero output */
@@ -84,14 +84,14 @@ module sm83_alu
 
 	word_t op_a, op_b;
 
-	always_comb unique case (mux)
-		0: core_op_a = op_a.l;
-		1: core_op_a = op_a.h;
+	always_comb unique case (1)
+		op_low:  core_op_a = op_a.l;
+		!op_low: core_op_a = op_a.h;
 	endcase
 
-	always_comb unique case (op_b_mux)
-		0: core_op_b = negate ? ~op_b.l : op_b.l;
-		1: core_op_b = negate ? ~op_b.h : op_b.h;
+	always_comb unique case (1)
+		!op_b_high: core_op_b = negate ? ~op_b.l : op_b.l;
+		op_b_high:  core_op_b = negate ? ~op_b.h : op_b.h;
 	endcase
 
 	word_t shifted;
@@ -160,7 +160,7 @@ module sm83_alu
 	assign daa_h_eq_9 = op_a.h == 9;
 
 	hword_t res_lo;
-	always_ff @(posedge clk) if (!mux) res_lo = core_result;
+	always_ff @(posedge clk) if (op_low) res_lo = core_result;
 
 	word_t result = { core_result, res_lo };
 

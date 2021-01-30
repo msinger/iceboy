@@ -101,7 +101,7 @@ module sm83(
 
 		.no_carry_out(ctl_alu_nc), .force_carry(ctl_alu_fc), .ignore_carry(ctl_alu_ic),
 		.negate(ctl_alu_neg),
-		.mux(ctl_alu_mux), .op_b_mux(ctl_alu_mux_b),
+		.op_low(ctl_alu_op_low), .op_b_high(ctl_alu_op_b_high),
 
 		.zero(alu_zero), .carry(alu_carry),
 
@@ -221,7 +221,7 @@ module sm83(
 	logic ctl_alu_op_a_bus, ctl_alu_op_a_low, ctl_alu_op_a_zero;
 	logic ctl_alu_op_b_bus, ctl_alu_op_b_lq, ctl_alu_op_b_zero;
 	logic ctl_alu_nc, ctl_alu_fc, ctl_alu_ic;
-	logic ctl_alu_neg, ctl_alu_mux, ctl_alu_mux_b;
+	logic ctl_alu_neg, ctl_alu_op_low, ctl_alu_op_b_high;
 	logic ctl_alu_shift;   /* Makes ALU perform shift operation on data input. */
 	logic ctl_alu_sel_hc;  /* Selects which carry flag goes into ALU core. (0: carry; 1: half carry) */
 	logic ctl_alu_cond_we; /* Write condition result flag for conditional operation. */
