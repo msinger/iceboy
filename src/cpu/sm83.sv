@@ -252,9 +252,9 @@ module sm83(
 
 	/* low register bus matrix */
 	logic [5:0] rbl_sel = { ctl_reg_sys2gp_oe, ctl_reg_l2gp_oe, reg_gp_lo_oe };
-	word_t rbl           = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo, reg_lo_din, reg_sys2gp.lo);
-	assign reg_lo_dout   = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo,        'bx, reg_sys2gp.lo);
-	assign reg_gp2sys.lo = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo, reg_lo_din,           'bx);
+	word_t rbl           = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo & 'hf0, reg_lo_din, reg_sys2gp.lo);
+	assign reg_lo_dout   = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo & 'hf0,        'bx, reg_sys2gp.lo);
+	assign reg_gp2sys.lo = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo & 'hf0, reg_lo_din,           'bx);
 	always_ff @(posedge clk) if (ctl_reg_gp_lo_we) begin
 		if (ctl_reg_bc_sel) reg_bc.lo = rbl;
 		if (ctl_reg_de_sel) reg_de.lo = rbl;
@@ -305,7 +305,7 @@ module sm83(
 	assign dbg_bc = reg_bc;
 	assign dbg_de = reg_de;
 	assign dbg_hl = reg_hl;
-	assign dbg_af = reg_af;
+	assign dbg_af = reg_af & 'hfff0;
 	assign dbg_opcode = opcode;
 	assign dbg_bank_cb = bank_cb;
 	always_comb unique case (1) t1: dbg_t = 0; t2: dbg_t = 1; t3: dbg_t = 2; t4: dbg_t = 3; endcase
