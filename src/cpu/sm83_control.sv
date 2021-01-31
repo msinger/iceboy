@@ -397,12 +397,12 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write fetched immediate from data latch into register selected by opcode[5:3] */
-					ctl_io_data_oe  |= t3;
-					ctl_db_c2l_oe   |= t3;
-					ctl_db_l2h_oe   |= t3;
-					ctl_reg_h2gp_oe |= t3;
-					ctl_reg_l2gp_oe |= t3;
-					write_gp3(t3);         /* posedge */
+					ctl_io_data_oe  |= t2;
+					ctl_db_c2l_oe   |= t2;
+					ctl_db_l2h_oe   |= t2;
+					ctl_reg_h2gp_oe |= t2;
+					ctl_reg_l2gp_oe |= t2;
+					write_gp3(t2);         /* posedge */
 				end
 			end
 
@@ -417,12 +417,12 @@ module sm83_control(
 					ctl_alu_op_a_bus |= t1; /* negedge */
 
 					/* Write ALU operand A into register selected by opcode[5:3] */
-					ctl_alu_op_a_oe |= t3;
-					ctl_alu_oe      |= t3;
-					ctl_db_h2l_oe   |= t3;
-					ctl_reg_h2gp_oe |= t3;
-					ctl_reg_l2gp_oe |= t3;
-					write_gp3(t3);         /* posedge */
+					ctl_alu_op_a_oe |= t2;
+					ctl_alu_oe      |= t2;
+					ctl_db_h2l_oe   |= t2;
+					ctl_reg_h2gp_oe |= t2;
+					ctl_reg_l2gp_oe |= t2;
+					write_gp3(t2);         /* posedge */
 				end
 			end
 
@@ -435,12 +435,12 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write fetched value from data latch into register selected by opcode[5:3] */
-					ctl_io_data_oe  |= t3;
-					ctl_db_c2l_oe   |= t3;
-					ctl_db_l2h_oe   |= t3;
-					ctl_reg_h2gp_oe |= t3;
-					ctl_reg_l2gp_oe |= t3;
-					write_gp3(t3);         /* posedge */
+					ctl_io_data_oe  |= t2;
+					ctl_db_c2l_oe   |= t2;
+					ctl_db_l2h_oe   |= t2;
+					ctl_reg_h2gp_oe |= t2;
+					ctl_reg_l2gp_oe |= t2;
+					write_gp3(t2);         /* posedge */
 				end
 			end
 
@@ -500,13 +500,13 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write fetched value from data latch into A */
-					ctl_io_data_oe   |= t3;
-					ctl_db_c2l_oe    |= t3;
-					ctl_db_l2h_oe    |= t3;
-					ctl_reg_h2gp_oe  |= t3;
-					ctl_reg_l2gp_oe  |= t3;
-					if (t3) reg_sel   = AF;
-					ctl_reg_gp_hi_we |= t3; /* posedge */
+					ctl_io_data_oe   |= t2;
+					ctl_db_c2l_oe    |= t2;
+					ctl_db_l2h_oe    |= t2;
+					ctl_reg_h2gp_oe  |= t2;
+					ctl_reg_l2gp_oe  |= t2;
+					if (t2) reg_sel   = AF;
+					ctl_reg_gp_hi_we |= t2; /* posedge */
 				end
 			end
 
@@ -548,13 +548,13 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write fetched value from data latch into A */
-					ctl_io_data_oe   |= t3;
-					ctl_db_c2l_oe    |= t3;
-					ctl_db_l2h_oe    |= t3;
-					ctl_reg_h2gp_oe  |= t3;
-					ctl_reg_l2gp_oe  |= t3;
-					if (t3) reg_sel   = AF;
-					ctl_reg_gp_hi_we |= t3; /* posedge */
+					ctl_io_data_oe   |= t2;
+					ctl_db_c2l_oe    |= t2;
+					ctl_db_l2h_oe    |= t2;
+					ctl_reg_h2gp_oe  |= t2;
+					ctl_reg_l2gp_oe  |= t2;
+					if (t2) reg_sel   = AF;
+					ctl_reg_gp_hi_we |= t2; /* posedge */
 				end
 			end
 
@@ -612,13 +612,13 @@ module sm83_control(
 
 					if (m1) begin
 						/* Write value from data latch into A */
-						ctl_io_data_oe   |= t3;
-						ctl_db_c2l_oe    |= t3;
-						ctl_db_l2h_oe    |= t3;
-						ctl_reg_h2gp_oe  |= t3;
-						ctl_reg_l2gp_oe  |= t3;
-						if (t3) reg_sel   = AF;
-						ctl_reg_gp_hi_we |= t3; /* posedge */
+						ctl_io_data_oe   |= t2;
+						ctl_db_c2l_oe    |= t2;
+						ctl_db_l2h_oe    |= t2;
+						ctl_reg_h2gp_oe  |= t2;
+						ctl_reg_l2gp_oe  |= t2;
+						if (t2) reg_sel   = AF;
+						ctl_reg_gp_hi_we |= t2; /* posedge */
 					end
 				end
 			end
@@ -667,13 +667,13 @@ module sm83_control(
 
 					if (m1) begin
 						/* Write value from data latch into A */
-						ctl_io_data_oe   |= t3;
-						ctl_db_c2l_oe    |= t3;
-						ctl_db_l2h_oe    |= t3;
-						ctl_reg_h2gp_oe  |= t3;
-						ctl_reg_l2gp_oe  |= t3;
-						if (t3) reg_sel   = AF;
-						ctl_reg_gp_hi_we |= t3; /* posedge */
+						ctl_io_data_oe   |= t2;
+						ctl_db_c2l_oe    |= t2;
+						ctl_db_l2h_oe    |= t2;
+						ctl_reg_h2gp_oe  |= t2;
+						ctl_reg_l2gp_oe  |= t2;
+						if (t2) reg_sel   = AF;
+						ctl_reg_gp_hi_we |= t2; /* posedge */
 					end
 				end
 			end
@@ -718,13 +718,13 @@ module sm83_control(
 
 					if (m1) begin
 						/* Write value from data latch into A */
-						ctl_io_data_oe   |= t3;
-						ctl_db_c2l_oe    |= t3;
-						ctl_db_l2h_oe    |= t3;
-						ctl_reg_h2gp_oe  |= t3;
-						ctl_reg_l2gp_oe  |= t3;
-						if (t3) reg_sel   = AF;
-						ctl_reg_gp_hi_we |= t3; /* posedge */
+						ctl_io_data_oe   |= t2;
+						ctl_db_c2l_oe    |= t2;
+						ctl_db_l2h_oe    |= t2;
+						ctl_reg_h2gp_oe  |= t2;
+						ctl_reg_l2gp_oe  |= t2;
+						if (t2) reg_sel   = AF;
+						ctl_reg_gp_hi_we |= t2; /* posedge */
 					end
 				end
 			end
