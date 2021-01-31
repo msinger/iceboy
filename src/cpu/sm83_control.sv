@@ -62,6 +62,7 @@ module sm83_control(
 	sm83_int       intr(.*);
 
 	logic set_m1;
+	logic no_int;
 
 	logic in_rst;
 	logic in_int;
@@ -285,6 +286,8 @@ module sm83_control(
 
 	always_comb begin
 		set_m1  = 0;
+		no_int  = 0;
+
 		reg_sel = 'bx;
 
 		ctl_mread            = 0;
@@ -749,7 +752,14 @@ module sm83_control(
 			/* Prefix CB */
 			prefix_cb: begin
 				last_mcyc(m1);
-				ctl_ir_bank_cb_set |= t3;
+
+				if (m1) begin
+					/* Select CB bank for next instruction */
+					ctl_ir_bank_cb_set |= t3;
+
+					/* Don't allow interrupts between prefix and actual instruction */
+					no_int |= t4;
+				end
 			end
 
 		endcase
