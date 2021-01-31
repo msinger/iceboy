@@ -2,8 +2,7 @@
 
 (* nolatches *)
 module sm83_control(
-		input  logic                 clk, reset,
-		output logic                 phi,
+		input  logic                 clk, reset, ncyc,
 
 		output logic                 m1, m2, m3, m4, m5, m6,
 		output logic                 t1, t2, t3, t4,

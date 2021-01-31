@@ -4,7 +4,7 @@
 module sm83(
 		input  logic                 clk,
 		input  logic                 reset,
-		output logic                 phi,
+		input  logic                 ncyc,
 
 		output logic [ADR_WIDTH-1:0] adr,
 		input  logic [WORD_SIZE-1:0] din,

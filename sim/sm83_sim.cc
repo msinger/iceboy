@@ -44,7 +44,6 @@ static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83, const 
 		"   " <<
 		" CLK=" << std::dec << std::setw(1) << sm83.p_clk.get<uint16_t>() <<
 		" RST=" << std::dec << std::setw(1) << sm83.p_reset.get<uint16_t>() <<
-		" PHI=" << std::dec << std::setw(1) << sm83.p_phi.get<uint16_t>() <<
 		"   " <<
 		" nRD=" << std::dec << std::setw(1) << sm83.p_n__rd.get<uint16_t>() <<
 		" pRD=" << std::dec << std::setw(1) << sm83.p_p__rd.get<uint16_t>() <<
@@ -90,10 +89,26 @@ static void dio(sm83_sim_design::p_sm83& sm83, sm83_mem& mem)
 		mem.write(adr, sm83.p_dout.get<uint8_t>());
 }
 
+static void raise_clk(sm83_sim_design::p_sm83& sm83, unsigned& tick)
+{
+	sm83.p_ncyc.set<bool>(!(tick++ % 4));
+	step(sm83);
+	sm83.p_clk.set<bool>(true);
+	step(sm83);
+}
+
+static void drop_clk(sm83_sim_design::p_sm83& sm83)
+{
+	step(sm83);
+	sm83.p_clk.set<bool>(false);
+	step(sm83);
+}
+
 int main(int argc, char** argv)
 {
 	std::ostream* log = &std::cout;
 	int           ticks(32), rticks(4);
+	unsigned      ctick(0);
 	uint16_t      wr_adr(0x8000), wr_mask(0x8000);
 	bool          bin_in(false), dump_mem(false), vrst(false);
 	std::string   endl("\n");
@@ -174,16 +189,14 @@ int main(int argc, char** argv)
 	}
 
 	for (i = 0; i < rticks; i++) {
-		sm83.p_clk.set<bool>(true);
 		dio(sm83, mem);
-		step(sm83);
+		raise_clk(sm83, ctick);
 		if (vrst) {
 			*log << "R";
 			edge(*log, i, true, endl);
 			debug(*log, sm83, endl);
 		}
-		sm83.p_clk.set<bool>(false);
-		step(sm83);
+		drop_clk(sm83);
 		if (vrst) {
 			*log << "R";
 			edge(*log, i, false, endl);
@@ -202,9 +215,8 @@ int main(int argc, char** argv)
 			rd = sm83.p_dbg__mread.get<bool>();
 			wr = sm83.p_dbg__mwrite.get<bool>();
 		}
-		sm83.p_clk.set<bool>(true);
 		dio(sm83, mem);
-		step(sm83);
+		raise_clk(sm83, ctick);
 		if (get_t(sm83) == 1) {
 			if (get_m(sm83) == 1) {
 				pre = false;
@@ -227,8 +239,7 @@ int main(int argc, char** argv)
 			edge(*log, pre ? j : i, true, endl);
 			debug(*log, sm83, endl);
 		}
-		sm83.p_clk.set<bool>(false);
-		step(sm83);
+		drop_clk(sm83);
 		if (v) {
 			if (pre) *log << "P";
 			edge(*log, pre ? j : i, false, endl);
