@@ -143,6 +143,15 @@ module sm83_control(
 		ctl_io_adr_we  |= t4; /* posedge */
 	endtask
 
+	/* Write SP to address latch */
+	task sp_to_adr();
+		ctl_reg_sp_sel |= t4;
+		ctl_reg_sys_oe |= t4;
+		ctl_al_hi_we   |= t4; /* negedge */
+		ctl_al_lo_we   |= t4; /* negedge */
+		ctl_io_adr_we  |= t4; /* posedge */
+	endtask
+
 	/* Write register to address latch */
 	task reg_to_adr(input logic [1:0] r);
 		if (t4) reg_sel = r;
@@ -162,6 +171,19 @@ module sm83_control(
 		ctl_al_lo_we      |= t1; /* negedge */
 		ctl_al_oe         |= t1;
 		ctl_reg_pc_sel    |= t1;
+		ctl_reg_sys_hi_we |= t1; /* posedge */
+		ctl_reg_sys_lo_we |= t1; /* posedge */
+	endtask
+
+	/* Write address latch +/-1 to SP */
+	task sp_from_adr_inc(input logic dec);
+		ctl_inc_cy        |= t1;
+		ctl_inc_dec       |= t1 && dec;
+		ctl_inc_oe        |= t1;
+		ctl_al_hi_we      |= t1; /* negedge */
+		ctl_al_lo_we      |= t1; /* negedge */
+		ctl_al_oe         |= t1;
+		ctl_reg_sp_sel    |= t1;
 		ctl_reg_sys_hi_we |= t1; /* posedge */
 		ctl_reg_sys_lo_we |= t1; /* posedge */
 	endtask
@@ -756,13 +778,95 @@ module sm83_control(
 			/* PUSH qq -- Decrements SP, then loads register qq to address in SP */
 			push_pop && push_qq: begin
 				last_mcyc(m4);
-				// TODO: implement
+
+				/* Write SP into address latch */
+				if (m1)
+					sp_to_adr();
+
+				/* Write decremented address latch back into SP */
+				if (m2)
+					sp_from_adr_inc(1);
+
+				/* Read higher register into data latch */
+				if (m2) begin
+					if (t4) reg_sel   = opcode[5:4];
+					ctl_reg_gp_hi_oe |= t4;
+					ctl_reg_gp_lo_oe |= t4;
+					ctl_reg_gp2h_oe  |= t4;
+					ctl_db_h2l_oe    |= t4;
+					ctl_db_l2c_oe    |= t4;
+					ctl_io_data_we   |= t4; /* negedge */
+				end
+
+				/* Write value from data latch to bus at address in SP during M3 */
+				if (m2)
+					sp_to_adr();
+				write_m3();
+
+				/* Write decremented address latch back into SP */
+				if (m3)
+					sp_from_adr_inc(1);
+
+				/* Read lower register into data latch */
+				if (m3) begin
+					if (t4) reg_sel   = opcode[5:4];
+					ctl_reg_gp_hi_oe |= t4;
+					ctl_reg_gp_lo_oe |= t4;
+					ctl_reg_gp2l_oe  |= t4;
+					ctl_db_l2h_oe    |= t4;
+					ctl_db_l2c_oe    |= t4;
+					ctl_io_data_we   |= t4; /* negedge */
+				end
+
+				/* Write value from data latch to bus at address in SP during M4 */
+				if (m3)
+					sp_to_adr();
+				write_m4();
 			end
 
 			/* POP qq -- Loads register qq with value stored at address in SP, then increments SP */
 			push_pop && !push_qq: begin
 				last_mcyc(m3);
-				// TODO: implement
+
+				/* Read value from bus at address in SP into data latch during M2 */
+				if (m1)
+					sp_to_adr();
+				read_m2();
+
+				/* Write incremented address latch back into SP */
+				if (m2)
+					sp_from_adr_inc(0);
+
+				/* Write value from data latch that was fetched during M2 into lower register during M3 */
+				if (m3) begin
+					ctl_io_data_oe   |= t2;
+					ctl_db_c2l_oe    |= t2;
+					ctl_db_l2h_oe    |= t2;
+					ctl_reg_h2gp_oe  |= t2;
+					ctl_reg_l2gp_oe  |= t2;
+					if (t2) reg_sel   = opcode[5:4];
+					ctl_reg_gp_lo_we |= t2;          /* posedge */
+				end
+
+				/* Read value from bus at address in SP into data latch during M3 */
+				if (m2)
+					sp_to_adr();
+				read_m3();
+
+				/* Write incremented address latch back into SP */
+				if (m3)
+					sp_from_adr_inc(0);
+
+				/* Write value from data latch that was fetched during M3 into higher register during M1 */
+				if (m1) begin
+					ctl_io_data_oe   |= t2;
+					ctl_db_c2l_oe    |= t2;
+					ctl_db_l2h_oe    |= t2;
+					ctl_reg_h2gp_oe  |= t2;
+					ctl_reg_l2gp_oe  |= t2;
+					if (t2) reg_sel   = opcode[5:4];
+					ctl_reg_gp_hi_we |= t2;          /* posedge */
+				end
 			end
 
 			/* ADD A, r -- Add register r to A */
