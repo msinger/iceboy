@@ -313,10 +313,11 @@ module sm83_control(
 	logic op_gp3_hi = (opcode[5:4] == AF) ? opcode[3] : !opcode[3];
 
 	logic [1:0] reg_sel;
+	logic       use_sp;
 	assign ctl_reg_bc_sel = reg_sel == BC;
 	assign ctl_reg_de_sel = reg_sel == DE;
 	assign ctl_reg_hl_sel = reg_sel == HL;
-	assign ctl_reg_af_sel = reg_sel == AF;
+	assign ctl_reg_af_sel = reg_sel == AF && !use_sp;
 
 	always_comb begin
 		set_m1  = 0;
@@ -325,6 +326,7 @@ module sm83_control(
 		in_alu  = 0;
 
 		reg_sel = 'bx;
+		use_sp  = 0;
 
 		ctl_mread            = 0;
 		ctl_mwrite           = 0;
@@ -754,7 +756,45 @@ module sm83_control(
 			/* LD dd, nn -- Load register dd with immediate value nn */
 			ld_dd_nn: begin
 				last_mcyc(m3);
-				// TODO: implement
+
+				/* Read immediate value from bus into data latch during M2 and incement PC */
+				read_imm_m2();
+
+				/* Read immediate value from bus into data latch during M3 and incement PC */
+				read_imm_m3();
+
+				if (m3) begin
+					/* Write immediate fetched during M2 from data latch into lower register
+					 * during M3 after PC increment is done but before second immediate
+					 * overwrites data latch */
+					ctl_io_data_oe    |= t2;
+					ctl_db_c2l_oe     |= t2;
+					ctl_db_l2h_oe     |= t2;
+					ctl_reg_l2gp_oe   |= t2;
+					ctl_reg_h2gp_oe   |= t2;
+					ctl_reg_gp2sys_oe |= t2;
+					use_sp            |= t2 && (opcode[5:4] == AF);
+					ctl_reg_sp_sel    |= use_sp;
+					if (t2) reg_sel    = opcode[5:4];
+					ctl_reg_sys_lo_we |= t2; /* posedge */
+					ctl_reg_gp_lo_we  |= t2;
+				end
+
+				if (m1) begin
+					/* Write immediate fetched during M3 from data latch into higher register
+					 * during M1 after PC increment of next opcode is done */
+					ctl_io_data_oe    |= t2;
+					ctl_db_c2l_oe     |= t2;
+					ctl_db_l2h_oe     |= t2;
+					ctl_reg_l2gp_oe   |= t2;
+					ctl_reg_h2gp_oe   |= t2;
+					ctl_reg_gp2sys_oe |= t2;
+					use_sp            |= t2 && (opcode[5:4] == AF);
+					ctl_reg_sp_sel    |= use_sp;
+					if (t2) reg_sel    = opcode[5:4];
+					ctl_reg_sys_hi_we |= t2; /* posedge */
+					ctl_reg_gp_hi_we  |= t2;
+				end
 			end
 
 			/* LD SP, HL -- Load SP with value from HL */
