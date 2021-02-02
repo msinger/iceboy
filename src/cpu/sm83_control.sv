@@ -19,7 +19,7 @@ module sm83_control(
 		output logic                 ctl_reg_gp_we,
 		output logic                 ctl_reg_sys_hi_sel, ctl_reg_sys_lo_sel,
 		output logic                 ctl_reg_sys_hi_we, ctl_reg_sys_lo_we,
-		output logic                 ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel, ctl_reg_pc_sel,
+		output logic                 ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel, ctl_reg_wz_sel, ctl_reg_pc_sel,
 		output logic                 ctl_reg_gph2sys_oe, ctl_reg_gpl2sys_oe, ctl_reg_sys2gp_oe,
 		output logic                 ctl_al_oe, ctl_al_ff,
 		output logic                 ctl_al_hi_we, ctl_al_lo_we,
@@ -352,6 +352,7 @@ module sm83_control(
 		ctl_reg_sys_hi_we    = 0;
 		ctl_reg_sys_lo_we    = 0;
 		ctl_reg_sp_sel       = 0;
+		ctl_reg_wz_sel       = 0;
 		ctl_reg_pc_sel       = 0;
 		ctl_reg_gph2sys_oe   = 0;
 		ctl_reg_gpl2sys_oe   = 0;

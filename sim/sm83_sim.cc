@@ -65,6 +65,7 @@ static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83, const 
 		"   " <<
 		" IR=0x" << std::hex << std::setw(2) << std::setfill('0') << sm83.p_dbg__opcode.get<uint16_t>() <<
 		" BANK=" << std::dec << std::setw(1) << sm83.p_dbg__bank__cb.get<uint16_t>() <<
+		" WZ=0x" << std::hex << std::setw(4) << std::setfill('0') << sm83.p_dbg__wz.get<uint16_t>() <<
 		"   " <<
 		" PC=0x" << std::hex << std::setw(4) << std::setfill('0') << sm83.p_dbg__pc.get<uint16_t>() <<
 		" SP=0x" << std::hex << std::setw(4) << std::setfill('0') << sm83.p_dbg__sp.get<uint16_t>() <<
