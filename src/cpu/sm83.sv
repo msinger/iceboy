@@ -182,12 +182,12 @@ module sm83(
 	logic ctl_mread, ctl_mwrite;
 	logic ctl_reg_gp2h_oe, ctl_reg_gp2l_oe;
 	logic ctl_reg_h2gp_oe, ctl_reg_l2gp_oe;
-	logic ctl_reg_gp_hi_oe, ctl_reg_gp_lo_oe;
-	logic ctl_reg_gp_hi_we, ctl_reg_gp_lo_we;
-	logic ctl_reg_sys_oe;
+	logic ctl_reg_gp_hi_sel, ctl_reg_gp_lo_sel;
+	logic ctl_reg_gp_we;
+	logic ctl_reg_sys_hi_sel, ctl_reg_sys_lo_sel;
 	logic ctl_reg_sys_hi_we, ctl_reg_sys_lo_we;
 	logic ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel, ctl_reg_pc_sel;
-	logic ctl_reg_gp2sys_oe, ctl_reg_sys2gp_oe;
+	logic ctl_reg_gph2sys_oe, ctl_reg_gpl2sys_oe, ctl_reg_sys2gp_oe;
 	logic ctl_al_oe, ctl_al_ff;
 	logic ctl_al_hi_we, ctl_al_lo_we;
 	logic ctl_inc_dec, ctl_inc_cy;
@@ -247,15 +247,15 @@ module sm83(
 	word_t alu_dout,    alu_din    = db_mux(dbh_sel, db_l2h, reg_hi_dout,      'bx, 'bx, 'bx, 'bx);
 
 	logic [3:0] reg_gp_sel = { ctl_reg_af_sel, ctl_reg_hl_sel, ctl_reg_de_sel, ctl_reg_bc_sel };
-	logic [3:0] reg_gp_lo_oe = reg_gp_sel & {4{ctl_reg_gp_lo_oe}};
-	logic [3:0] reg_gp_hi_oe = reg_gp_sel & {4{ctl_reg_gp_hi_oe}};
+	logic [3:0] reg_gp_lo_oe = reg_gp_sel & {4{ctl_reg_gp_lo_sel && !ctl_reg_gp_we}};
+	logic [3:0] reg_gp_hi_oe = reg_gp_sel & {4{ctl_reg_gp_hi_sel && !ctl_reg_gp_we}};
 
 	/* low register bus matrix */
 	logic [5:0] rbl_sel = { ctl_reg_sys2gp_oe, ctl_reg_l2gp_oe, reg_gp_lo_oe };
 	word_t rbl           = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo & 'hf0, reg_lo_din, reg_sys2gp.lo);
 	assign reg_lo_dout   = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo & 'hf0,        'bx, reg_sys2gp.lo);
 	assign reg_gp2sys.lo = db_mux(rbl_sel, reg_bc.lo, reg_de.lo, reg_hl.lo, reg_af.lo & 'hf0, reg_lo_din,           'bx);
-	always_ff @(posedge clk) if (ctl_reg_gp_lo_we) begin
+	always_ff @(posedge clk) if (ctl_reg_gp_we && ctl_reg_gp_lo_sel) begin
 		if (ctl_reg_bc_sel) reg_bc.lo = rbl;
 		if (ctl_reg_de_sel) reg_de.lo = rbl;
 		if (ctl_reg_hl_sel) reg_hl.lo = rbl;
@@ -267,7 +267,7 @@ module sm83(
 	word_t rbh           = db_mux(rbh_sel, reg_bc.hi, reg_de.hi, reg_hl.hi, reg_af.hi, reg_hi_din, reg_sys2gp.hi);
 	assign reg_hi_dout   = db_mux(rbh_sel, reg_bc.hi, reg_de.hi, reg_hl.hi, reg_af.hi,        'bx, reg_sys2gp.hi);
 	assign reg_gp2sys.hi = db_mux(rbh_sel, reg_bc.hi, reg_de.hi, reg_hl.hi, reg_af.hi, reg_hi_din,           'bx);
-	always_ff @(posedge clk) if (ctl_reg_gp_hi_we) begin
+	always_ff @(posedge clk) if (ctl_reg_gp_we && ctl_reg_gp_hi_sel) begin
 		if (ctl_reg_bc_sel) reg_bc.hi = rbh;
 		if (ctl_reg_de_sel) reg_de.hi = rbh;
 		if (ctl_reg_hl_sel) reg_hl.hi = rbh;
@@ -275,24 +275,26 @@ module sm83(
 	end
 
 	logic [1:0] reg_sys_sel = { ctl_reg_sp_sel, ctl_reg_pc_sel };
-	logic [1:0] reg_sys_oe = reg_sys_sel & {2{ctl_reg_sys_oe}};
+	logic [1:0] reg_sys_lo_oe = reg_sys_sel & {2{ctl_reg_sys_lo_sel && !ctl_reg_sys_lo_we}};
+	logic [1:0] reg_sys_hi_oe = reg_sys_sel & {2{ctl_reg_sys_hi_sel && !ctl_reg_sys_hi_we}};
 
 	/* address bus matrix */
 	adr_t ab;
-	logic [3:0] ab_sel = { ctl_al_oe, ctl_reg_gp2sys_oe, reg_sys_oe };
-	assign ab.lo         = db_mux(ab_sel, reg_pc.lo, reg_sp.lo, reg_gp2sys.lo, al_out.lo, 'bx, 'bx);
-	assign ab.hi         = db_mux(ab_sel, reg_pc.hi, reg_sp.hi, reg_gp2sys.hi, al_out.hi, 'bx, 'bx);
-	assign reg_sys2gp.lo = db_mux(ab_sel, reg_pc.lo, reg_sp.lo,           'bx, al_out.lo, 'bx, 'bx);
-	assign reg_sys2gp.hi = db_mux(ab_sel, reg_pc.hi, reg_sp.hi,           'bx, al_out.hi, 'bx, 'bx);
-	assign al_in.lo      = db_mux(ab_sel, reg_pc.lo, reg_sp.lo, reg_gp2sys.lo,       'bx, 'bx, 'bx);
-	assign al_in.hi      = db_mux(ab_sel, reg_pc.hi, reg_sp.hi, reg_gp2sys.hi,       'bx, 'bx, 'bx);
+	logic [3:0] abl_sel = { ctl_al_oe, ctl_reg_gpl2sys_oe, reg_sys_lo_oe };
+	logic [3:0] abh_sel = { ctl_al_oe, ctl_reg_gph2sys_oe, reg_sys_hi_oe };
+	assign ab.lo         = db_mux(abl_sel, reg_pc.lo, reg_sp.lo, reg_gp2sys.lo, al_out.lo, 'bx, 'bx);
+	assign ab.hi         = db_mux(abh_sel, reg_pc.hi, reg_sp.hi, reg_gp2sys.hi, al_out.hi, 'bx, 'bx);
+	assign reg_sys2gp.lo = db_mux(abl_sel, reg_pc.lo, reg_sp.lo,           'bx, al_out.lo, 'bx, 'bx);
+	assign reg_sys2gp.hi = db_mux(abh_sel, reg_pc.hi, reg_sp.hi,           'bx, al_out.hi, 'bx, 'bx);
+	assign al_in.lo      = db_mux(abl_sel, reg_pc.lo, reg_sp.lo, reg_gp2sys.lo,       'bx, 'bx, 'bx);
+	assign al_in.hi      = db_mux(abh_sel, reg_pc.hi, reg_sp.hi, reg_gp2sys.hi,       'bx, 'bx, 'bx);
 
 	always_ff @(posedge clk) begin
-		if (ctl_reg_sys_lo_we) begin
+		if (ctl_reg_sys_lo_we && ctl_reg_sys_lo_sel) begin
 			if (ctl_reg_pc_sel) reg_pc.lo = ab.lo;
 			if (ctl_reg_sp_sel) reg_sp.lo = ab.lo;
 		end
-		if (ctl_reg_sys_hi_we) begin
+		if (ctl_reg_sys_hi_we && ctl_reg_sys_hi_sel) begin
 			if (ctl_reg_pc_sel) reg_pc.hi = ab.hi;
 			if (ctl_reg_sp_sel) reg_sp.hi = ab.hi;
 		end

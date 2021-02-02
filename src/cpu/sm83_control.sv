@@ -15,12 +15,12 @@ module sm83_control(
 		output logic                 ctl_mread, ctl_mwrite,
 		output logic                 ctl_reg_gp2h_oe, ctl_reg_gp2l_oe,
 		output logic                 ctl_reg_h2gp_oe, ctl_reg_l2gp_oe,
-		output logic                 ctl_reg_gp_hi_oe, ctl_reg_gp_lo_oe,
-		output logic                 ctl_reg_gp_hi_we, ctl_reg_gp_lo_we,
-		output logic                 ctl_reg_sys_oe,
+		output logic                 ctl_reg_gp_hi_sel, ctl_reg_gp_lo_sel,
+		output logic                 ctl_reg_gp_we,
+		output logic                 ctl_reg_sys_hi_sel, ctl_reg_sys_lo_sel,
 		output logic                 ctl_reg_sys_hi_we, ctl_reg_sys_lo_we,
 		output logic                 ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel, ctl_reg_pc_sel,
-		output logic                 ctl_reg_gp2sys_oe, ctl_reg_sys2gp_oe,
+		output logic                 ctl_reg_gph2sys_oe, ctl_reg_gpl2sys_oe, ctl_reg_sys2gp_oe,
 		output logic                 ctl_al_oe, ctl_al_ff,
 		output logic                 ctl_al_hi_we, ctl_al_lo_we,
 		output logic                 ctl_inc_dec, ctl_inc_cy,
@@ -136,56 +136,63 @@ module sm83_control(
 
 	/* Write PC to address latch */
 	task pc_to_adr();
-		ctl_reg_pc_sel |= t4;
-		ctl_reg_sys_oe |= t4;
-		ctl_al_hi_we   |= t4; /* negedge */
-		ctl_al_lo_we   |= t4; /* negedge */
-		ctl_io_adr_we  |= t4; /* posedge */
+		ctl_reg_pc_sel     |= t4;
+		ctl_reg_sys_hi_sel |= t4;
+		ctl_reg_sys_lo_sel |= t4;
+		ctl_al_hi_we       |= t4; /* negedge */
+		ctl_al_lo_we       |= t4; /* negedge */
+		ctl_io_adr_we      |= t4; /* posedge */
 	endtask
 
 	/* Write SP to address latch */
 	task sp_to_adr();
-		ctl_reg_sp_sel |= t4;
-		ctl_reg_sys_oe |= t4;
-		ctl_al_hi_we   |= t4; /* negedge */
-		ctl_al_lo_we   |= t4; /* negedge */
-		ctl_io_adr_we  |= t4; /* posedge */
+		ctl_reg_sp_sel     |= t4;
+		ctl_reg_sys_hi_sel |= t4;
+		ctl_reg_sys_lo_sel |= t4;
+		ctl_al_hi_we       |= t4; /* negedge */
+		ctl_al_lo_we       |= t4; /* negedge */
+		ctl_io_adr_we      |= t4; /* posedge */
 	endtask
 
 	/* Write register to address latch */
 	task reg_to_adr(input logic [1:0] r);
 		if (t4) reg_sel = r;
-		ctl_reg_gp_hi_oe  |= t4;
-		ctl_reg_gp_lo_oe  |= t4;
-		ctl_reg_gp2sys_oe |= t4;
-		ctl_al_hi_we      |= t4; /* negedge */
-		ctl_al_lo_we      |= t4; /* negedge */
-		ctl_io_adr_we     |= t4; /* posedge */
+		ctl_reg_gp_hi_sel  |= t4;
+		ctl_reg_gp_lo_sel  |= t4;
+		ctl_reg_gph2sys_oe |= t4;
+		ctl_reg_gpl2sys_oe |= t4;
+		ctl_al_hi_we       |= t4; /* negedge */
+		ctl_al_lo_we       |= t4; /* negedge */
+		ctl_io_adr_we      |= t4; /* posedge */
 	endtask
 
 	/* Write address latch +1 to PC */
 	task pc_from_adr_inc();
-		ctl_inc_cy        |= t1 && !(in_int || in_halt || in_rst);
-		ctl_inc_oe        |= t1;
-		ctl_al_hi_we      |= t1; /* negedge */
-		ctl_al_lo_we      |= t1; /* negedge */
-		ctl_al_oe         |= t1;
-		ctl_reg_pc_sel    |= t1;
-		ctl_reg_sys_hi_we |= t1; /* posedge */
-		ctl_reg_sys_lo_we |= t1; /* posedge */
+		ctl_inc_cy         |= t1 && !(in_int || in_halt || in_rst);
+		ctl_inc_oe         |= t1;
+		ctl_al_hi_we       |= t1; /* negedge */
+		ctl_al_lo_we       |= t1; /* negedge */
+		ctl_al_oe          |= t1;
+		ctl_reg_pc_sel     |= t1;
+		ctl_reg_sys_hi_sel |= t1;
+		ctl_reg_sys_lo_sel |= t1;
+		ctl_reg_sys_hi_we  |= t1; /* posedge */
+		ctl_reg_sys_lo_we  |= t1; /* posedge */
 	endtask
 
 	/* Write address latch +/-1 to SP */
 	task sp_from_adr_inc(input logic dec);
-		ctl_inc_cy        |= t1;
-		ctl_inc_dec       |= t1 && dec;
-		ctl_inc_oe        |= t1;
-		ctl_al_hi_we      |= t1; /* negedge */
-		ctl_al_lo_we      |= t1; /* negedge */
-		ctl_al_oe         |= t1;
-		ctl_reg_sp_sel    |= t1;
-		ctl_reg_sys_hi_we |= t1; /* posedge */
-		ctl_reg_sys_lo_we |= t1; /* posedge */
+		ctl_inc_cy         |= t1;
+		ctl_inc_dec        |= t1 && dec;
+		ctl_inc_oe         |= t1;
+		ctl_al_hi_we       |= t1; /* negedge */
+		ctl_al_lo_we       |= t1; /* negedge */
+		ctl_al_oe          |= t1;
+		ctl_reg_sp_sel     |= t1;
+		ctl_reg_sys_hi_sel |= t1;
+		ctl_reg_sys_lo_sel |= t1;
+		ctl_reg_sys_hi_we  |= t1; /* posedge */
+		ctl_reg_sys_lo_we  |= t1; /* posedge */
 	endtask
 
 	/* Write address latch +/-1 to HL */
@@ -198,8 +205,9 @@ module sm83_control(
 		ctl_al_oe         |= t1;
 		ctl_reg_sys2gp_oe |= t1;
 		if (t1) reg_sel    = HL;
-		ctl_reg_gp_hi_we  |= t1; /* posedge */
-		ctl_reg_gp_lo_we  |= t1; /* posedge */
+		ctl_reg_gp_hi_sel |= t1;
+		ctl_reg_gp_lo_sel |= t1;
+		ctl_reg_gp_we     |= t1; /* posedge */
 	endtask
 
 	/*  */
@@ -262,11 +270,11 @@ module sm83_control(
 
 	task read_gp0(input logic t, input bit cross_hl);
 		if (t) begin
-			reg_sel          = opcode[2:1];
-			ctl_reg_gp_hi_oe = 1;
-			ctl_reg_gp_lo_oe = 1;
-			ctl_reg_gp2h_oe  = op_gp0_hi;
-			ctl_reg_gp2l_oe  = !op_gp0_hi;
+			reg_sel           = opcode[2:1];
+			ctl_reg_gp_hi_sel = 1;
+			ctl_reg_gp_lo_sel = 1;
+			ctl_reg_gp2h_oe   = op_gp0_hi;
+			ctl_reg_gp2l_oe   = !op_gp0_hi;
 			if (cross_hl) begin
 				ctl_db_h2l_oe = op_gp0_hi;
 				ctl_db_l2h_oe = !op_gp0_hi;
@@ -276,11 +284,11 @@ module sm83_control(
 
 	task read_gp3(input logic t, input bit cross_hl);
 		if (t) begin
-			reg_sel          = opcode[5:4];
-			ctl_reg_gp_hi_oe = 1;
-			ctl_reg_gp_lo_oe = 1;
-			ctl_reg_gp2h_oe  = op_gp3_hi;
-			ctl_reg_gp2l_oe  = !op_gp3_hi;
+			reg_sel           = opcode[5:4];
+			ctl_reg_gp_hi_sel = 1;
+			ctl_reg_gp_lo_sel = 1;
+			ctl_reg_gp2h_oe   = op_gp3_hi;
+			ctl_reg_gp2l_oe   = !op_gp3_hi;
 			if (cross_hl) begin
 				ctl_db_h2l_oe = op_gp3_hi;
 				ctl_db_l2h_oe = !op_gp3_hi;
@@ -290,17 +298,19 @@ module sm83_control(
 
 	task write_gp0(input logic t);
 		if (t) begin
-			reg_sel          = opcode[2:1];
-			ctl_reg_gp_hi_we = op_gp0_hi;   /* posedge */
-			ctl_reg_gp_lo_we = !op_gp0_hi;  /* posedge */
+			reg_sel           = opcode[2:1];
+			ctl_reg_gp_hi_sel = op_gp0_hi;
+			ctl_reg_gp_lo_sel = !op_gp0_hi;
+			ctl_reg_gp_we     = 1; /* posedge */
 		end
 	endtask
 
 	task write_gp3(input logic t);
 		if (t) begin
-			reg_sel          = opcode[5:4];
-			ctl_reg_gp_hi_we = op_gp3_hi;   /* posedge */
-			ctl_reg_gp_lo_we = !op_gp3_hi;  /* posedge */
+			reg_sel           = opcode[5:4];
+			ctl_reg_gp_hi_sel = op_gp3_hi;
+			ctl_reg_gp_lo_sel = !op_gp3_hi;
+			ctl_reg_gp_we     = 1; /* posedge */
 		end
 	endtask
 
@@ -334,16 +344,17 @@ module sm83_control(
 		ctl_reg_gp2l_oe      = 0;
 		ctl_reg_h2gp_oe      = 0;
 		ctl_reg_l2gp_oe      = 0;
-		ctl_reg_gp_hi_oe     = 0;
-		ctl_reg_gp_lo_oe     = 0;
-		ctl_reg_gp_hi_we     = 0;
-		ctl_reg_gp_lo_we     = 0;
-		ctl_reg_sys_oe       = 0;
+		ctl_reg_gp_hi_sel    = 0;
+		ctl_reg_gp_lo_sel    = 0;
+		ctl_reg_gp_we        = 0;
+		ctl_reg_sys_hi_sel   = 0;
+		ctl_reg_sys_lo_sel   = 0;
 		ctl_reg_sys_hi_we    = 0;
 		ctl_reg_sys_lo_we    = 0;
 		ctl_reg_sp_sel       = 0;
 		ctl_reg_pc_sel       = 0;
-		ctl_reg_gp2sys_oe    = 0;
+		ctl_reg_gph2sys_oe   = 0;
+		ctl_reg_gpl2sys_oe   = 0;
 		ctl_reg_sys2gp_oe    = 0;
 		ctl_al_oe            = 0;
 		ctl_al_ff            = 0;
@@ -501,13 +512,13 @@ module sm83_control(
 
 				if (m2) begin
 					/* Read A into data latch */
-					if (t2) reg_sel   = AF;
-					ctl_reg_gp_hi_oe |= t2;
-					ctl_reg_gp_lo_oe |= t2;
-					ctl_reg_gp2h_oe  |= t2;
-					ctl_db_h2l_oe    |= t2;
-					ctl_db_l2c_oe    |= t2;
-					ctl_io_data_we   |= t2; /* negedge */
+					if (t2) reg_sel    = AF;
+					ctl_reg_gp_hi_sel |= t2;
+					ctl_reg_gp_lo_sel |= t2;
+					ctl_reg_gp2h_oe   |= t2;
+					ctl_db_h2l_oe     |= t2;
+					ctl_db_l2c_oe     |= t2;
+					ctl_io_data_we    |= t2; /* negedge */
 				end
 
 				/* Write value from data latch to address in BC/DE during M2 */
@@ -524,13 +535,14 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write fetched value from data latch into A */
-					ctl_io_data_oe   |= t2;
-					ctl_db_c2l_oe    |= t2;
-					ctl_db_l2h_oe    |= t2;
-					ctl_reg_h2gp_oe  |= t2;
-					ctl_reg_l2gp_oe  |= t2;
-					if (t2) reg_sel   = AF;
-					ctl_reg_gp_hi_we |= t2; /* posedge */
+					ctl_io_data_oe    |= t2;
+					ctl_db_c2l_oe     |= t2;
+					ctl_db_l2h_oe     |= t2;
+					ctl_reg_h2gp_oe   |= t2;
+					ctl_reg_l2gp_oe   |= t2;
+					if (t2) reg_sel    = AF;
+					ctl_reg_gp_hi_sel |= t2;
+					ctl_reg_gp_we     |= t2; /* posedge */
 				end
 			end
 
@@ -541,13 +553,13 @@ module sm83_control(
 
 				if (m2) begin
 					/* Write A into data latch */
-					if (t2) reg_sel   = AF;
-					ctl_reg_gp_hi_oe |= t2;
-					ctl_reg_gp_lo_oe |= t2;
-					ctl_reg_gp2h_oe  |= t2;
-					ctl_db_h2l_oe    |= t2;
-					ctl_db_l2c_oe    |= t2;
-					ctl_io_data_we   |= t2; /* negedge */
+					if (t2) reg_sel    = AF;
+					ctl_reg_gp_hi_sel |= t2;
+					ctl_reg_gp_lo_sel |= t2;
+					ctl_reg_gp2h_oe   |= t2;
+					ctl_db_h2l_oe     |= t2;
+					ctl_db_l2c_oe     |= t2;
+					ctl_io_data_we    |= t2; /* negedge */
 				end
 
 				/* Write value from data latch to address in HL during M2 */
@@ -572,13 +584,14 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write fetched value from data latch into A */
-					ctl_io_data_oe   |= t2;
-					ctl_db_c2l_oe    |= t2;
-					ctl_db_l2h_oe    |= t2;
-					ctl_reg_h2gp_oe  |= t2;
-					ctl_reg_l2gp_oe  |= t2;
-					if (t2) reg_sel   = AF;
-					ctl_reg_gp_hi_we |= t2; /* posedge */
+					ctl_io_data_oe    |= t2;
+					ctl_db_c2l_oe     |= t2;
+					ctl_db_l2h_oe     |= t2;
+					ctl_reg_h2gp_oe   |= t2;
+					ctl_reg_l2gp_oe   |= t2;
+					if (t2) reg_sel    = AF;
+					ctl_reg_gp_hi_sel |= t2;
+					ctl_reg_gp_we     |= t2; /* posedge */
 				end
 			end
 
@@ -597,19 +610,19 @@ module sm83_control(
 					/* Write immediate fetched during M2 from data latch into low byte of address
 					 * latch during M3 after PC increment is done but before second immediate
 					 * overwrites data latch */
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					ctl_reg_gp2sys_oe |= t2;
-					ctl_al_lo_we      |= t2; /* negedge */
+					ctl_io_data_oe     |= t2;
+					ctl_db_c2l_oe      |= t2;
+					ctl_reg_l2gp_oe    |= t2;
+					ctl_reg_gpl2sys_oe |= t2;
+					ctl_al_lo_we       |= t2; /* negedge */
 
 					/* Write immediate fetched during M3 from data latch into high byte of address latch */
-					ctl_io_data_oe    |= t4;
-					ctl_db_c2l_oe     |= t4;
-					ctl_db_l2h_oe     |= t4;
-					ctl_reg_h2gp_oe   |= t4;
-					ctl_reg_gp2sys_oe |= t4;
-					ctl_al_hi_we      |= t4; /* negedge */
+					ctl_io_data_oe     |= t4;
+					ctl_db_c2l_oe      |= t4;
+					ctl_db_l2h_oe      |= t4;
+					ctl_reg_h2gp_oe    |= t4;
+					ctl_reg_gph2sys_oe |= t4;
+					ctl_al_hi_we       |= t4; /* negedge */
 
 					/* Apply address latch to external bus */
 					ctl_io_adr_we |= t4; /* posedge */
@@ -619,13 +632,13 @@ module sm83_control(
 				if (ld_n_dir) begin /* LDX (nn), A */
 					if (m4) begin
 						/* Write A into data latch */
-						if (t2) reg_sel   = AF;
-						ctl_reg_gp_hi_oe |= t2;
-						ctl_reg_gp_lo_oe |= t2;
-						ctl_reg_gp2h_oe  |= t2;
-						ctl_db_h2l_oe    |= t2;
-						ctl_db_l2c_oe    |= t2;
-						ctl_io_data_we   |= t2; /* negedge */
+						if (t2) reg_sel    = AF;
+						ctl_reg_gp_hi_sel |= t2;
+						ctl_reg_gp_lo_sel |= t2;
+						ctl_reg_gp2h_oe   |= t2;
+						ctl_db_h2l_oe     |= t2;
+						ctl_db_l2c_oe     |= t2;
+						ctl_io_data_we    |= t2; /* negedge */
 					end
 
 					/* Write data latch to bus during M4 */
@@ -636,13 +649,14 @@ module sm83_control(
 
 					if (m1) begin
 						/* Write value from data latch into A */
-						ctl_io_data_oe   |= t2;
-						ctl_db_c2l_oe    |= t2;
-						ctl_db_l2h_oe    |= t2;
-						ctl_reg_h2gp_oe  |= t2;
-						ctl_reg_l2gp_oe  |= t2;
-						if (t2) reg_sel   = AF;
-						ctl_reg_gp_hi_we |= t2; /* posedge */
+						ctl_io_data_oe    |= t2;
+						ctl_db_c2l_oe     |= t2;
+						ctl_db_l2h_oe     |= t2;
+						ctl_reg_h2gp_oe   |= t2;
+						ctl_reg_l2gp_oe   |= t2;
+						if (t2) reg_sel    = AF;
+						ctl_reg_gp_hi_sel |= t2;
+						ctl_reg_gp_we     |= t2; /* posedge */
 					end
 				end
 			end
@@ -658,13 +672,14 @@ module sm83_control(
 				if (m2) begin
 					/* Write immediate fetched during M2 from data latch into low byte of address latch while
 					   setting high byte to $ff */
-					ctl_io_data_oe    |= t4;
-					ctl_db_c2l_oe     |= t4;
-					ctl_reg_l2gp_oe   |= t4;
-					ctl_reg_gp2sys_oe |= t4;
-					ctl_al_ff         |= t4;
-					ctl_al_hi_we      |= t4; /* negedge */
-					ctl_al_lo_we      |= t4; /* negedge */
+					ctl_io_data_oe     |= t4;
+					ctl_db_c2l_oe      |= t4;
+					ctl_reg_l2gp_oe    |= t4;
+					ctl_reg_gph2sys_oe |= t4;
+					ctl_reg_gpl2sys_oe |= t4;
+					ctl_al_ff          |= t4;
+					ctl_al_hi_we       |= t4; /* negedge */
+					ctl_al_lo_we       |= t4; /* negedge */
 
 					/* Apply address latch to external bus */
 					ctl_io_adr_we |= t4; /* posedge */
@@ -674,13 +689,13 @@ module sm83_control(
 				if (ld_n_dir) begin /* LD (n), A */
 					if (m3) begin
 						/* Write A into data latch */
-						if (t2) reg_sel   = AF;
-						ctl_reg_gp_hi_oe |= t2;
-						ctl_reg_gp_lo_oe |= t2;
-						ctl_reg_gp2h_oe  |= t2;
-						ctl_db_h2l_oe    |= t2;
-						ctl_db_l2c_oe    |= t2;
-						ctl_io_data_we   |= t2; /* negedge */
+						if (t2) reg_sel    = AF;
+						ctl_reg_gp_hi_sel |= t2;
+						ctl_reg_gp_lo_sel |= t2;
+						ctl_reg_gp2h_oe   |= t2;
+						ctl_db_h2l_oe     |= t2;
+						ctl_db_l2c_oe     |= t2;
+						ctl_io_data_we    |= t2; /* negedge */
 					end
 
 					/* Write data latch to bus during M3 */
@@ -691,13 +706,14 @@ module sm83_control(
 
 					if (m1) begin
 						/* Write value from data latch into A */
-						ctl_io_data_oe   |= t2;
-						ctl_db_c2l_oe    |= t2;
-						ctl_db_l2h_oe    |= t2;
-						ctl_reg_h2gp_oe  |= t2;
-						ctl_reg_l2gp_oe  |= t2;
-						if (t2) reg_sel   = AF;
-						ctl_reg_gp_hi_we |= t2; /* posedge */
+						ctl_io_data_oe    |= t2;
+						ctl_db_c2l_oe     |= t2;
+						ctl_db_l2h_oe     |= t2;
+						ctl_reg_h2gp_oe   |= t2;
+						ctl_reg_l2gp_oe   |= t2;
+						if (t2) reg_sel    = AF;
+						ctl_reg_gp_hi_sel |= t2;
+						ctl_reg_gp_we     |= t2; /* posedge */
 					end
 				end
 			end
@@ -709,13 +725,14 @@ module sm83_control(
 
 				if (m1) begin
 					/* Write C into low byte of address latch while setting high byte to $ff */
-					if (t4) reg_sel  = BC;
-					ctl_reg_gp_hi_oe  |= t4;
-					ctl_reg_gp_lo_oe  |= t4;
-					ctl_reg_gp2sys_oe |= t4;
-					ctl_al_ff         |= t4;
-					ctl_al_hi_we      |= t4; /* negedge */
-					ctl_al_lo_we      |= t4; /* negedge */
+					if (t4) reg_sel     = BC;
+					ctl_reg_gp_hi_sel  |= t4;
+					ctl_reg_gp_lo_sel  |= t4;
+					ctl_reg_gph2sys_oe |= t4;
+					ctl_reg_gpl2sys_oe |= t4;
+					ctl_al_ff          |= t4;
+					ctl_al_hi_we       |= t4; /* negedge */
+					ctl_al_lo_we       |= t4; /* negedge */
 
 					/* Apply address latch to external bus */
 					ctl_io_adr_we |= t4; /* posedge */
@@ -725,13 +742,13 @@ module sm83_control(
 				if (ld_n_dir) begin /* LD (C), A */
 					if (m2) begin
 						/* Write A into data latch */
-						if (t2) reg_sel   = AF;
-						ctl_reg_gp_hi_oe |= t2;
-						ctl_reg_gp_lo_oe |= t2;
-						ctl_reg_gp2h_oe  |= t2;
-						ctl_db_h2l_oe    |= t2;
-						ctl_db_l2c_oe    |= t2;
-						ctl_io_data_we   |= t2; /* negedge */
+						if (t2) reg_sel    = AF;
+						ctl_reg_gp_hi_sel |= t2;
+						ctl_reg_gp_lo_sel |= t2;
+						ctl_reg_gp2h_oe   |= t2;
+						ctl_db_h2l_oe     |= t2;
+						ctl_db_l2c_oe     |= t2;
+						ctl_io_data_we    |= t2; /* negedge */
 					end
 
 					/* Write data latch to bus during M2 */
@@ -742,13 +759,14 @@ module sm83_control(
 
 					if (m1) begin
 						/* Write value from data latch into A */
-						ctl_io_data_oe   |= t2;
-						ctl_db_c2l_oe    |= t2;
-						ctl_db_l2h_oe    |= t2;
-						ctl_reg_h2gp_oe  |= t2;
-						ctl_reg_l2gp_oe  |= t2;
-						if (t2) reg_sel   = AF;
-						ctl_reg_gp_hi_we |= t2; /* posedge */
+						ctl_io_data_oe    |= t2;
+						ctl_db_c2l_oe     |= t2;
+						ctl_db_l2h_oe     |= t2;
+						ctl_reg_h2gp_oe   |= t2;
+						ctl_reg_l2gp_oe   |= t2;
+						if (t2) reg_sel    = AF;
+						ctl_reg_gp_hi_sel |= t2;
+						ctl_reg_gp_we     |= t2; /* posedge */
 					end
 				end
 			end
@@ -767,33 +785,39 @@ module sm83_control(
 					/* Write immediate fetched during M2 from data latch into lower register
 					 * during M3 after PC increment is done but before second immediate
 					 * overwrites data latch */
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_db_l2h_oe     |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					ctl_reg_h2gp_oe   |= t2;
-					ctl_reg_gp2sys_oe |= t2;
-					use_sp            |= t2 && (opcode[5:4] == AF);
-					ctl_reg_sp_sel    |= use_sp;
-					if (t2) reg_sel    = opcode[5:4];
-					ctl_reg_sys_lo_we |= t2; /* posedge */
-					ctl_reg_gp_lo_we  |= t2;
+					ctl_io_data_oe     |= t2;
+					ctl_db_c2l_oe      |= t2;
+					ctl_db_l2h_oe      |= t2;
+					ctl_reg_l2gp_oe    |= t2;
+					ctl_reg_h2gp_oe    |= t2;
+					ctl_reg_gph2sys_oe |= t2;
+					ctl_reg_gpl2sys_oe |= t2;
+					use_sp             |= t2 && (opcode[5:4] == AF);
+					ctl_reg_sp_sel     |= use_sp;
+					if (t2) reg_sel     = opcode[5:4];
+					ctl_reg_sys_lo_sel |= t2;
+					ctl_reg_gp_lo_sel  |= t2;
+					ctl_reg_sys_lo_we  |= t2; /* posedge */
+					ctl_reg_gp_we      |= t2; /* posedge */
 				end
 
 				if (m1) begin
 					/* Write immediate fetched during M3 from data latch into higher register
 					 * during M1 after PC increment of next opcode is done */
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_db_l2h_oe     |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					ctl_reg_h2gp_oe   |= t2;
-					ctl_reg_gp2sys_oe |= t2;
-					use_sp            |= t2 && (opcode[5:4] == AF);
-					ctl_reg_sp_sel    |= use_sp;
-					if (t2) reg_sel    = opcode[5:4];
-					ctl_reg_sys_hi_we |= t2; /* posedge */
-					ctl_reg_gp_hi_we  |= t2;
+					ctl_io_data_oe     |= t2;
+					ctl_db_c2l_oe      |= t2;
+					ctl_db_l2h_oe      |= t2;
+					ctl_reg_l2gp_oe    |= t2;
+					ctl_reg_h2gp_oe    |= t2;
+					ctl_reg_gph2sys_oe |= t2;
+					ctl_reg_gpl2sys_oe |= t2;
+					use_sp             |= t2 && (opcode[5:4] == AF);
+					ctl_reg_sp_sel     |= use_sp;
+					if (t2) reg_sel     = opcode[5:4];
+					ctl_reg_sys_hi_sel |= t2;
+					ctl_reg_gp_hi_sel  |= t2;
+					ctl_reg_sys_hi_we  |= t2; /* posedge */
+					ctl_reg_gp_we      |= t2; /* posedge */
 				end
 			end
 
@@ -829,13 +853,13 @@ module sm83_control(
 
 				/* Read higher register into data latch */
 				if (m2) begin
-					if (t4) reg_sel   = opcode[5:4];
-					ctl_reg_gp_hi_oe |= t4;
-					ctl_reg_gp_lo_oe |= t4;
-					ctl_reg_gp2h_oe  |= t4;
-					ctl_db_h2l_oe    |= t4;
-					ctl_db_l2c_oe    |= t4;
-					ctl_io_data_we   |= t4; /* negedge */
+					if (t4) reg_sel    = opcode[5:4];
+					ctl_reg_gp_hi_sel |= t4;
+					ctl_reg_gp_lo_sel |= t4;
+					ctl_reg_gp2h_oe   |= t4;
+					ctl_db_h2l_oe     |= t4;
+					ctl_db_l2c_oe     |= t4;
+					ctl_io_data_we    |= t4; /* negedge */
 				end
 
 				/* Write value from data latch to bus at address in SP during M3 */
@@ -849,13 +873,13 @@ module sm83_control(
 
 				/* Read lower register into data latch */
 				if (m3) begin
-					if (t4) reg_sel   = opcode[5:4];
-					ctl_reg_gp_hi_oe |= t4;
-					ctl_reg_gp_lo_oe |= t4;
-					ctl_reg_gp2l_oe  |= t4;
-					ctl_db_l2h_oe    |= t4;
-					ctl_db_l2c_oe    |= t4;
-					ctl_io_data_we   |= t4; /* negedge */
+					if (t4) reg_sel    = opcode[5:4];
+					ctl_reg_gp_hi_sel |= t4;
+					ctl_reg_gp_lo_sel |= t4;
+					ctl_reg_gp2l_oe   |= t4;
+					ctl_db_l2h_oe     |= t4;
+					ctl_db_l2c_oe     |= t4;
+					ctl_io_data_we    |= t4; /* negedge */
 				end
 
 				/* Write value from data latch to bus at address in SP during M4 */
@@ -879,13 +903,14 @@ module sm83_control(
 
 				/* Write value from data latch that was fetched during M2 into lower register during M3 */
 				if (m3) begin
-					ctl_io_data_oe   |= t2;
-					ctl_db_c2l_oe    |= t2;
-					ctl_db_l2h_oe    |= t2;
-					ctl_reg_h2gp_oe  |= t2;
-					ctl_reg_l2gp_oe  |= t2;
-					if (t2) reg_sel   = opcode[5:4];
-					ctl_reg_gp_lo_we |= t2;          /* posedge */
+					ctl_io_data_oe    |= t2;
+					ctl_db_c2l_oe     |= t2;
+					ctl_db_l2h_oe     |= t2;
+					ctl_reg_h2gp_oe   |= t2;
+					ctl_reg_l2gp_oe   |= t2;
+					if (t2) reg_sel    = opcode[5:4];
+					ctl_reg_gp_lo_sel |= t2;
+					ctl_reg_gp_we     |= t2; /* posedge */
 				end
 
 				/* Read value from bus at address in SP into data latch during M3 */
@@ -899,13 +924,14 @@ module sm83_control(
 
 				/* Write value from data latch that was fetched during M3 into higher register during M1 */
 				if (m1) begin
-					ctl_io_data_oe   |= t2;
-					ctl_db_c2l_oe    |= t2;
-					ctl_db_l2h_oe    |= t2;
-					ctl_reg_h2gp_oe  |= t2;
-					ctl_reg_l2gp_oe  |= t2;
-					if (t2) reg_sel   = opcode[5:4];
-					ctl_reg_gp_hi_we |= t2;          /* posedge */
+					ctl_io_data_oe    |= t2;
+					ctl_db_c2l_oe     |= t2;
+					ctl_db_l2h_oe     |= t2;
+					ctl_reg_h2gp_oe   |= t2;
+					ctl_reg_l2gp_oe   |= t2;
+					if (t2) reg_sel    = opcode[5:4];
+					ctl_reg_gp_hi_sel |= t2;
+					ctl_reg_gp_we     |= t2; /* posedge */
 				end
 			end
 
@@ -923,8 +949,8 @@ module sm83_control(
 				if (m1) begin
 					/* Read register A into ALU operand A and register F into ALU flags */
 					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_oe    |= t4;
-					ctl_reg_gp_lo_oe    |= t4;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
 					ctl_reg_gp2h_oe     |= t4;
 					ctl_reg_gp2l_oe     |= t4;
 					ctl_alu_sh_oe       |= t4;
@@ -974,7 +1000,8 @@ module sm83_control(
 					ctl_reg_h2gp_oe     |= t3;
 					ctl_reg_l2gp_oe     |= t3;
 					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_we    |= t3; /* posedge */
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
 				end
 			end
 
@@ -995,8 +1022,8 @@ module sm83_control(
 				if (m2) begin
 					/* Read register A into ALU operand A and register F into ALU flags */
 					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_oe    |= t4;
-					ctl_reg_gp_lo_oe    |= t4;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
 					ctl_reg_gp2h_oe     |= t4;
 					ctl_reg_gp2l_oe     |= t4;
 					ctl_alu_sh_oe       |= t4;
@@ -1050,7 +1077,8 @@ module sm83_control(
 					ctl_reg_h2gp_oe     |= t3;
 					ctl_reg_l2gp_oe     |= t3;
 					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_we    |= t3; /* posedge */
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
 				end
 			end
 
@@ -1071,8 +1099,8 @@ module sm83_control(
 				if (m2) begin
 					/* Read register A into ALU operand A and register F into ALU flags */
 					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_oe    |= t4;
-					ctl_reg_gp_lo_oe    |= t4;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
 					ctl_reg_gp2h_oe     |= t4;
 					ctl_reg_gp2l_oe     |= t4;
 					ctl_alu_sh_oe       |= t4;
@@ -1126,7 +1154,8 @@ module sm83_control(
 					ctl_reg_h2gp_oe     |= t3;
 					ctl_reg_l2gp_oe     |= t3;
 					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_we    |= t3; /* posedge */
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
 				end
 			end
 
@@ -1138,8 +1167,8 @@ module sm83_control(
 				if (m1) begin
 					/* Read register F into ALU flags */
 					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_oe    |= t4;
-					ctl_reg_gp_lo_oe    |= t4;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
 					ctl_reg_gp2h_oe     |= t4;
 					ctl_reg_gp2l_oe     |= t4;
 					ctl_alu_sh_oe       |= t4;
@@ -1216,7 +1245,8 @@ module sm83_control(
 					ctl_reg_h2gp_oe     |= t3;
 					ctl_reg_l2gp_oe     |= t3;
 					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_we    |= t3; /* posedge */
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
 				end
 			end
 
@@ -1231,8 +1261,8 @@ module sm83_control(
 				if (m2) begin
 					/* Read register F into ALU flags */
 					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_oe    |= t4;
-					ctl_reg_gp_lo_oe    |= t4;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
 					ctl_reg_gp2h_oe     |= t4;
 					ctl_reg_gp2l_oe     |= t4;
 					ctl_alu_sh_oe       |= t4;
@@ -1312,7 +1342,8 @@ module sm83_control(
 					ctl_reg_h2gp_oe     |= t3;
 					ctl_reg_l2gp_oe     |= t3;
 					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_we    |= t3; /* posedge */
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
 				end
 
 				/* Write ALU result to address in HL during M3 */
@@ -1331,7 +1362,6 @@ module sm83_control(
 					no_int |= t4;
 				end
 			end
-
 		endcase
 
 		/* Control ALU operation */
@@ -1416,7 +1446,8 @@ module sm83_control(
 		if (add_x || adc_x || sub_x || sbc_x || and_x || xor_x || or_x) begin
 			if (m1) begin
 				/* Write ALU result into register A */
-				ctl_reg_gp_hi_we |= t2; /* posedge */
+				ctl_reg_gp_hi_sel |= t2;
+				ctl_reg_gp_we     |= t2; /* posedge */
 			end
 		end
 
