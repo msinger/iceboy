@@ -24,7 +24,7 @@ module sm83_alu_flags
 		input  logic                   half_carry_we,    /* Update half carry flag. */
 		input  logic                   half_carry_cpl,   /* Invert half carry output. */
 		input  logic                   daa_carry_we,     /* Update half carry flag for DAA. */
-		input  logic                   neg_we,           /* Update subtract flag. */
+		input  logic                   neg_we,           /* Update subtract flag. Can receive sign flag from ALU. */
 		input  logic                   neg_set,          /* Set subtract flag on update. */
 		input  logic                   neg_clr,          /* Clear subtract flag on update. */
 		input  logic                   carry_we,         /* Update primary carry flag. */
@@ -39,6 +39,7 @@ module sm83_alu_flags
 		input  logic                   carry_in,         /* Carry flag from ALU. */
 		input  logic                   shift_out_in,     /* Shift out from ALU control. */
 		input  logic                   daa_carry_in,     /* DAA carry from ALU control. */
+		input  logic                   sign_in,          /* Sign flag from ALU. */
 
 		output logic                   zero,             /* Zero flag output. */
 		output logic                   half_carry,       /* Half carry output. */
@@ -78,8 +79,11 @@ module sm83_alu_flags
 
 	always_ff @(posedge clk) if (neg_we) begin
 		neg = neg_set;
-		if (flags_bus) neg |= din[N];
-		if (neg_clr)   neg = 0;
+		unique case (1)
+			flags_bus: neg |= din[N];
+			flags_alu: neg |= sign_in;
+		endcase
+		if (neg_clr) neg = 0;
 	end
 
 	logic hc_reg, sec_c_reg, pri_c_we;

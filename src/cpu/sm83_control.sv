@@ -10,7 +10,7 @@ module sm83_control(
 		input  logic [WORD_SIZE-1:0] opcode,
 		input  logic                 bank_cb,
 
-		input  logic                 alu_fl_neg,
+		input  logic                 alu_fl_neg, alu_cond_result,
 
 		output logic                 ctl_mread, ctl_mwrite,
 		output logic                 ctl_reg_gp2h_oe, ctl_reg_gp2l_oe,
@@ -66,6 +66,7 @@ module sm83_control(
 
 	logic set_m1;
 	logic no_int;
+	logic no_pc;
 
 	logic in_rst;
 	logic in_int;
@@ -136,9 +137,21 @@ module sm83_control(
 
 	/* Write PC to address latch */
 	task pc_to_adr();
-		ctl_reg_pc_sel     |= t4;
+		ctl_reg_pc_sel     |= t4 && !no_pc;
 		ctl_reg_sys_hi_sel |= t4;
 		ctl_reg_sys_lo_sel |= t4;
+		ctl_al_hi_we       |= t4; /* negedge */
+		ctl_al_lo_we       |= t4; /* negedge */
+		ctl_io_adr_we      |= t4; /* posedge */
+	endtask
+
+	/* Write WZ to address latch */
+	task wz_to_adr();
+		ctl_reg_wz_sel     |= t4;
+		ctl_reg_sys_hi_sel |= t4;
+		ctl_reg_sys_lo_sel |= t4;
+		ctl_reg_gph2sys_oe |= t4;
+		ctl_reg_gpl2sys_oe |= t4;
 		ctl_al_hi_we       |= t4; /* negedge */
 		ctl_al_lo_we       |= t4; /* negedge */
 		ctl_io_adr_we      |= t4; /* posedge */
@@ -332,6 +345,7 @@ module sm83_control(
 	always_comb begin
 		set_m1  = 0;
 		no_int  = 0;
+		no_pc   = 0;
 
 		in_alu  = 0;
 
@@ -1351,6 +1365,197 @@ module sm83_control(
 				write_indreg_m3(HL);
 			end
 
+			/* JP nn     -- Jump to immediate address nn */
+			/* JP cc, nn -- Jump to immediate address nn if condition cc is met */
+			jp_nn, jp_cc_nn: begin
+				last_mcyc(m3 && !alu_cond_result && jp_cc_nn);
+				last_mcyc(m4);
+
+				if (m1) begin
+					/* Read register F into ALU flags */
+					if (t4) reg_sel      = AF;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
+					ctl_reg_gp2h_oe     |= t4;
+					ctl_reg_gp2l_oe     |= t4;
+					ctl_alu_sh_oe       |= t4;
+					ctl_alu_op_a_bus    |= t4; /* negedge */
+					ctl_alu_op_b_bus    |= t4; /* negedge */
+					ctl_alu_fl_bus      |= t4;
+					ctl_alu_fl_zero_we  |= t4; /* posedge */
+					ctl_alu_fl_half_we  |= t4; /* posedge */
+					ctl_alu_fl_neg_we   |= t4; /* posedge */
+					ctl_alu_fl_carry_we |= t4; /* posedge */
+				end
+
+				/* Read immediate value from bus into data latch during M2 and incement PC */
+				read_imm_m2();
+
+				if (m3) begin
+					/* Write immediate fetched during M2 from data latch into Z */
+					ctl_io_data_oe     |= t2;
+					ctl_db_c2l_oe      |= t2;
+					ctl_db_l2h_oe      |= t2;
+					ctl_reg_l2gp_oe    |= t2;
+					ctl_reg_wz_sel     |= t2;
+					ctl_reg_sys_lo_sel |= t2;
+					ctl_reg_sys_lo_we  |= t2; /* posedge */
+				end
+
+				/* Read immediate value from bus into data latch during M3 and incement PC */
+				read_imm_m3();
+
+				if (m4) begin
+					/* Write immediate fetched during M3 from data latch into W */
+					ctl_io_data_oe     |= t2;
+					ctl_db_c2l_oe      |= t2;
+					ctl_db_l2h_oe      |= t2;
+					ctl_reg_h2gp_oe    |= t2;
+					ctl_reg_wz_sel     |= t2;
+					ctl_reg_sys_hi_sel |= t2;
+					ctl_reg_sys_hi_we  |= t2; /* posedge */
+
+					/* Write WZ to address latch instead of PC */
+					wz_to_adr();
+					no_pc |= t4;
+				end
+			end
+
+			/* JR e     -- Jump to immediate relative address e */
+			/* JR cc, e -- Jump to immediate relative e if condition cc is met */
+			jr_e, jr_cc_e: begin
+				last_mcyc(m2 && !alu_cond_result && jr_cc_e);
+				last_mcyc(m3);
+
+				if (m1) begin
+					/* Read register F into ALU flags */
+					if (t4) reg_sel      = AF;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
+					ctl_reg_gp2h_oe     |= t4;
+					ctl_reg_gp2l_oe     |= t4;
+					ctl_alu_sh_oe       |= t4;
+					ctl_alu_op_a_bus    |= t4; /* negedge */
+					ctl_alu_op_b_bus    |= t4; /* negedge */
+					ctl_alu_fl_bus      |= t4;
+					ctl_alu_fl_zero_we  |= t4; /* posedge */
+					ctl_alu_fl_half_we  |= t4; /* posedge */
+					ctl_alu_fl_neg_we   |= t4; /* posedge */
+					ctl_alu_fl_carry_we |= t4; /* posedge */
+				end
+
+				/* Read immediate value from bus into data latch during M2 and incement PC */
+				read_imm_m2();
+
+				if (m2) begin
+					/* Write immediate fetched during M2 from data latch into ALU operand B */
+					ctl_io_data_oe   |= t4;
+					ctl_db_c2l_oe    |= t4;
+					ctl_db_l2h_oe    |= t4;
+					ctl_alu_sh_oe    |= t4;
+					ctl_alu_op_b_bus |= t4; /* negedge */
+
+					/* Update ALU subtract flag (N) with sign bit from ALU core */
+					ctl_alu_fl_alu    |= t4;
+					ctl_alu_fl_neg_we |= t4; /* posedge */
+				end
+
+				if (m3) begin
+					/* Write low byte of PC into ALU operand A */
+					ctl_reg_pc_sel      |= t1;
+					ctl_reg_sys_lo_sel  |= t1;
+					ctl_reg_sys2gp_oe   |= t1;
+					ctl_reg_gp2l_oe     |= t1;
+					ctl_db_l2h_oe       |= t1;
+					ctl_alu_sh_oe       |= t1;
+					ctl_alu_op_a_bus    |= t1; /* negedge */
+
+					/* No carry-in */
+					ctl_alu_fl_carry_set |= t1;
+					ctl_alu_fl_carry_cpl |= t1;
+
+					/* Caclulate low nibble of low byte in ALU */
+					ctl_alu_op_low      |= t1; /* posedge */
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t1;
+					ctl_alu_fl_half_we  |= t1; /* posedge */
+
+					/* Use half carry for high nibble calculation */
+					ctl_alu_sel_hc      |= t2;
+
+					/* Caclulate high nibble of low byte in ALU */
+					ctl_alu_op_b_high   |= t2;
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t2;
+					ctl_alu_fl_carry_we |= t2; /* posedge */
+
+					/* Write ALU result into Z */
+					ctl_alu_res_oe      |= t2;
+					ctl_alu_oe          |= t2;
+					ctl_db_h2l_oe       |= t2;
+					ctl_reg_l2gp_oe     |= t2;
+					ctl_reg_wz_sel      |= t2;
+					ctl_reg_sys_lo_sel  |= t2;
+					ctl_reg_sys_lo_we   |= t2; /* posedge */
+
+					/* Write high byte of PC into ALU operand A */
+					ctl_reg_pc_sel      |= t3;
+					ctl_reg_sys_hi_sel  |= t3;
+					ctl_reg_sys2gp_oe   |= t3;
+					ctl_reg_gp2h_oe     |= t3;
+					ctl_alu_sh_oe       |= t3;
+					ctl_alu_op_a_bus    |= t3; /* negedge */
+
+					/* Sign extend ALU operand B for high byte calculation */
+					ctl_alu_neg         |= t3 && alu_fl_neg;
+					ctl_alu_op_b_zero   |= t3; /* negedge */
+
+					/* Caclulate low nibble of high byte in ALU */
+					ctl_alu_op_low      |= t3; /* posedge */
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t3;
+					ctl_alu_fl_half_we  |= t3; /* posedge */
+
+					/* Use half carry for high nibble calculation */
+					ctl_alu_sel_hc      |= t4;
+
+					/* Sign extend ALU operand B for high byte calculation */
+					ctl_alu_neg         |= t4 && alu_fl_neg;
+
+					/* Caclulate high nibble of high byte in ALU */
+					ctl_alu_op_b_high   |= t4;
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t4;
+
+					/* Write ALU result into W */
+					ctl_alu_res_oe      |= t4;
+					ctl_alu_oe          |= t4;
+					ctl_reg_h2gp_oe     |= t4;
+					ctl_reg_wz_sel      |= t4;
+					ctl_reg_sys_hi_sel  |= t4;
+					ctl_reg_sys_hi_we   |= t4; /* posedge */
+
+					/* Write WZ to address latch instead of PC */
+					wz_to_adr();
+					no_pc |= t4;
+				end
+			end
+
+			/* JP (HL) -- Jump to address in HL */
+			jp_hl: begin
+				last_mcyc(m1);
+
+				if (m1) begin
+					/* Write HL to address latch instead of PC */
+					reg_to_adr(HL);
+					no_pc |= t4;
+				end
+			end
+
 			/* Prefix CB */
 			prefix_cb: begin
 				last_mcyc(m1);
@@ -1472,8 +1677,11 @@ module sm83_control(
 
 			/* Override data (opcode) with zero when halted or under reset; executing a no-op effectively */
 			ctl_zero_data_oe |= t4 && (in_halt || in_rst);
+		end
 
-			ctl_alu_cond_we  |= t4; /* posedge */  // TODO: why?
+		/* Evaluate ALU flags for conditional instructions; F must be loaded into ALU on M1 T4 */
+		if (m2) begin
+			ctl_alu_cond_we |= t1; /* posedge */
 		end
 	end
 

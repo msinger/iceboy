@@ -45,6 +45,7 @@ module sm83_alu
 
 		output logic                   carry,            /* Carry output */
 		output logic                   zero,             /* Zero output */
+		output logic                   sign,             /* Sign output */
 
 		output logic                   shift_dbh,        /* MSB used for shift carry out or sign extend. */
 		output logic                   shift_dbl,        /* LSB used for shift carry out. */
@@ -166,4 +167,5 @@ module sm83_alu
 
 	assign dout = bus;
 	assign zero = !bus;
+	assign sign = bus[WORD_SIZE-1];
 endmodule

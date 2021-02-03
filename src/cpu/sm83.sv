@@ -79,7 +79,7 @@ module sm83(
 
 	logic alu_shift_dbh, alu_shift_dbl;
 	logic alu_shift_out, alu_shift_in, alu_shift_l, alu_shift_r;
-	logic alu_zero, alu_carry, alu_ct_daa_carry;
+	logic alu_zero, alu_carry, alu_ct_daa_carry, alu_sign;
 	logic alu_daa_lgt9, alu_daa_hgt9, alu_daa_heq9;
 	logic alu_fl_zero, alu_fl_carry, alu_fl_pri_carry, alu_fl_half_carry, alu_fl_daa_carry, alu_fl_neg;
 	logic alu_cond_result;
@@ -104,7 +104,7 @@ module sm83(
 		.negate(ctl_alu_neg),
 		.op_low(ctl_alu_op_low), .op_b_high(ctl_alu_op_b_high),
 
-		.zero(alu_zero), .carry(alu_carry),
+		.zero(alu_zero), .carry(alu_carry), .sign(alu_sign),
 
 		.shift_dbh(alu_shift_dbh), .shift_dbl(alu_shift_dbl),
 		.daa_l_gt_9(alu_daa_lgt9), .daa_h_gt_9(alu_daa_hgt9), .daa_h_eq_9(alu_daa_heq9),
@@ -143,7 +143,7 @@ module sm83(
 		.sec_carry_sel(ctl_alu_fl_sel_c2),
 		.carry_set    (ctl_alu_fl_carry_set), .carry_cpl(ctl_alu_fl_carry_cpl),
 
-		.zero_in(alu_zero), .carry_in(alu_carry),
+		.zero_in(alu_zero), .carry_in(alu_carry), .sign_in(alu_sign),
 		.shift_out_in(alu_shift_out), .daa_carry_in(alu_ct_daa_carry),
 
 		.zero(alu_fl_zero), .half_carry(alu_fl_half_carry), .daa_carry(alu_fl_daa_carry),
