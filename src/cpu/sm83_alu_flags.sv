@@ -20,6 +20,7 @@ module sm83_alu_flags
 		input  logic                   flags_alu,        /* Get in flags from ALU. */
 
 		input  logic                   zero_we,          /* Update zero flag. */
+		input  logic                   zero_clr,         /* Clear zero flag on update. */
 		input  logic                   zero_loop,        /* And in current zero flag when writing for generating zero flag for 16 bit operation. */
 		input  logic                   half_carry_we,    /* Update half carry flag. */
 		input  logic                   half_carry_cpl,   /* Invert half carry output. */
@@ -75,6 +76,9 @@ module sm83_alu_flags
 			zero &= new_zero;
 		else
 			zero = new_zero;
+
+		if (zero_clr)
+			zero = 0;
 	end
 
 	always_ff @(posedge clk) if (neg_we) begin

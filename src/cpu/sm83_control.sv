@@ -44,7 +44,7 @@ module sm83_control(
 		output logic                 ctl_alu_sel_hc,  /* Selects which carry flag goes into ALU core. (0: carry; 1: half carry) */
 		output logic                 ctl_alu_cond_we, /* Write condition result flag for conditional operation. */
 		output logic                 ctl_alu_fl_bus, ctl_alu_fl_alu,
-		output logic                 ctl_alu_fl_zero_we, ctl_alu_fl_zero_loop,
+		output logic                 ctl_alu_fl_zero_we, ctl_alu_fl_zero_clr, ctl_alu_fl_zero_loop,
 		output logic                 ctl_alu_fl_half_we, ctl_alu_fl_half_cpl,
 		output logic                 ctl_alu_fl_daac_we,
 		output logic                 ctl_alu_fl_neg_we, ctl_alu_fl_neg_set, ctl_alu_fl_neg_clr,
@@ -414,6 +414,7 @@ module sm83_control(
 		ctl_alu_fl_bus       = 0;
 		ctl_alu_fl_alu       = 0;
 		ctl_alu_fl_zero_we   = 0;
+		ctl_alu_fl_zero_clr  = 0;
 		ctl_alu_fl_zero_loop = 0;
 		ctl_alu_fl_half_we   = 0;
 		ctl_alu_fl_half_cpl  = 0;
@@ -931,7 +932,7 @@ module sm83_control(
 				last_mcyc(m3);
 
 				if (m1) begin
-					/* Read register F into ALU flags */
+					/* Read register F into ALU flags and clear zero flag */
 					if (t4) reg_sel      = AF;
 					ctl_reg_gp_hi_sel   |= t4;
 					ctl_reg_gp_lo_sel   |= t4;
@@ -941,15 +942,11 @@ module sm83_control(
 					ctl_alu_op_a_bus    |= t4; /* negedge */
 					ctl_alu_op_b_bus    |= t4; /* negedge */
 					ctl_alu_fl_bus      |= t4;
+					ctl_alu_fl_zero_clr |= t4;
 					ctl_alu_fl_zero_we  |= t4; /* posedge */
 					ctl_alu_fl_half_we  |= t4; /* posedge */
 					ctl_alu_fl_neg_we   |= t4; /* posedge */
 					ctl_alu_fl_carry_we |= t4; /* posedge */
-
-					/* ...and make sure zero flag gets cleared */
-					ctl_alu_fl_carry_set |= t4;
-					ctl_alu_fl_carry_cpl |= t4;
-					ctl_alu_neg          |= t4;
 				end
 
 				/* Read immediate value from bus into data latch during M2 and incement PC */
@@ -1579,7 +1576,7 @@ module sm83_control(
 				last_mcyc(m4);
 
 				if (m1) begin
-					/* Read register F into ALU flags */
+					/* Read register F into ALU flags and clear zero flag */
 					if (t4) reg_sel      = AF;
 					ctl_reg_gp_hi_sel   |= t4;
 					ctl_reg_gp_lo_sel   |= t4;
@@ -1589,15 +1586,11 @@ module sm83_control(
 					ctl_alu_op_a_bus    |= t4; /* negedge */
 					ctl_alu_op_b_bus    |= t4; /* negedge */
 					ctl_alu_fl_bus      |= t4;
+					ctl_alu_fl_zero_clr |= t4;
 					ctl_alu_fl_zero_we  |= t4; /* posedge */
 					ctl_alu_fl_half_we  |= t4; /* posedge */
 					ctl_alu_fl_neg_we   |= t4; /* posedge */
 					ctl_alu_fl_carry_we |= t4; /* posedge */
-
-					/* ...and make sure zero flag gets cleared */
-					ctl_alu_fl_carry_set |= t4;
-					ctl_alu_fl_carry_cpl |= t4;
-					ctl_alu_neg          |= t4;
 				end
 
 				/* Read immediate value from bus into data latch during M2 and incement PC */

@@ -134,7 +134,7 @@ module sm83(
 
 		.flags_bus(ctl_alu_fl_bus), .flags_alu(ctl_alu_fl_alu),
 
-		.zero_we      (ctl_alu_fl_zero_we),   .zero_loop(ctl_alu_fl_zero_loop),
+		.zero_we      (ctl_alu_fl_zero_we),   .zero_clr(ctl_alu_fl_zero_clr), .zero_loop(ctl_alu_fl_zero_loop),
 		.half_carry_we(ctl_alu_fl_half_we),   .half_carry_cpl(ctl_alu_fl_half_cpl),
 		.daa_carry_we (ctl_alu_fl_daac_we),
 		.neg_we       (ctl_alu_fl_neg_we),    .neg_set(ctl_alu_fl_neg_set), .neg_clr(ctl_alu_fl_neg_clr),
@@ -214,7 +214,7 @@ module sm83(
 	logic ctl_alu_sel_hc;  /* Selects which carry flag goes into ALU core. (0: carry; 1: half carry) */
 	logic ctl_alu_cond_we; /* Write condition result flag for conditional operation. */
 	logic ctl_alu_fl_bus, ctl_alu_fl_alu;
-	logic ctl_alu_fl_zero_we, ctl_alu_fl_zero_loop;
+	logic ctl_alu_fl_zero_we, ctl_alu_fl_zero_clr, ctl_alu_fl_zero_loop;
 	logic ctl_alu_fl_half_we, ctl_alu_fl_half_cpl;
 	logic ctl_alu_fl_daac_we;
 	logic ctl_alu_fl_neg_we, ctl_alu_fl_neg_set, ctl_alu_fl_neg_clr;
