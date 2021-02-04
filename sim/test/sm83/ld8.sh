@@ -1,23 +1,23 @@
 #!/bin/sh
 
-# Tests for 8 bit load instructions on simulated SM83 CPU:
-#  LD r, r'
-#  LD r, n
-#  LD r, (HL)
-#  LD (HL), r
-#  LD (HL), n
-#  LD (BC), A
-#  LD (DE), A
-#  LD (HLI), A
-#  LD (HLD), A
-#  LD A, (BC)
-#  LD A, (DE)
-#  LD A, (HLI)
-#  LD A, (HLD)
-#  LD (n), A
-#  LD A, (n)
-#  LD (C), A
-#  LD A, (C)
+# Tests for 8 bit transfer instructions on simulated SM83 CPU:
+#  LD  r, r'
+#  LD  r, n
+#  LD  r, (HL)
+#  LD  (HL), r
+#  LD  (HL), n
+#  LD  (BC), A
+#  LD  (DE), A
+#  LD  (HLI), A
+#  LD  (HLD), A
+#  LD  A, (BC)
+#  LD  A, (DE)
+#  LD  A, (HLI)
+#  LD  A, (HLD)
+#  LD  (n), A
+#  LD  A, (n)
+#  LD  (C), A
+#  LD  A, (C)
 #  LDX (nn), A
 #  LDX A, (nn)
 
