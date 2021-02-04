@@ -898,6 +898,9 @@ module sm83_control(
 					ctl_reg_gp2l_oe    |= t2;
 					ctl_db_l2c_oe      |= t2;
 					ctl_io_data_we     |= t2; /* negedge */
+
+					/* Apply address latch to address bus */
+					ctl_io_adr_we |= t4; /* posedge */
 				end
 
 				/* Write data latch to bus during M4 */
@@ -919,7 +922,7 @@ module sm83_control(
 					ctl_io_data_we     |= t2; /* negedge */
 				end
 
-				/* Write data latch to bus during M4 */
+				/* Write data latch to bus during M5 */
 				write_m5();
 			end
 
