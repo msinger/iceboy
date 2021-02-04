@@ -1,0 +1,29 @@
+function drop_comments () {
+	while read -r line; do
+		if [[ "$line" == "#"* ]]; then
+			continue
+		fi
+		echo "$line"
+	done
+}
+
+function simulate () {
+	drop_comments | ./sm83_sim -dlt$1 2>$TEST.out | hexdump -x >$TEST.mem
+}
+
+function compare_mem () {
+	diff -aiEZbwB $TEST.mem -
+}
+
+function needline () {
+	grep -qaiE "$1" $TEST.out
+}
+
+function grep_output () {
+	while read -r line; do
+		if [ -z "$line" ] || [[ "$line" == "#"* ]]; then
+			continue
+		fi
+		needline "$line"
+	done
+}

@@ -21,18 +21,13 @@
 #  LDX (nn), A
 #  LDX A, (nn)
 
+. test/sm83/functions
+
 set -e
 
-function drop_comments () {
-	while read -r line; do
-		if [[ "$line" == "#"* ]]; then
-			continue
-		fi
-		echo "$line"
-	done
-}
+TEST=sm83_sim_ld8
 
-{ drop_comments | ./sm83_sim -dlt404 2>sm83_sim_ld8.out | hexdump -x >sm83_sim_ld8.mem; } <<"EOF"
+simulate 404 <<"EOF"
 # @tick #0
 # Set flags
 # LD HL, $aa11; LD SP, HL; LD (HL), $ff; POP AF
@@ -103,7 +98,7 @@ ea 23 bb   0e 10   f0 aa   f2
 # 44 ticks
 EOF
 
-diff -aiEZbwB sm83_sim_ld8.mem - <<"EOF"
+compare_mem <<"EOF"
 0000000    1121    f9aa    ff36    06f1    0eaa    1611    1ebb    2622
 0000010    2ecc    3633    3edd    3e44    0255    663e    2e12    3e40
 0000020    2277    883e    0a32    2a1a    403a    5249    645b    7f6d
@@ -134,20 +129,7 @@ diff -aiEZbwB sm83_sim_ld8.mem - <<"EOF"
 0010000
 EOF
 
-function needline () {
-	grep -qaiE "$1" sm83_sim_ld8.out
-}
-
-function needlines () {
-	while read -r line; do
-		if [[ "$line" == "#"* ]]; then
-			continue
-		fi
-		needline "$line"
-	done
-}
-
-needlines <<"EOF"
+grep_output <<"EOF"
 # Check registers after the 8 "LD m, n" instructions. They require 68 ticks plus 4 overlapped = 72.
 115@posedge     M=1 T=4    .* SP=0xaa13 BC=0xaa11 DE=0xbb22 HL=0xcc33 AF=0x44f0
 
