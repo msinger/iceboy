@@ -162,13 +162,21 @@ int main(int argc, char** argv)
 
 	sm83_mem mem(wr_adr, wr_mask);
 
-	for (i = 0; i < 65536; i++) {
+	for (i = 0; i < 65536;) {
 		if (bin_in)
 			c = std::cin.get();
 		else
 			std::cin >> std::hex >> c;
 		if (std::cin.eof()) break;
-		mem.init(i, c);
+		if ((c & 0xffff0000) == 0xa0000) {
+			i = c & 0xffff;
+			continue;
+		}
+		if (c >= 256) {
+			mem.init(i++, c);
+			c >>= 8;
+		}
+		mem.init(i++, c);
 	}
 
 	sm83_sim_design::p_sm83 sm83;
