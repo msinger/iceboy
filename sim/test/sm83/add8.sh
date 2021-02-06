@@ -18,7 +18,7 @@ set -e
 
 TEST=sm83_sim_add8
 
-simulate 232 <<"EOF"
+simulate 292 <<"EOF"
 # @tick #0
 # Preset registers with values
 # LD BC, $ff05; LD DE, $0f50; LD HL, $8000; LD A, $80; LD (HL), $55; LD ($8001), A
@@ -44,13 +44,19 @@ a1 b3 aa e6 a5 b6 ee cc af
 # SUB A, (HL); CP $81; CP H; SBC A, L; SUB A, $81; SBC A, C
 96 fe 81 bc 9d d6 81 99
 # 36 ticks
+
+# @tick #228
+# CPL; ADD A, $0e; DAA; CPL; SUB A, H; ADD A, C; DAA; ADD A, $30; DAA; CPL; CPL; SUB A, L; DAA
+2f c6 0e 27 2f 94 81 27 c6 30 27 2f 2f 95 27
+# 60 ticks
 EOF
 
 compare_mem <<"EOF"
 0000000    0501    11ff    0f50    0021    3e80    3680    ea55    8001
 0000010    8f84    8788    ce86    a10a    aab3    a5e6    eeb6    afcc
 0000020    2c34    3c35    1d04    3d14    fe96    bc81    d69d    9981
-0000030    0000    0000    0000    0000    0000    0000    0000    0000
+0000030    c62f    270e    942f    2781    30c6    2f27    952f    0027
+0000040    0000    0000    0000    0000    0000    0000    0000    0000
 *
 0008000    7f56    0000    0000    0000    0000    0000    0000    0000
 0008010    0000    0000    0000    0000    0000    0000    0000    0000
@@ -93,4 +99,14 @@ grep_output <<"EOF"
 219@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x8040
 227@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0xff70
 231@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0xf940
+
+# Check CPL and DAA
+235@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x0660
+247@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x1a00
+251@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0xe560
+263@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x7000
+275@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x0090
+279@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0xfff0
+283@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x00f0
+291@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x9950
 EOF
