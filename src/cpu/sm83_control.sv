@@ -1214,6 +1214,10 @@ module sm83_control(
 					ctl_reg_l2gp_oe     |= t2;
 					if (t2) reg_sel      = AF;
 
+					/* Complement carry flags for SUB, SBC and CP */
+					ctl_alu_fl_carry_cpl |= t3 && alu_fl_neg;
+					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+
 					/* Write ALU flags into register F */
 					in_alu              |= t3;
 					ctl_alu_fl_oe       |= t3;
@@ -1291,6 +1295,10 @@ module sm83_control(
 					ctl_reg_l2gp_oe     |= t2;
 					if (t2) reg_sel      = AF;
 
+					/* Complement carry flags for SUB, SBC and CP */
+					ctl_alu_fl_carry_cpl |= t3 && alu_fl_neg;
+					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+
 					/* Write ALU flags into register F */
 					in_alu              |= t3;
 					ctl_alu_fl_oe       |= t3;
@@ -1367,6 +1375,10 @@ module sm83_control(
 					ctl_reg_h2gp_oe     |= t2;
 					ctl_reg_l2gp_oe     |= t2;
 					if (t2) reg_sel      = AF;
+
+					/* Complement carry flags for SUB, SBC and CP */
+					ctl_alu_fl_carry_cpl |= t3 && alu_fl_neg;
+					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
 
 					/* Write ALU flags into register F */
 					in_alu              |= t3;
