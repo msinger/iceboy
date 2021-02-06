@@ -23,6 +23,7 @@ module sm83_alu_flags
 		input  logic                   zero_clr,         /* Clear zero flag on update. */
 		input  logic                   zero_loop,        /* And in current zero flag when writing for generating zero flag for 16 bit operation. */
 		input  logic                   half_carry_we,    /* Update half carry flag. */
+		input  logic                   half_carry_set,   /* Output 1 for half carry flag. */
 		input  logic                   half_carry_cpl,   /* Invert half carry output. */
 		input  logic                   daa_carry_we,     /* Update half carry flag for DAA. */
 		input  logic                   neg_we,           /* Update subtract flag. Can receive sign flag from ALU. */
@@ -117,7 +118,7 @@ module sm83_alu_flags
 
 	always_comb begin
 		carry      = carry_set;
-		half_carry = hc_reg;
+		half_carry = half_carry_set || hc_reg;
 
 		if (sec_carry_sel)
 			carry |= sec_c_reg;

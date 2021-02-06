@@ -45,7 +45,7 @@ module sm83_control(
 		output logic                 ctl_alu_cond_we, /* Write condition result flag for conditional operation. */
 		output logic                 ctl_alu_fl_bus, ctl_alu_fl_alu,
 		output logic                 ctl_alu_fl_zero_we, ctl_alu_fl_zero_clr, ctl_alu_fl_zero_loop,
-		output logic                 ctl_alu_fl_half_we, ctl_alu_fl_half_cpl,
+		output logic                 ctl_alu_fl_half_we, ctl_alu_fl_half_set, ctl_alu_fl_half_cpl,
 		output logic                 ctl_alu_fl_daac_we,
 		output logic                 ctl_alu_fl_neg_we, ctl_alu_fl_neg_set, ctl_alu_fl_neg_clr,
 		output logic                 ctl_alu_fl_carry_we, ctl_alu_fl_carry_set, ctl_alu_fl_carry_cpl,
@@ -416,6 +416,7 @@ module sm83_control(
 		ctl_alu_fl_zero_clr  = 0;
 		ctl_alu_fl_zero_loop = 0;
 		ctl_alu_fl_half_we   = 0;
+		ctl_alu_fl_half_set  = 0;
 		ctl_alu_fl_half_cpl  = 0;
 		ctl_alu_fl_daac_we   = 0;
 		ctl_alu_fl_neg_we    = 0;
@@ -1735,8 +1736,12 @@ module sm83_control(
 					ctl_reg_gp_hi_sel   |= t2;
 					ctl_reg_gp_we       |= t2; /* posedge */
 
-					/* Complement half carry flag */
-					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+					/* Clear half carry flag */
+					ctl_alu_fl_half_set  |= t3; // TODO: find other way to clear H flag; this is the only instruction that needs this signal
+					ctl_alu_fl_half_cpl  |= t3;
+
+					/* Select secondary carry */
+					ctl_alu_fl_sel_c2   |= t3;
 
 					/* Write ALU flags into register F */
 					ctl_alu_fl_oe       |= t3;
