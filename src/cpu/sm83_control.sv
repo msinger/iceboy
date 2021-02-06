@@ -34,7 +34,7 @@ module sm83_control(
 		output logic                 ctl_ir_we,
 		output logic                 ctl_ir_bank_we,
 		output logic                 ctl_ir_bank_cb_set,
-		output logic                 ctl_alu_oe, ctl_alu_fl_oe, ctl_alu_daa_oe, ctl_alu_daa66_oe,
+		output logic                 ctl_alu_oe, ctl_alu_fl_oe, ctl_alu_daa_oe,
 		output logic                 ctl_alu_sh_oe, ctl_alu_op_a_oe, ctl_alu_op_b_oe, ctl_alu_res_oe, ctl_alu_bs_oe,
 		output logic                 ctl_alu_op_a_bus, ctl_alu_op_a_low, ctl_alu_op_a_zero,
 		output logic                 ctl_alu_op_b_bus, ctl_alu_op_b_lq, ctl_alu_op_b_zero,
@@ -390,7 +390,6 @@ module sm83_control(
 		ctl_alu_oe           = 0;
 		ctl_alu_fl_oe        = 0;
 		ctl_alu_daa_oe       = 0;
-		ctl_alu_daa66_oe     = 0;
 		ctl_alu_sh_oe        = 0;
 		ctl_alu_op_a_oe      = 0;
 		ctl_alu_op_b_oe      = 0;
@@ -1581,6 +1580,173 @@ module sm83_control(
 
 				/* Write ALU result to address in HL during M3 */
 				write_indreg_m3(HL);
+			end
+
+			/* CPL -- Complement A */
+			cpl: begin
+				last_mcyc(m1);
+
+				if (m1) begin
+					/* Read register A into ALU operand B and register F into ALU flags */
+					if (t4) reg_sel      = AF;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
+					ctl_reg_gp2h_oe     |= t4;
+					ctl_reg_gp2l_oe     |= t4;
+					ctl_alu_sh_oe       |= t4;
+					ctl_alu_op_a_bus    |= t4; /* negedge */
+					ctl_alu_op_b_bus    |= t4; /* negedge */
+					ctl_alu_fl_bus      |= t4;
+					ctl_alu_fl_zero_we  |= t4; /* posedge */
+					ctl_alu_fl_half_we  |= t4; /* posedge */
+					ctl_alu_fl_neg_we   |= t4; /* posedge */
+					ctl_alu_fl_carry_we |= t4; /* posedge */
+
+					/* Zero ALU operand A */
+					ctl_alu_op_a_zero   |= t1; /* negedge */
+
+					/* Complement ALU operand B */
+					ctl_alu_neg         |= t1;
+
+					/* Configure ALU for OR operation */
+					ctl_alu_nc           |= t1;
+					ctl_alu_fc           |= t1;
+					ctl_alu_ic           |= t1;
+					ctl_alu_fl_carry_set |= t1;
+					ctl_alu_fl_carry_cpl |= t1;
+
+					/* Caclulate low nibble in ALU */
+					ctl_alu_op_low      |= t1; /* posedge */
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t1;
+					ctl_alu_fl_half_we  |= t1; /* posedge */
+					ctl_alu_fl_neg_set  |= t1;
+					ctl_alu_fl_neg_we   |= t1; /* posedge */
+
+					/* Complement ALU operand B */
+					ctl_alu_neg         |= t2;
+
+					/* Configure ALU for OR operation */
+					ctl_alu_nc           |= t2;
+					ctl_alu_fc           |= t2;
+					ctl_alu_ic           |= t2;
+					ctl_alu_fl_carry_set |= t2;
+					ctl_alu_fl_carry_cpl |= t2;
+
+					/* Caclulate high nibble in ALU */
+					ctl_alu_op_b_high   |= t2;
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t2;
+					ctl_alu_fl_neg_set  |= t2;
+					ctl_alu_fl_neg_we   |= t2; /* posedge */
+
+					/* Select register A to receive ALU result */
+					ctl_alu_res_oe      |= t2;
+					ctl_alu_oe          |= t2;
+					ctl_db_h2l_oe       |= t2;
+					ctl_reg_h2gp_oe     |= t2;
+					ctl_reg_l2gp_oe     |= t2;
+					if (t2) reg_sel      = AF;
+					ctl_reg_gp_hi_sel   |= t2;
+					ctl_reg_gp_we       |= t2; /* posedge */
+
+					/* Complement half carry flag */
+					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+
+					/* Write ALU flags into register F */
+					ctl_alu_fl_oe       |= t3;
+					ctl_db_l2h_oe       |= t3;
+					ctl_reg_h2gp_oe     |= t3;
+					ctl_reg_l2gp_oe     |= t3;
+					if (t3) reg_sel      = AF;
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
+				end
+			end
+
+			/* DAA -- Decimal adjust A */
+			daa: begin
+				last_mcyc(m1);
+
+				if (m1) begin
+					/* Read register A into ALU operand A and register F into ALU flags (use DAA half carry) */
+					if (t4) reg_sel      = AF;
+					ctl_reg_gp_hi_sel   |= t4;
+					ctl_reg_gp_lo_sel   |= t4;
+					ctl_reg_gp2h_oe     |= t4;
+					ctl_reg_gp2l_oe     |= t4;
+					ctl_alu_sh_oe       |= t4;
+					ctl_alu_op_a_bus    |= t4; /* negedge */
+					ctl_alu_op_b_bus    |= t4; /* negedge */
+					ctl_alu_fl_bus      |= t4;
+					ctl_alu_fl_zero_we  |= t4; /* posedge */
+					ctl_alu_fl_daac_we  |= t4; /* posedge */
+					ctl_alu_fl_neg_we   |= t4; /* posedge */
+					ctl_alu_fl_carry_we |= t4; /* posedge */
+
+					/* Apply DAA correction to ALU operand B */
+					ctl_alu_daa_oe      |= t1;
+					ctl_db_l2h_oe       |= t1;
+					ctl_alu_sh_oe       |= t1;
+					ctl_alu_op_b_bus    |= t1; /* negedge */
+
+					/* Conditionally complement ALU operand B based on subtract flag (N) */
+					ctl_alu_neg         |= t1 && alu_fl_neg;
+
+					/* Set carry flag for low byte calculation based on subtract flag (N) */
+					ctl_alu_fl_carry_set |= t1;
+					ctl_alu_fl_carry_cpl |= t1 && !alu_fl_neg;
+
+					/* Caclulate low nibble in ALU */
+					ctl_alu_op_low      |= t1; /* posedge */
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t1;
+					ctl_alu_fl_zero_we  |= t1; /* posedge */
+					ctl_alu_fl_half_we  |= t1; /* posedge */
+					ctl_alu_fl_c2_daa   |= t1;
+					ctl_alu_fl_c2_we    |= t1; /* posedge */
+
+					/* Conditionally complement ALU operand B based on subtract flag (N) */
+					ctl_alu_neg         |= t2 && alu_fl_neg;
+
+					ctl_alu_fl_carry_cpl |= t2 && !alu_fl_neg; // TODO: why?
+
+					/* Use half carry for high nibble calculation */
+					ctl_alu_sel_hc      |= t2;
+
+					/* Caclulate high nibble in ALU */
+					ctl_alu_op_b_high   |= t2;
+
+					/* Update ALU flags */
+					ctl_alu_fl_alu      |= t2;
+					ctl_alu_fl_zero_we  |= t2; /* posedge */
+					ctl_alu_fl_carry_we |= t2; /* posedge */
+
+					/* Select register A to receive ALU result */
+					ctl_alu_res_oe      |= t2;
+					ctl_alu_oe          |= t2;
+					ctl_db_h2l_oe       |= t2;
+					ctl_reg_h2gp_oe     |= t2;
+					ctl_reg_l2gp_oe     |= t2;
+					if (t2) reg_sel      = AF;
+					ctl_reg_gp_hi_sel   |= t2;
+					ctl_reg_gp_we       |= t2; /* posedge */
+
+					/* Complement half carry flag */
+					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+
+					/* Write ALU flags into register F */
+					ctl_alu_fl_oe       |= t3;
+					ctl_db_l2h_oe       |= t3;
+					ctl_reg_h2gp_oe     |= t3;
+					ctl_reg_l2gp_oe     |= t3;
+					if (t3) reg_sel      = AF;
+					ctl_reg_gp_lo_sel   |= t3;
+					ctl_reg_gp_we       |= t3; /* posedge */
+				end
 			end
 
 			/* ADD SP, e -- Add signed immediate value e to SP */

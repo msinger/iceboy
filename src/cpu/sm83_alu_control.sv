@@ -22,7 +22,6 @@ module sm83_alu_control(
 		input  logic                   daa_carry,        /* Half carry input for DAA. */
 		input  logic                   cond_we,          /* Evaluate flags for condition and buffer result. */
 
-		input  logic                   daa66,            /* Forces daa_out to 0x66. */
 		input  logic                   daa_l_gt_9,       /* ALU lower A greater than 9? */
 		input  logic                   daa_h_gt_9,       /* ALU higher A greater than 9? */
 		input  logic                   daa_h_eq_9,       /* ALU higher A equals 9? */
@@ -70,13 +69,13 @@ module sm83_alu_control(
 		daa_out = 0;
 		c = daa_carry;
 
-		if (daa_l_gt_9 || c || daa66)
+		if (daa_l_gt_9 || c)
 			daa_out |= 'h06;
 
 		c  = daa_l_gt_9 && daa_h_eq_9;
 		c |= pri_carry;
 
-		if (daa_h_gt_9 || c || daa66) begin
+		if (daa_h_gt_9 || c) begin
 			daa_out |= 'h60;
 			daa_carry_out = 1;
 		end

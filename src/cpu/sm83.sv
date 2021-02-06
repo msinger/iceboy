@@ -120,7 +120,6 @@ module sm83(
 		.zero(alu_fl_zero), .carry(alu_fl_carry), .pri_carry(alu_fl_pri_carry), .daa_carry(alu_fl_daa_carry),
 		.cond_we(ctl_alu_cond_we),
 
-		.daa66(ctl_alu_daa66_oe),
 		.daa_l_gt_9(alu_daa_lgt9), .daa_h_gt_9(alu_daa_hgt9), .daa_h_eq_9(alu_daa_heq9),
 
 		.shift_out(alu_shift_out), .shift_into_alu(alu_shift_in), .shift_l(alu_shift_l), .shift_r(alu_shift_r),
@@ -204,7 +203,7 @@ module sm83(
 	logic ctl_ir_we;
 	logic ctl_ir_bank_we;
 	logic ctl_ir_bank_cb_set;
-	logic ctl_alu_oe, ctl_alu_fl_oe, ctl_alu_daa_oe, ctl_alu_daa66_oe;
+	logic ctl_alu_oe, ctl_alu_fl_oe, ctl_alu_daa_oe;
 	logic ctl_alu_sh_oe, ctl_alu_op_a_oe, ctl_alu_op_b_oe, ctl_alu_res_oe, ctl_alu_bs_oe;
 	logic ctl_alu_op_a_bus, ctl_alu_op_a_low, ctl_alu_op_a_zero;
 	logic ctl_alu_op_b_bus, ctl_alu_op_b_lq, ctl_alu_op_b_zero;
@@ -234,7 +233,7 @@ module sm83(
 	word_t io_dout = db_mux(dbc_sel, db_l2c,    'bx, 'bx, 'bx, 'bx, 'bx, 'bx);
 
 	/* low data bus matrix */
-	logic [4:0] dbl_sel = { ctl_alu_fl_oe, ctl_alu_daa_oe | ctl_alu_daa66_oe, ctl_reg_gp2l_oe, ctl_db_h2l_oe, ctl_db_c2l_oe };
+	logic [4:0] dbl_sel = { ctl_alu_fl_oe, ctl_alu_daa_oe, ctl_reg_gp2l_oe, ctl_db_h2l_oe, ctl_db_c2l_oe };
 	word_t dbl                     = db_mux(dbl_sel, db_c2l, db_h2l, reg_lo_dout, alu_ct_dout, alu_fl_dout, 'bx, 'bx);
 	word_t db_l2c                  = db_mux(dbl_sel,    'bx, db_h2l, reg_lo_dout, alu_ct_dout, alu_fl_dout, 'bx, 'bx);
 	word_t db_l2h                  = db_mux(dbl_sel, db_c2l,    'bx, reg_lo_dout, alu_ct_dout, alu_fl_dout, 'bx, 'bx);
