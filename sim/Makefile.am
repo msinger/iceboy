@@ -28,7 +28,8 @@ cpu/sm83_int.sv
 
 TESTS = \
 test/sm83/ld8.sh \
-test/sm83/ld16.sh
+test/sm83/ld16.sh \
+test/sm83/add8.sh
 
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(SH)
