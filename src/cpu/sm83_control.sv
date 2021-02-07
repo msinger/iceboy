@@ -135,193 +135,134 @@ module sm83_control(
 	logic set_b_r;    /* SET b, r/(HL) */
 	logic cb_hl;      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL (HL)  ~or~  BIT/RES/SET b, (HL) */
 
-	/* Write PC to address latch */
+	/* Apply PC to address bus */
 	task pc_to_adr();
-		ctl_reg_pc_sel     |= t4 && !no_pc;
-		ctl_reg_sys_hi_sel |= t4;
-		ctl_reg_sys_lo_sel |= t4;
-		ctl_al_we          |= t4; /* negedge */
-		ctl_io_adr_we      |= t4; /* posedge */
+		ctl_reg_pc_sel     = !no_pc;
+		ctl_reg_sys_hi_sel = 1;
+		ctl_reg_sys_lo_sel = 1;
+		ctl_al_we          = 1; /* negedge */
+		ctl_io_adr_we      = 1; /* posedge */
 	endtask
 
-	/* Write WZ to address latch */
+	/* Apply WZ to address bus */
 	task wz_to_adr();
-		ctl_reg_wz_sel     |= t4;
-		ctl_reg_sys_hi_sel |= t4;
-		ctl_reg_sys_lo_sel |= t4;
-		ctl_reg_gph2sys_oe |= t4;
-		ctl_reg_gpl2sys_oe |= t4;
-		ctl_al_we          |= t4; /* negedge */
-		ctl_io_adr_we      |= t4; /* posedge */
+		ctl_reg_wz_sel     = 1;
+		ctl_reg_sys_hi_sel = 1;
+		ctl_reg_sys_lo_sel = 1;
+		ctl_reg_gph2sys_oe = 1;
+		ctl_reg_gpl2sys_oe = 1;
+		ctl_al_we          = 1; /* negedge */
+		ctl_io_adr_we      = 1; /* posedge */
 	endtask
 
-	/* Write SP to address latch */
+	/* Apply SP to address bus */
 	task sp_to_adr();
-		ctl_reg_sp_sel     |= t4;
-		ctl_reg_sys_hi_sel |= t4;
-		ctl_reg_sys_lo_sel |= t4;
-		ctl_al_we          |= t4; /* negedge */
-		ctl_io_adr_we      |= t4; /* posedge */
+		ctl_reg_sp_sel     = 1;
+		ctl_reg_sys_hi_sel = 1;
+		ctl_reg_sys_lo_sel = 1;
+		ctl_al_we          = 1; /* negedge */
+		ctl_io_adr_we      = 1; /* posedge */
 	endtask
 
-	/* Write register to address latch */
+	/* Apply register to address bus */
 	task reg_to_adr(input logic [1:0] r);
-		if (t4) reg_sel = r;
-		ctl_reg_gp_hi_sel  |= t4;
-		ctl_reg_gp_lo_sel  |= t4;
-		ctl_reg_gph2sys_oe |= t4;
-		ctl_reg_gpl2sys_oe |= t4;
-		ctl_al_we          |= t4; /* negedge */
-		ctl_io_adr_we      |= t4; /* posedge */
+		reg_sel            = r;
+		ctl_reg_gp_hi_sel  = 1;
+		ctl_reg_gp_lo_sel  = 1;
+		ctl_reg_gph2sys_oe = 1;
+		ctl_reg_gpl2sys_oe = 1;
+		ctl_al_we          = 1; /* negedge */
+		ctl_io_adr_we      = 1; /* posedge */
 	endtask
 
-	/* Write address latch +1 to PC */
+	/* Write incremented address latch to PC */
 	task pc_from_adr_inc();
-		ctl_inc_cy         |= t1 && !(in_int || in_halt || in_rst);
-		ctl_inc_oe         |= t1;
-		ctl_al_we          |= t1; /* negedge */
-		ctl_al_oe          |= t1;
-		ctl_reg_pc_sel     |= t1;
-		ctl_reg_sys_hi_sel |= t1;
-		ctl_reg_sys_lo_sel |= t1;
-		ctl_reg_sys_hi_we  |= t1; /* posedge */
-		ctl_reg_sys_lo_we  |= t1; /* posedge */
+		ctl_inc_cy         = !(in_int || in_halt || in_rst);
+		ctl_inc_oe         = 1;
+		ctl_al_we          = 1; /* negedge */
+		ctl_al_oe          = 1;
+		ctl_reg_pc_sel     = 1;
+		ctl_reg_sys_hi_sel = 1;
+		ctl_reg_sys_lo_sel = 1;
+		ctl_reg_sys_hi_we  = 1; /* posedge */
+		ctl_reg_sys_lo_we  = 1; /* posedge */
 	endtask
 
-	/* Write address latch +/-1 to SP */
+	/* Write incremented or decremented address latch to SP */
 	task sp_from_adr_inc(input logic dec);
-		ctl_inc_cy         |= t1;
-		ctl_inc_dec        |= t1 && dec;
-		ctl_inc_oe         |= t1;
-		ctl_al_we          |= t1; /* negedge */
-		ctl_al_oe          |= t1;
-		ctl_reg_sp_sel     |= t1;
-		ctl_reg_sys_hi_sel |= t1;
-		ctl_reg_sys_lo_sel |= t1;
-		ctl_reg_sys_hi_we  |= t1; /* posedge */
-		ctl_reg_sys_lo_we  |= t1; /* posedge */
+		ctl_inc_cy         = 1;
+		ctl_inc_dec        = dec;
+		ctl_inc_oe         = 1;
+		ctl_al_we          = 1; /* negedge */
+		ctl_al_oe          = 1;
+		ctl_reg_sp_sel     = 1;
+		ctl_reg_sys_hi_sel = 1;
+		ctl_reg_sys_lo_sel = 1;
+		ctl_reg_sys_hi_we  = 1; /* posedge */
+		ctl_reg_sys_lo_we  = 1; /* posedge */
 	endtask
 
-	/* Write address latch +/-1 to HL */
-	task hl_from_adr_inc(input logic dec);
-		ctl_inc_cy        |= t1;
-		ctl_inc_dec       |= t1 && dec;
-		ctl_inc_oe        |= t1;
-		ctl_al_we         |= t1; /* negedge */
-		ctl_al_oe         |= t1;
-		ctl_reg_sys2gp_oe |= t1;
-		if (t1) reg_sel    = HL;
-		ctl_reg_gp_hi_sel |= t1;
-		ctl_reg_gp_lo_sel |= t1;
-		ctl_reg_gp_we     |= t1; /* posedge */
+	/* Write incremented or decremented address latch to register */
+	task reg_from_adr_inc(input logic [1:0] r, input logic dec);
+		ctl_inc_cy        = 1;
+		ctl_inc_dec       = dec;
+		ctl_inc_oe        = 1;
+		ctl_al_we         = 1; /* negedge */
+		ctl_al_oe         = 1;
+		ctl_reg_sys2gp_oe = 1;
+		reg_sel           = r;
+		ctl_reg_gp_hi_sel = 1;
+		ctl_reg_gp_lo_sel = 1;
+		ctl_reg_gp_we     = 1; /* posedge */
 	endtask
 
 	/*  */
 	assign in_halt = 0;
 
-	task read_m2();
-		ctl_mread |= m1 && t4;
+	task read_mcyc_after(input logic cyc);
+		if (cyc && t4) ctl_mread = 1;
 	endtask
 
-	task read_m3();
-		ctl_mread |= m2 && t4;
-	endtask
-
-	task read_m4();
-		ctl_mread |= m3 && t4;
-	endtask
-
-	task write_m2();
-		ctl_mwrite |= m1 && t4;
-	endtask
-
-	task write_m3();
-		ctl_mwrite |= m2 && t4;
-	endtask
-
-	task write_m4();
-		ctl_mwrite |= m3 && t4;
-	endtask
-
-	task write_m5();
-		ctl_mwrite |= m4 && t4;
-	endtask
-
-	task read_imm_m2();
-		read_m2();
-		if (m1) pc_to_adr();
-		if (m2) pc_from_adr_inc();
-	endtask
-
-	task read_imm_m3();
-		read_m3();
-		if (m2) pc_to_adr();
-		if (m3) pc_from_adr_inc();
-	endtask
-
-	task read_indreg_m2(input logic [1:0] r);
-		read_m2();
-		if (m1) reg_to_adr(r);
-	endtask
-
-	task write_indreg_m2(input logic [1:0] r);
-		write_m2();
-		if (m1) reg_to_adr(r);
-	endtask
-
-	task write_indreg_m3(input logic [1:0] r);
-		write_m3();
-		if (m2) reg_to_adr(r);
+	task write_mcyc_after(input logic cyc);
+		if (cyc && t4) ctl_mwrite = 1;
 	endtask
 
 	task last_mcyc(input logic last);
-		set_m1 |= last && t4;
+		if (last && t4) set_m1 = 1;
 	endtask
 
-	task read_gp0(input logic t, input bit cross_hl);
-		if (t) begin
-			reg_sel           = opcode[2:1];
-			ctl_reg_gp_hi_sel = 1;
-			ctl_reg_gp_lo_sel = 1;
-			ctl_reg_gp2h_oe   = op_gp0_hi;
-			ctl_reg_gp2l_oe   = !op_gp0_hi;
-			if (cross_hl) begin
-				ctl_db_h2l_oe = op_gp0_hi;
-				ctl_db_l2h_oe = !op_gp0_hi;
-			end
-		end
+	task read_reg_gp0();
+		reg_sel           = opcode[2:1];
+		ctl_reg_gp_hi_sel = 1;
+		ctl_reg_gp_lo_sel = 1;
+		ctl_reg_gp2h_oe   = op_gp0_hi;
+		ctl_reg_gp2l_oe   = !op_gp0_hi;
+		ctl_db_h2l_oe     = op_gp0_hi;
+		ctl_db_l2h_oe     = !op_gp0_hi;
 	endtask
 
-	task read_gp3(input logic t, input bit cross_hl);
-		if (t) begin
-			reg_sel           = opcode[5:4];
-			ctl_reg_gp_hi_sel = 1;
-			ctl_reg_gp_lo_sel = 1;
-			ctl_reg_gp2h_oe   = op_gp3_hi;
-			ctl_reg_gp2l_oe   = !op_gp3_hi;
-			if (cross_hl) begin
-				ctl_db_h2l_oe = op_gp3_hi;
-				ctl_db_l2h_oe = !op_gp3_hi;
-			end
-		end
+	task read_reg_gp3();
+		reg_sel           = opcode[5:4];
+		ctl_reg_gp_hi_sel = 1;
+		ctl_reg_gp_lo_sel = 1;
+		ctl_reg_gp2h_oe   = op_gp3_hi;
+		ctl_reg_gp2l_oe   = !op_gp3_hi;
+		ctl_db_h2l_oe     = op_gp3_hi;
+		ctl_db_l2h_oe     = !op_gp3_hi;
 	endtask
 
-	task write_gp0(input logic t);
-		if (t) begin
-			reg_sel           = opcode[2:1];
-			ctl_reg_gp_hi_sel = op_gp0_hi;
-			ctl_reg_gp_lo_sel = !op_gp0_hi;
-			ctl_reg_gp_we     = 1; /* posedge */
-		end
+	task write_reg_gp0();
+		reg_sel           = opcode[2:1];
+		ctl_reg_gp_hi_sel = op_gp0_hi;
+		ctl_reg_gp_lo_sel = !op_gp0_hi;
+		ctl_reg_gp_we     = 1; /* posedge */
 	endtask
 
-	task write_gp3(input logic t);
-		if (t) begin
-			reg_sel           = opcode[5:4];
-			ctl_reg_gp_hi_sel = op_gp3_hi;
-			ctl_reg_gp_lo_sel = !op_gp3_hi;
-			ctl_reg_gp_we     = 1; /* posedge */
-		end
+	task write_reg_gp3();
+		reg_sel           = opcode[5:4];
+		ctl_reg_gp_hi_sel = op_gp3_hi;
+		ctl_reg_gp_lo_sel = !op_gp3_hi;
+		ctl_reg_gp_we     = 1; /* posedge */
 	endtask
 
 	localparam BC = 0;
@@ -437,723 +378,972 @@ module sm83_control(
 
 			/* LD r, n -- Load register r with immediate value n */
 			ld_r_n && !ld_hl_n: begin
+				read_mcyc_after(m1); /* Read immediate value n during M2 */
 				last_mcyc(m2);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				if (m1) begin
-					/* Write fetched immediate from data latch into register selected by opcode[5:3] */
-					ctl_io_data_oe  |= t2;
-					ctl_db_c2l_oe   |= t2;
-					ctl_db_l2h_oe   |= t2;
-					ctl_reg_h2gp_oe |= t2;
-					ctl_reg_l2gp_oe |= t2;
-					write_gp3(t2);         /* posedge */
-				end
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3,
+					m2 && t4:;
+
+					m1 && t1:;
+
+					m1 && t2: begin
+						/* Write fetched immediate from data latch into register selected by opcode[5:3] */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						write_reg_gp3(); /* posedge */
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD r, r' -- Load register r with value from register r' */
 			ld_r_r && !ld_r_hl && !ld_hl_r: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Read register selected by opcode[2:0] into ALU operand A */
-					read_gp0(t1, 1);
-					ctl_alu_sh_oe    |= t1;
-					ctl_alu_op_a_bus |= t1; /* negedge */
+				unique case (1)
+					m1 && t4:;
 
-					/* Write ALU operand A into register selected by opcode[5:3] */
-					ctl_alu_op_a_oe |= t2;
-					ctl_alu_oe      |= t2;
-					ctl_db_h2l_oe   |= t2;
-					ctl_reg_h2gp_oe |= t2;
-					ctl_reg_l2gp_oe |= t2;
-					write_gp3(t2);         /* posedge */
-				end
+					m1 && t1: begin
+						/* Read register selected by opcode[2:0] into ALU operand A */
+						read_reg_gp0();
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+					end
+
+					m1 && t2: begin
+						/* Write ALU operand A into register selected by opcode[5:3] */
+						ctl_alu_op_a_oe      = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						write_reg_gp3(); /* posedge */
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD r, (HL) -- Load register r with value stored at address in HL */
 			ld_r_hl: begin
+				read_mcyc_after(m1); /* Read value stored at address in HL during M2 */
 				last_mcyc(m2);
 
-				/* Read value from bus at address in HL into data latch during M2 */
-				read_indreg_m2(HL);
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
 
-				if (m1) begin
-					/* Write fetched value from data latch into register selected by opcode[5:3] */
-					ctl_io_data_oe  |= t2;
-					ctl_db_c2l_oe   |= t2;
-					ctl_db_l2h_oe   |= t2;
-					ctl_reg_h2gp_oe |= t2;
-					ctl_reg_l2gp_oe |= t2;
-					write_gp3(t2);         /* posedge */
-				end
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2,
+					m2 && t3,
+					m2 && t4:;
+
+					m1 && t1:;
+
+					m1 && t2: begin
+						/* Write fetched value from data latch into register selected by opcode[5:3] */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						write_reg_gp3(); /* posedge */
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD (HL), r -- Load register r to address in HL */
 			ld_hl_r: begin
+				write_mcyc_after(m1); /* Write to address in HL during M2 */
 				last_mcyc(m2);
 
-				if (m2) begin
-					/* Read register selected by opcode[2:0] into data latch */
-					read_gp0(t2, 1);
-					ctl_db_l2c_oe    |= t2;
-					ctl_io_data_we   |= t2; /* negedge */
-				end
+				unique case (1)
+					/* Apply HL to address bus for write cycle */
+					m1 && t4: reg_to_adr(HL);
 
-				/* Write value from data latch to address in HL during M2 */
-				write_indreg_m2(HL);
+					m2 && t1:;
+
+					m2 && t2: begin
+						/* Read register selected by opcode[2:0] into data latch */
+						read_reg_gp0();
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
+					end
+
+					/* Wait for write cycle to finish */
+					m2 && t3,
+					m2 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD (HL), n -- Load immediate value n to address in HL */
 			ld_hl_n: begin
+				read_mcyc_after(m1);  /* Read immediate value n during M2 */
+				write_mcyc_after(m2); /* Write to address in HL during M3 */
 				last_mcyc(m3);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				/* Write value from data latch to address in HL during M3 */
-				write_indreg_m3(HL);
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
+
+					/* Apply HL to address bus for write cycle */
+					m2 && t4: reg_to_adr(HL);
+
+					/* Wait for write cycle to finish */
+					m3 && t1,
+					m3 && t2,
+					m3 && t3,
+					m3 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD (BC), A -- Load A to address in BC */
 			/* LD (DE), A -- Load A to address in DE */
 			ld_xx_a && ld_x_dir: begin
+				write_mcyc_after(m1); /* Write to address in BC/DE during M2 */
 				last_mcyc(m2);
 
-				if (m2) begin
-					/* Read A into data latch */
-					if (t2) reg_sel    = AF;
-					ctl_reg_gp_hi_sel |= t2;
-					ctl_reg_gp_lo_sel |= t2;
-					ctl_reg_gp2h_oe   |= t2;
-					ctl_db_h2l_oe     |= t2;
-					ctl_db_l2c_oe     |= t2;
-					ctl_io_data_we    |= t2; /* negedge */
-				end
+				unique case (1)
+					/* Apply BC/DE to address bus for write cycle */
+					m1 && t4: reg_to_adr(opcode[5:4]);
 
-				/* Write value from data latch to address in BC/DE during M2 */
-				write_indreg_m2(opcode[5:4]);
+					m2 && t1:;
+
+					m2 && t2: begin
+						/* Write A into data latch */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
+					end
+
+					/* Wait for write cycle to finish */
+					m2 && t3,
+					m2 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD A, (BC) -- Load A with value stored at address in BC */
 			/* LD A, (DE) -- Load A with value stored at address in DE */
 			ld_xx_a && !ld_x_dir: begin
+				read_mcyc_after(m1); /* Read value stored at address in BC/DE during M2 */
 				last_mcyc(m2);
 
-				/* Read value from bus at address in BC/DE into data latch during M2 */
-				read_indreg_m2(opcode[5:4]);
+				unique case (1)
+					/* Apply BC/DE to address bus for read cycle */
+					m1 && t4: reg_to_adr(opcode[5:4]);
 
-				if (m1) begin
-					/* Write fetched value from data latch into A */
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_db_l2h_oe     |= t2;
-					ctl_reg_h2gp_oe   |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					if (t2) reg_sel    = AF;
-					ctl_reg_gp_hi_sel |= t2;
-					ctl_reg_gp_we     |= t2; /* posedge */
-				end
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2,
+					m2 && t3,
+					m2 && t4:;
+
+					m1 && t1:;
+
+					m1 && t2: begin
+						/* Write fetched value from data latch into A */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD (HLI), A -- Load A to address in HL and post-increment HL */
 			/* LD (HLD), A -- Load A to address in HL and post-decrement HL */
 			ld_hl_a && ld_x_dir: begin
+				write_mcyc_after(m1); /* Write to address in HL during M2 */
 				last_mcyc(m2);
 
-				if (m2) begin
-					/* Write A into data latch */
-					if (t2) reg_sel    = AF;
-					ctl_reg_gp_hi_sel |= t2;
-					ctl_reg_gp_lo_sel |= t2;
-					ctl_reg_gp2h_oe   |= t2;
-					ctl_db_h2l_oe     |= t2;
-					ctl_db_l2c_oe     |= t2;
-					ctl_io_data_we    |= t2; /* negedge */
-				end
+				unique case (1)
+					/* Apply HL to address bus for write cycle */
+					m1 && t4: reg_to_adr(HL);
 
-				/* Write value from data latch to address in HL during M2 */
-				write_indreg_m2(HL);
+					/* Increment or decrement HL */
+					m2 && t1: reg_from_adr_inc(HL, opcode[4]);
 
-				/* Write incremented or decremented address latch back into HL */
-				if (m2)
-					hl_from_adr_inc(opcode[4]);
+					m2 && t2: begin
+						/* Write A into data latch */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
+					end
+
+					/* Wait for write cycle to finish */
+					m2 && t3,
+					m2 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD A, (HLI) -- Load A with value stored at address in HL and post-increment HL */
 			/* LD A, (HLD) -- Load A with value stored at address in HL and post-decrement HL */
 			ld_hl_a && !ld_x_dir: begin
+				read_mcyc_after(m1); /* Read value stored at address in HL during M2 */
 				last_mcyc(m2);
 
-				/* Read value from bus at address in HL into data latch during M2 */
-				read_indreg_m2(HL);
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
 
-				/* Write incremented or decremented address latch back into HL */
-				if (m2)
-					hl_from_adr_inc(opcode[4]);
+					/* Increment or decrement HL and wait for read cycle to finish */
+					m2 && t1: reg_from_adr_inc(HL, opcode[4]);
+					m2 && t2,
+					m2 && t3,
+					m2 && t4:;
 
-				if (m1) begin
-					/* Write fetched value from data latch into A */
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_db_l2h_oe     |= t2;
-					ctl_reg_h2gp_oe   |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					if (t2) reg_sel    = AF;
-					ctl_reg_gp_hi_sel |= t2;
-					ctl_reg_gp_we     |= t2; /* posedge */
-				end
+					m1 && t1:;
+
+					m1 && t2: begin
+						/* Write fetched value from data latch into A */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* LDX (nn), A -- Load A to immediate address nn */
 			/* LDX A, (nn) -- Load A with value stored at immediate address nn */
 			ld_nn_a: begin
+				read_mcyc_after(m1);              /* Read immediate address nn low byte during M2 */
+				read_mcyc_after(m2);              /* Read immediate address nn high byte during M3 */
+				write_mcyc_after(m3 && ld_n_dir); /* Write to immediate address nn during M4 */
+				read_mcyc_after(m3 && !ld_n_dir); /* Read value stored at immediate address nn during M4 */
 				last_mcyc(m4);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				/* Read immediate value from bus into data latch during M3 and incement PC */
-				read_imm_m3();
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-				if (m3) begin
-					/* Write immediate fetched during M2 from data latch into Z during M3
-					 * after PC increment is done but before second immediate overwrites data latch */
-					ctl_io_data_oe     |= t2;
-					ctl_db_c2l_oe      |= t2;
-					ctl_db_l2h_oe      |= t2;
-					ctl_reg_l2gp_oe    |= t2;
-					ctl_reg_wz_sel     |= t2;
-					ctl_reg_sys_lo_sel |= t2;
-					ctl_reg_sys_lo_we  |= t2; /* posedge */
+					/* Apply PC to address bus for read cycle */
+					m2 && t4: pc_to_adr();
 
-					/* Write immediate fetched during M3 from data latch into W */
-					ctl_io_data_oe     |= t4;
-					ctl_db_c2l_oe      |= t4;
-					ctl_db_l2h_oe      |= t4;
-					ctl_reg_h2gp_oe    |= t4;
-					ctl_reg_wz_sel     |= t4;
-					ctl_reg_sys_hi_sel |= t4;
-					ctl_reg_sys_hi_we  |= t4; /* posedge */
+					/* Increment PC */
+					m3 && t1: pc_from_adr_inc();
 
-					/* Write WZ to address latch */
-					wz_to_adr();
-				end
+					m3 && t2: begin
+						/* Write immediate fetched during M2 from data latch into Z
+						 * before second read cycle overwrites data latch */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+					end
 
-				/* Transfer A from/to data bus, depending on direction of opcode */
-				if (ld_n_dir) begin /* LDX (nn), A */
-					if (m4) begin
+					/* Wait for read cycle to finish */
+					m3 && t3:;
+
+					m3 && t4: begin
+						/* Write immediate fetched during M3 from data latch into W */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
+
+						/* Apply WZ to address bus for write or read cycle */
+						wz_to_adr();
+					end
+
+					m4 && t1:;
+
+					m4 && t2: if (ld_n_dir) begin /* LDX (nn), A */
 						/* Write A into data latch */
-						if (t2) reg_sel    = AF;
-						ctl_reg_gp_hi_sel |= t2;
-						ctl_reg_gp_lo_sel |= t2;
-						ctl_reg_gp2h_oe   |= t2;
-						ctl_db_h2l_oe     |= t2;
-						ctl_db_l2c_oe     |= t2;
-						ctl_io_data_we    |= t2; /* negedge */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
 					end
 
-					/* Write data latch to bus during M4 */
-					write_m4();
-				end else begin /* LDX A, (nn) */
-					/* Read value from bus into data latch during M4 */
-					read_m4();
+					m4 && t3,
+					m4 && t4:;
 
-					if (m1) begin
+					m1 && t1:;
+
+					m1 && t2: if (!ld_n_dir) begin /* LDX A, (nn) */
 						/* Write value from data latch into A */
-						ctl_io_data_oe    |= t2;
-						ctl_db_c2l_oe     |= t2;
-						ctl_db_l2h_oe     |= t2;
-						ctl_reg_h2gp_oe   |= t2;
-						ctl_reg_l2gp_oe   |= t2;
-						if (t2) reg_sel    = AF;
-						ctl_reg_gp_hi_sel |= t2;
-						ctl_reg_gp_we     |= t2; /* posedge */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
 					end
-				end
+
+					m1 && t3,
+					m1 && t4:;
+				endcase
 			end
 
 			/* LD (n), A -- Load A to immediate address $ff00+n */
 			/* LD A, (n) -- Load A with value stored at immediate address $ff00+n */
 			ld_n_a: begin
+				read_mcyc_after(m1);              /* Read immediate address low byte n during M2 */
+				write_mcyc_after(m2 && ld_n_dir); /* Write to address $ff00+n during M3 */
+				read_mcyc_after(m2 && !ld_n_dir); /* Read value stored at address $ff00+n during M3 */
 				last_mcyc(m3);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				if (m2) begin
-					/* Write immediate fetched during M2 from data latch into low byte of address latch while
-					 * setting high byte to $ff */
-					ctl_io_data_oe     |= t4;
-					ctl_db_c2l_oe      |= t4;
-					ctl_reg_l2gp_oe    |= t4;
-					ctl_reg_gph2sys_oe |= t4;
-					ctl_reg_gpl2sys_oe |= t4;
-					ctl_al_hi_ff       |= t4;
-					ctl_al_we          |= t4; /* negedge */
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-					/* Apply address latch to external bus */
-					ctl_io_adr_we |= t4; /* posedge */
-				end
+					m2 && t4: begin
+						/* Write immediate fetched during M2 from data latch into low byte of address latch while
+						 * setting high byte to $ff */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_gph2sys_oe   = 1;
+						ctl_reg_gpl2sys_oe   = 1;
+						ctl_al_hi_ff         = 1;
+						ctl_al_we            = 1; /* negedge */
 
-				/* Transfer A from/to data bus, depending on direction of opcode */
-				if (ld_n_dir) begin /* LD (n), A */
-					if (m3) begin
+						/* Apply address latch to external bus for write or read cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
+
+					m3 && t1:;
+
+					m3 && t2: if (ld_n_dir) begin /* LD (n), A */
 						/* Write A into data latch */
-						if (t2) reg_sel    = AF;
-						ctl_reg_gp_hi_sel |= t2;
-						ctl_reg_gp_lo_sel |= t2;
-						ctl_reg_gp2h_oe   |= t2;
-						ctl_db_h2l_oe     |= t2;
-						ctl_db_l2c_oe     |= t2;
-						ctl_io_data_we    |= t2; /* negedge */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
 					end
 
-					/* Write data latch to bus during M3 */
-					write_m3();
-				end else begin /* LD A, (n) */
-					/* Read value from bus into data latch during M3 */
-					read_m3();
+					m3 && t3,
+					m3 && t4:;
 
-					if (m1) begin
+					m1 && t1:;
+
+					m1 && t2: if (!ld_n_dir) begin /* LD A, (n) */
 						/* Write value from data latch into A */
-						ctl_io_data_oe    |= t2;
-						ctl_db_c2l_oe     |= t2;
-						ctl_db_l2h_oe     |= t2;
-						ctl_reg_h2gp_oe   |= t2;
-						ctl_reg_l2gp_oe   |= t2;
-						if (t2) reg_sel    = AF;
-						ctl_reg_gp_hi_sel |= t2;
-						ctl_reg_gp_we     |= t2; /* posedge */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
 					end
-				end
+
+					m1 && t3,
+					m1 && t4:;
+				endcase
 			end
 
-			/* LD (C), A -- Load A to immediate address $ff00+C */
-			/* LD A, (C) -- Load A with value stored at immediate address $ff00+C */
+			/* LD (C), A -- Load A to address $ff00+C */
+			/* LD A, (C) -- Load A with value stored at address $ff00+C */
 			ld_c_a: begin
+				write_mcyc_after(m1 && ld_n_dir); /* Write to address $ff00+C during M2 */
+				read_mcyc_after(m1 && !ld_n_dir); /* Read value stored at address $ff00+C during M2 */
 				last_mcyc(m2);
 
-				if (m1) begin
-					/* Write C into low byte of address latch while setting high byte to $ff */
-					if (t4) reg_sel     = BC;
-					ctl_reg_gp_hi_sel  |= t4;
-					ctl_reg_gp_lo_sel  |= t4;
-					ctl_reg_gph2sys_oe |= t4;
-					ctl_reg_gpl2sys_oe |= t4;
-					ctl_al_hi_ff       |= t4;
-					ctl_al_we          |= t4; /* negedge */
+				unique case (1)
+					m1 && t4: begin
+						/* Write C into low byte of address latch while setting high byte to $ff */
+						reg_sel              = BC;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gph2sys_oe   = 1;
+						ctl_reg_gpl2sys_oe   = 1;
+						ctl_al_hi_ff         = 1;
+						ctl_al_we            = 1; /* negedge */
 
-					/* Apply address latch to external bus */
-					ctl_io_adr_we |= t4; /* posedge */
-				end
+						/* Apply address latch to external bus for write or read cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
 
-				/* Transfer A from/to data bus, depending on direction of opcode */
-				if (ld_n_dir) begin /* LD (C), A */
-					if (m2) begin
+					m2 && t1:;
+
+					m2 && t2: if (ld_n_dir) begin /* LD (C), A */
 						/* Write A into data latch */
-						if (t2) reg_sel    = AF;
-						ctl_reg_gp_hi_sel |= t2;
-						ctl_reg_gp_lo_sel |= t2;
-						ctl_reg_gp2h_oe   |= t2;
-						ctl_db_h2l_oe     |= t2;
-						ctl_db_l2c_oe     |= t2;
-						ctl_io_data_we    |= t2; /* negedge */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
 					end
 
-					/* Write data latch to bus during M2 */
-					write_m2();
-				end else begin /* LD A, (C) */
-					/* Read value from bus into data latch during M2 */
-					read_m2();
+					m2 && t3,
+					m2 && t4:;
 
-					if (m1) begin
+					m1 && t1:;
+
+					m1 && t2: if (!ld_n_dir) begin /* LD A, (C) */
 						/* Write value from data latch into A */
-						ctl_io_data_oe    |= t2;
-						ctl_db_c2l_oe     |= t2;
-						ctl_db_l2h_oe     |= t2;
-						ctl_reg_h2gp_oe   |= t2;
-						ctl_reg_l2gp_oe   |= t2;
-						if (t2) reg_sel    = AF;
-						ctl_reg_gp_hi_sel |= t2;
-						ctl_reg_gp_we     |= t2; /* posedge */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
 					end
-				end
+
+					m1 && t3,
+					m1 && t4:;
+				endcase
 			end
 
 			/* LD dd, nn -- Load register dd with immediate value nn */
 			ld_dd_nn: begin
+				read_mcyc_after(m1); /* Read immediate value nn low byte during M2 */
+				read_mcyc_after(m2); /* Read immediate value nn high byte during M3 */
 				last_mcyc(m3);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				/* Read immediate value from bus into data latch during M3 and incement PC */
-				read_imm_m3();
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-				if (m3) begin
-					/* Write immediate fetched during M2 from data latch into lower register
-					 * during M3 after PC increment is done but before second immediate
-					 * overwrites data latch */
-					ctl_io_data_oe     |= t2;
-					ctl_db_c2l_oe      |= t2;
-					ctl_db_l2h_oe      |= t2;
-					ctl_reg_l2gp_oe    |= t2;
-					ctl_reg_h2gp_oe    |= t2;
-					ctl_reg_gph2sys_oe |= t2;
-					ctl_reg_gpl2sys_oe |= t2;
-					use_sp             |= t2 && (opcode[5:4] == AF);
-					ctl_reg_sp_sel     |= use_sp;
-					if (t2) reg_sel     = opcode[5:4];
-					ctl_reg_sys_lo_sel |= t2;
-					ctl_reg_gp_lo_sel  |= t2;
-					ctl_reg_sys_lo_we  |= t2; /* posedge */
-					ctl_reg_gp_we      |= t2; /* posedge */
-				end
+					/* Apply PC to address bus for read cycle */
+					m2 && t4: pc_to_adr();
 
-				if (m1) begin
-					/* Write immediate fetched during M3 from data latch into higher register
-					 * during M1 after PC increment of next opcode is done */
-					ctl_io_data_oe     |= t2;
-					ctl_db_c2l_oe      |= t2;
-					ctl_db_l2h_oe      |= t2;
-					ctl_reg_l2gp_oe    |= t2;
-					ctl_reg_h2gp_oe    |= t2;
-					ctl_reg_gph2sys_oe |= t2;
-					ctl_reg_gpl2sys_oe |= t2;
-					use_sp             |= t2 && (opcode[5:4] == AF);
-					ctl_reg_sp_sel     |= use_sp;
-					if (t2) reg_sel     = opcode[5:4];
-					ctl_reg_sys_hi_sel |= t2;
-					ctl_reg_gp_hi_sel  |= t2;
-					ctl_reg_sys_hi_we  |= t2; /* posedge */
-					ctl_reg_gp_we      |= t2; /* posedge */
-				end
+					/* Increment PC */
+					m3 && t1: pc_from_adr_inc();
+
+					m3 && t2: begin
+						/* Write immediate fetched during M2 from data latch into low byte register
+						 * before second read cycle overwrites data latch */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_gph2sys_oe   = 1;
+						ctl_reg_gpl2sys_oe   = 1;
+						use_sp               = opcode[5:4] == AF;
+						ctl_reg_sp_sel       = use_sp;
+						reg_sel              = opcode[5:4];
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					/* Wait for read cycle to finish */
+					m3 && t3,
+					m3 && t4:;
+
+					m1 && t1:;
+
+					m1 && t2: begin
+						/* Write immediate fetched during M3 from data latch into high byte register
+						 * after PC increment of next opcode is done */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_gph2sys_oe   = 1;
+						ctl_reg_gpl2sys_oe   = 1;
+						use_sp               = opcode[5:4] == AF;
+						ctl_reg_sp_sel       = use_sp;
+						reg_sel              = opcode[5:4];
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m1 && t3,
+					m1 && t4:;
+				endcase
 			end
 
 			/* LD SP, HL -- Load SP with value from HL */
 			ld_sp_hl: begin
 				last_mcyc(m2);
 
-				if (m2) begin
-					/* Write HL into SP */
-					if (t2) reg_sel     = HL;
-					ctl_reg_gp_hi_sel  |= t2;
-					ctl_reg_gp_lo_sel  |= t2;
-					ctl_reg_gph2sys_oe |= t2;
-					ctl_reg_gpl2sys_oe |= t2;
-					ctl_reg_sp_sel     |= t2;
-					ctl_reg_sys_hi_sel |= t2;
-					ctl_reg_sys_lo_sel |= t2;
-					ctl_reg_sys_hi_we  |= t2; /* posedge */
-					ctl_reg_sys_lo_we  |= t2; /* posedge */
-				end
+				unique case (1)
+					m1 && t4:;
+
+					m2 && t1:;
+
+					m2 && t2: begin
+						/* Write HL into SP */
+						reg_sel              = HL;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gph2sys_oe   = 1;
+						ctl_reg_gpl2sys_oe   = 1;
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+					end
+
+					m2 && t3,
+					m2 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* LD (nn), SP -- Load SP to immediate address nn */
 			ld_nn_sp: begin
+				read_mcyc_after(m1);  /* Read immediate address nn low byte during M2 */
+				read_mcyc_after(m2);  /* Read immediate address nn high byte during M3 */
+				write_mcyc_after(m3); /* Write low byte of SP to immediate address nn during M4 */
+				write_mcyc_after(m4); /* Write high byte of SP to immediate address nn+1 during M5 */
 				last_mcyc(m5);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				/* Read immediate value from bus into data latch during M3 and incement PC */
-				read_imm_m3();
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-				if (m3) begin
-					/* Write immediate fetched during M2 from data latch into Z during M3
-					 * after PC increment is done but before second immediate overwrites data latch */
-					ctl_io_data_oe     |= t2;
-					ctl_db_c2l_oe      |= t2;
-					ctl_db_l2h_oe      |= t2;
-					ctl_reg_l2gp_oe    |= t2;
-					ctl_reg_wz_sel     |= t2;
-					ctl_reg_sys_lo_sel |= t2;
-					ctl_reg_sys_lo_we  |= t2; /* posedge */
+					/* Apply PC to address bus for read cycle */
+					m2 && t4: pc_to_adr();
 
-					/* Write immediate fetched during M3 from data latch into W */
-					ctl_io_data_oe     |= t4;
-					ctl_db_c2l_oe      |= t4;
-					ctl_db_l2h_oe      |= t4;
-					ctl_reg_h2gp_oe    |= t4;
-					ctl_reg_wz_sel     |= t4;
-					ctl_reg_sys_hi_sel |= t4;
-					ctl_reg_sys_hi_we  |= t4; /* posedge */
+					/* Increment PC */
+					m3 && t1: pc_from_adr_inc();
 
-					/* Write WZ to address latch */
-					wz_to_adr();
-				end
+					m3 && t2: begin
+						/* Write immediate fetched during M2 from data latch into Z
+						 * before second read cycle overwrites data latch */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+					end
 
-				if (m4) begin
-					/* Increment address latch */
-					ctl_inc_cy |= t1;
-					ctl_inc_oe |= t1;
-					ctl_al_we  |= t1; /* negedge */
+					/* Wait for read cycle to finish */
+					m3 && t3:;
 
-					/* Write low byte of SP into data latch */
-					ctl_reg_sp_sel     |= t2;
-					ctl_reg_sys_lo_sel |= t2;
-					ctl_reg_sys2gp_oe  |= t2;
-					ctl_reg_gp2l_oe    |= t2;
-					ctl_db_l2c_oe      |= t2;
-					ctl_io_data_we     |= t2; /* negedge */
+					m3 && t4: begin
+						/* Write immediate fetched during M3 from data latch into W */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
 
-					/* Apply address latch to address bus */
-					ctl_io_adr_we |= t4; /* posedge */
-				end
+						/* Apply WZ to address bus for write cycle */
+						wz_to_adr();
+					end
 
-				/* Write data latch to bus during M4 */
-				write_m4();
+					m4 && t1: begin
+						/* Increment address latch */
+						ctl_inc_cy           = 1;
+						ctl_inc_oe           = 1;
+						ctl_al_we            = 1; /* negedge */
+					end
 
-				if (m5) begin
-					/* Increment address latch */
-					ctl_inc_cy |= t1;
-					ctl_inc_oe |= t1;
-					ctl_al_we  |= t1; /* negedge */
+					m4 && t2: begin
+						/* Write low byte of SP into data latch */
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
+					end
 
-					/* Write high byte of SP into data latch */
-					ctl_reg_sp_sel     |= t2;
-					ctl_reg_sys_hi_sel |= t2;
-					ctl_reg_sys2gp_oe  |= t2;
-					ctl_reg_gp2h_oe    |= t2;
-					ctl_db_h2l_oe      |= t2;
-					ctl_db_l2c_oe      |= t2;
-					ctl_io_data_we     |= t2; /* negedge */
-				end
+					m4 && t3:;
 
-				/* Write data latch to bus during M5 */
-				write_m5();
+					m4 && t4: begin
+						/* Apply address latch to address bus for write cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
+
+					m5 && t1: begin
+						/* Increment address latch */
+						ctl_inc_cy           = 1;
+						ctl_inc_oe           = 1;
+						ctl_al_we            = 1; /* negedge */
+					end
+
+					m5 && t2: begin
+						/* Write high byte of SP into data latch */
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
+					end
+
+					m5 && t3,
+					m5 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* LDHL SP, e -- Load HL with the sum of SP and the signed immediate value e */
 			ld_hl_sp_e: begin
+				read_mcyc_after(m1); /* Read signed immediate value e during M2 */
 				last_mcyc(m3);
 
-				if (m1) begin
-					/* Read register F into ALU flags and clear zero flag */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_clr |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags and clear zero flag */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_clr  = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+						/* Apply PC to address bus for read cycle */
+						pc_to_adr();
+					end
 
-				if (m2) begin
-					/* Write immediate fetched during M2 from data latch into ALU operand B */
-					ctl_io_data_oe   |= t4;
-					ctl_db_c2l_oe    |= t4;
-					ctl_db_l2h_oe    |= t4;
-					ctl_alu_sh_oe    |= t4;
-					ctl_alu_op_b_bus |= t4; /* negedge */
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-					/* Update ALU subtract flag (N) with sign bit from ALU core */
-					ctl_alu_fl_alu    |= t4;
-					ctl_alu_fl_neg_we |= t4; /* posedge */
-				end
+					m2 && t4: begin
+						/* Write immediate fetched during M2 from data latch into ALU operand B */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-				if (m3) begin
-					/* Write low byte of SP into ALU operand A */
-					ctl_reg_sp_sel      |= t1;
-					ctl_reg_sys_lo_sel  |= t1;
-					ctl_reg_sys2gp_oe   |= t1;
-					ctl_reg_gp2l_oe     |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_a_bus    |= t1; /* negedge */
+						/* Update ALU subtract flag (N) with sign bit from ALU core */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+					end
 
-					/* No carry-in */
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1;
+					m3 && t1: begin
+						/* Write low byte of SP into ALU operand A */
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble of low byte in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* No carry-in */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_half_we  |= t1; /* posedge */
+						/* Caclulate low nibble of low byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t2;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Caclulate high nibble of low byte in ALU */
-					ctl_alu_op_b_high   |= t2;
+					m3 && t2: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+						/* Caclulate high nibble of low byte in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Write ALU result into L */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					if (t2) reg_sel      = HL;
-					ctl_reg_gp_lo_sel   |= t2;
-					ctl_reg_gp_we       |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Write high byte of SP into ALU operand A */
-					ctl_reg_sp_sel      |= t3;
-					ctl_reg_sys_hi_sel  |= t3;
-					ctl_reg_sys2gp_oe   |= t3;
-					ctl_reg_gp2h_oe     |= t3;
-					ctl_alu_sh_oe       |= t3;
-					ctl_alu_op_a_bus    |= t3; /* negedge */
+						/* Write ALU result into L */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = HL;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
 
-					/* Sign extend ALU operand B for high byte calculation */
-					ctl_alu_neg         |= t3 && alu_fl_neg;
-					ctl_alu_op_b_zero   |= t3; /* negedge */
+					m3 && t3: begin
+						/* Write high byte of SP into ALU operand A */
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble of high byte in ALU */
-					ctl_alu_op_low      |= t3; /* posedge */
+						/* Sign extend ALU operand B for high byte calculation */
+						ctl_alu_op_b_zero    = 1; /* negedge */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t3;
-					ctl_alu_fl_half_we  |= t3; /* posedge */
+						/* Caclulate low nibble of high byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t4;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Sign extend ALU operand B for high byte calculation */
-					ctl_alu_neg         |= t4 && alu_fl_neg;
+					m3 && t4: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Caclulate high nibble of high byte in ALU */
-					ctl_alu_op_b_high   |= t4;
+						/* Sign extend ALU operand B for high byte calculation */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t4;
-					ctl_alu_fl_neg_clr  |= t4;
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
+						/* Caclulate high nibble of high byte in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Write ALU result into H */
-					ctl_alu_res_oe      |= t4;
-					ctl_alu_oe          |= t4;
-					ctl_reg_h2gp_oe     |= t4;
-					if (t4) reg_sel      = HL;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_we       |= t4; /* posedge */
-				end
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_neg_clr   = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-				if (m1) begin
-					/* Write ALU flags into register F */
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+						/* Write ALU result into H */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_reg_h2gp_oe      = 1;
+						reg_sel              = HL;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m1 && t1,
+					m2 && t2:;
+
+					m1 && t3: begin
+						/* Write ALU flags into register F */
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* PUSH qq -- Decrements SP, then loads register qq to address in SP */
 			push_pop && push_qq: begin
+				write_mcyc_after(m2); /* Write high byte to address in SP-1 during M3 */
+				write_mcyc_after(m3); /* Write low byte to address in SP-2 during M4 */
 				last_mcyc(m4);
 
-				/* Write SP into address latch */
-				if (m1)
-					sp_to_adr();
+				unique case (1)
+					/* Apply SP to address bus for decrement */
+					m1 && t4: sp_to_adr();
 
-				/* Write decremented address latch back into SP */
-				if (m2)
-					sp_from_adr_inc(1);
+					/* Decrement SP */
+					m2 && t1: sp_from_adr_inc(1);
+					m2 && t2,
+					m2 && t3:;
 
-				/* Read higher register into data latch */
-				if (m2) begin
-					if (t4) reg_sel    = opcode[5:4];
-					ctl_reg_gp_hi_sel |= t4;
-					ctl_reg_gp_lo_sel |= t4;
-					ctl_reg_gp2h_oe   |= t4;
-					ctl_db_h2l_oe     |= t4;
-					ctl_db_l2c_oe     |= t4;
-					ctl_io_data_we    |= t4; /* negedge */
-				end
+					m2 && t4: begin
+						/* Read high byte register into data latch */
+						reg_sel              = opcode[5:4];
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
 
-				/* Write value from data latch to bus at address in SP during M3 */
-				if (m2)
-					sp_to_adr();
-				write_m3();
+						/* Apply SP to address bus for write cycle */
+						sp_to_adr();
+					end
 
-				/* Write decremented address latch back into SP */
-				if (m3)
-					sp_from_adr_inc(1);
+					/* Decrement SP and wait for write cycle to finish */
+					m3 && t1: sp_from_adr_inc(1);
+					m3 && t2,
+					m3 && t3:;
 
-				/* Read lower register into data latch */
-				if (m3) begin
-					if (t4) reg_sel    = opcode[5:4];
-					ctl_reg_gp_hi_sel |= t4;
-					ctl_reg_gp_lo_sel |= t4;
-					ctl_reg_gp2l_oe   |= t4;
-					ctl_db_l2h_oe     |= t4;
-					ctl_db_l2c_oe     |= t4;
-					ctl_io_data_we    |= t4; /* negedge */
-				end
+					m3 && t4: begin
+						/* Read low byte register into data latch */
+						reg_sel              = opcode[5:4];
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
 
-				/* Write value from data latch to bus at address in SP during M4 */
-				if (m3)
-					sp_to_adr();
-				write_m4();
+						/* Apply SP to address bus for write cycle */
+						sp_to_adr();
+					end
+
+					/* Wait for write cycle to finish */
+					m4 && t1,
+					m4 && t2,
+					m4 && t3:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* POP qq -- Loads register qq with value stored at address in SP, then increments SP */
 			push_pop && !push_qq: begin
+				read_mcyc_after(m1); /* Read value stored at address in SP during M2 */
+				read_mcyc_after(m2); /* Read value stored at address in SP+1 during M3 */
 				last_mcyc(m3);
 
-				/* Read value from bus at address in SP into data latch during M2 */
-				if (m1)
-					sp_to_adr();
-				read_m2();
+				unique case (1)
+					/* Apply SP to address bus for read cycle */
+					m1 && t4: sp_to_adr();
 
-				/* Write incremented address latch back into SP */
-				if (m2)
-					sp_from_adr_inc(0);
+					/* Increment SP and wait for read cycle to finish */
+					m2 && t1: sp_from_adr_inc(0);
+					m2 && t2,
+					m2 && t3:;
 
-				/* Write value from data latch that was fetched during M2 into lower register during M3 */
-				if (m3) begin
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_db_l2h_oe     |= t2;
-					ctl_reg_h2gp_oe   |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					if (t2) reg_sel    = opcode[5:4];
-					ctl_reg_gp_lo_sel |= t2;
-					ctl_reg_gp_we     |= t2; /* posedge */
-				end
+					/* Apply SP to address bus for read cycle */
+					m2 && t4: sp_to_adr();
 
-				/* Read value from bus at address in SP into data latch during M3 */
-				if (m2)
-					sp_to_adr();
-				read_m3();
+					/* Increment SP */
+					m3 && t1: sp_from_adr_inc(0);
 
-				/* Write incremented address latch back into SP */
-				if (m3)
-					sp_from_adr_inc(0);
+					m3 && t2: begin
+						/* Write value from data latch that was fetched during M2 into low byte register */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = opcode[5:4];
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
 
-				/* Write value from data latch that was fetched during M3 into higher register during M1 */
-				if (m1) begin
-					ctl_io_data_oe    |= t2;
-					ctl_db_c2l_oe     |= t2;
-					ctl_db_l2h_oe     |= t2;
-					ctl_reg_h2gp_oe   |= t2;
-					ctl_reg_l2gp_oe   |= t2;
-					if (t2) reg_sel    = opcode[5:4];
-					ctl_reg_gp_hi_sel |= t2;
-					ctl_reg_gp_we     |= t2; /* posedge */
-				end
+					m3 && t3,
+					m3 && t4:;
+
+					m1 && t1:;
+
+					m1 && t2: begin
+						/* Write value from data latch that was fetched during M3 into high byte register */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = opcode[5:4];
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* ADD A, r -- Add register r to A */
@@ -1167,67 +1357,75 @@ module sm83_control(
 			add_r && !add_hl: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Read register A into ALU operand A and register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
+				unique case (1)
+					m1 && t4: begin
+						/* Read register A into ALU operand A and register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Read register selected by opcode[2:0] into ALU operand B */
-					read_gp0(t1, 1);
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_b_bus    |= t1; /* negedge */
+					m1 && t1: begin
+						/* Read register selected by opcode[2:0] into ALU operand B */
+						read_reg_gp0();
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble in ALU */
-					in_alu              |= t1;
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* Caclulate low nibble in ALU */
+						in_alu               = 1;
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_zero_we  |= t1; /* posedge */
-					ctl_alu_fl_half_we  |= t1; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Caclulate high nibble in ALU */
-					in_alu              |= t2;
-					ctl_alu_op_b_high   |= t2;
+					m1 && t2: begin
+						/* Caclulate high nibble in ALU */
+						in_alu               = 1;
+						ctl_alu_op_b_high    = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_zero_we  |= t2; /* posedge */
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Select register A to receive ALU result (write enable is set in ALU control block below) */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					if (t2) reg_sel      = AF;
+						/* Select register A to receive ALU result (write enable is set in ALU control block below) */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+					end
 
-					/* Complement carry flags for SUB, SBC and CP */
-					ctl_alu_fl_carry_cpl |= t3 && alu_fl_neg;
-					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+					m1 && t3: begin
+						/* Complement carry flags for SUB, SBC and CP */
+						ctl_alu_fl_carry_cpl = alu_fl_neg;
+						ctl_alu_fl_half_cpl  = alu_fl_neg;
 
-					/* Write ALU flags into register F */
-					in_alu              |= t3;
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+						/* Write ALU flags into register F */
+						in_alu               = 1;
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* ADD A, n -- Add immediate value to A */
@@ -1239,76 +1437,88 @@ module sm83_control(
 			/* OR n     -- Perform bitwise OR operation on A and immediate value and store result in A */
 			/* CP n     -- Subtract immediate value from A without writing the result into A */
 			add_n: begin
+				read_mcyc_after(m1); /* Read immediate value n during M2 */
 				last_mcyc(m2);
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+				unique case (1)
+					/* Apply PC to address bus for read cycle */
+					m1 && t4: pc_to_adr();
 
-				if (m2) begin
-					/* Read register A into ALU operand A and register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-				if (m1) begin
-					/* Write data latch into ALU operand B */
-					ctl_io_data_oe      |= t1;
-					ctl_db_c2l_oe       |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_b_bus    |= t1; /* negedge */
+					m2 && t4: begin
+						/* Read register A into ALU operand A and register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Caclulate low nibble in ALU */
-					in_alu              |= t1;
-					ctl_alu_op_low      |= t1; /* posedge */
+					m1 && t1: begin
+						/* Write data latch into ALU operand B */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_zero_we  |= t1; /* posedge */
-					ctl_alu_fl_half_we  |= t1; /* posedge */
+						/* Caclulate low nibble in ALU */
+						in_alu               = 1;
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Caclulate high nibble in ALU */
-					in_alu              |= t2;
-					ctl_alu_op_b_high   |= t2;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_zero_we  |= t2; /* posedge */
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+					m1 && t2: begin
+						/* Caclulate high nibble in ALU */
+						in_alu               = 1;
+						ctl_alu_op_b_high    = 1;
 
-					/* Select register A to receive ALU result (write enable is set in ALU control block below) */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					if (t2) reg_sel      = AF;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Complement carry flags for SUB, SBC and CP */
-					ctl_alu_fl_carry_cpl |= t3 && alu_fl_neg;
-					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+						/* Select register A to receive ALU result (write enable is set in ALU control block below) */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+					end
 
-					/* Write ALU flags into register F */
-					in_alu              |= t3;
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+					m1 && t3: begin
+						/* Complement carry flags for SUB, SBC and CP */
+						ctl_alu_fl_carry_cpl = alu_fl_neg;
+						ctl_alu_fl_half_cpl  = alu_fl_neg;
+
+						/* Write ALU flags into register F */
+						in_alu               = 1;
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* ADD A, (HL) -- Add value stored at address in HL to A */
@@ -1320,76 +1530,88 @@ module sm83_control(
 			/* OR (HL)     -- Perform bitwise OR operation on A and value stored at address in HL and store result in A */
 			/* CP (HL)     -- Subtract value stored at address in HL from A without writing the result into A */
 			add_hl: begin
+				read_mcyc_after(m1); /* Read value stored at address in HL during M2 */
 				last_mcyc(m2);
 
-				/* Read value from bus at address in HL into data latch during M2 */
-				read_indreg_m2(HL);
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
 
-				if (m2) begin
-					/* Read register A into ALU operand A and register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2,
+					m2 && t3:;
 
-				if (m1) begin
-					/* Write data latch into ALU operand B */
-					ctl_io_data_oe      |= t1;
-					ctl_db_c2l_oe       |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_b_bus    |= t1; /* negedge */
+					m2 && t4: begin
+						/* Read register A into ALU operand A and register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Caclulate low nibble in ALU */
-					in_alu              |= t1;
-					ctl_alu_op_low      |= t1; /* posedge */
+					m1 && t1: begin
+						/* Write data latch into ALU operand B */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_zero_we  |= t1; /* posedge */
-					ctl_alu_fl_half_we  |= t1; /* posedge */
+						/* Caclulate low nibble in ALU */
+						in_alu               = 1;
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Caclulate high nibble in ALU */
-					in_alu              |= t2;
-					ctl_alu_op_b_high   |= t2;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_zero_we  |= t2; /* posedge */
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+					m1 && t2: begin
+						/* Caclulate high nibble in ALU */
+						in_alu               = 1;
+						ctl_alu_op_b_high    = 1;
 
-					/* Select register A to receive ALU result (write enable is set in ALU control block below) */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					if (t2) reg_sel      = AF;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Complement carry flags for SUB, SBC and CP */
-					ctl_alu_fl_carry_cpl |= t3 && alu_fl_neg;
-					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+						/* Select register A to receive ALU result (write enable is set in ALU control block below) */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+					end
 
-					/* Write ALU flags into register F */
-					in_alu              |= t3;
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+					m1 && t3: begin
+						/* Complement carry flags for SUB, SBC and CP */
+						ctl_alu_fl_carry_cpl = alu_fl_neg;
+						ctl_alu_fl_half_cpl  = alu_fl_neg;
+
+						/* Write ALU flags into register F */
+						in_alu               = 1;
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* INC r -- Increment register r */
@@ -1397,700 +1619,828 @@ module sm83_control(
 			inc_r && !inc_hl: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Read register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Read register selected by opcode[5:3] into ALU operand A */
-					read_gp3(t1, 1);
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_a_bus    |= t1; /* negedge */
+					m1 && t1: begin
+						/* Read register selected by opcode[5:3] into ALU operand A */
+						read_reg_gp3();
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Zero ALU operand B */
-					ctl_alu_op_b_zero   |= t1; /* negedge */
+						/* Zero ALU operand B */
+						ctl_alu_op_b_zero    = 1; /* negedge */
 
-					/* Set carry for increment/decrement */
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1 && dec_r;
+						/* Set carry for increment/decrement */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = dec_r;
 
-					/* Complement ALU operand B for decrement */
-					ctl_alu_neg         |= t1 && dec_r;
+						/* Complement ALU operand B for decrement */
+						ctl_alu_neg          = dec_r;
 
-					/* Caclulate low nibble in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_zero_we  |= t1; /* posedge */
-					ctl_alu_fl_half_we  |= t1; /* posedge */
-					ctl_alu_fl_neg_clr  |= t1;
-					ctl_alu_fl_neg_we   |= t1; /* posedge */
-					ctl_alu_fl_c2_we    |= t1; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_clr   = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_c2_we     = 1; /* posedge */
+					end
 
-					/* Select secondary carry for high nibble calculation */
-					ctl_alu_fl_sel_c2   |= t2; // TODO: why?
+					m1 && t2: begin
+						/* Select secondary carry for high nibble calculation */
+						ctl_alu_fl_sel_c2    = 1; // TODO: why?
 
-					/* Clear carry output for high nibble decrement */
-					ctl_alu_fl_carry_set |= t2 && dec_r; // TODO: why?
-					ctl_alu_fl_carry_cpl |= t2 && dec_r; // TODO: why?
+						/* Clear carry output for high nibble decrement */
+						ctl_alu_fl_carry_set = dec_r; // TODO: why?
+						ctl_alu_fl_carry_cpl = dec_r; // TODO: why?
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t2;
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Complement ALU operand B for decrement */
-					ctl_alu_neg         |= t2 && dec_r;
+						/* Complement ALU operand B for decrement */
+						ctl_alu_neg          = dec_r;
 
-					/* Caclulate high nibble in ALU */
-					ctl_alu_op_b_high   |= t2;
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_zero_we  |= t2; /* posedge */
-					ctl_alu_fl_neg_set  |= t2 && dec_r;
-					ctl_alu_fl_neg_we   |= t2 && dec_r; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_neg_set   = dec_r;
+						ctl_alu_fl_neg_we    = dec_r; /* posedge */
 
-					/* Write ALU result into register selected by opcode[5:3] */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					write_gp3(t2);
+						/* Write ALU result into register selected by opcode[5:3] */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						write_reg_gp3();
+					end
 
-					/* Complement half carry flag after decrement */
-					ctl_alu_fl_half_cpl |= t3 && alu_fl_neg;
+					m1 && t3: begin
+						/* Complement half carry flag after decrement */
+						ctl_alu_fl_half_cpl  = alu_fl_neg;
 
-					/* Write ALU flags into register F */
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+						/* Write ALU flags into register F */
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* INC (HL) -- Increment value stored at address in HL */
 			/* DEC (HL) -- Decrement value stored at address in HL */
 			inc_hl: begin
+				read_mcyc_after(m1);  /* Read value stored at address in HL during M2 */
+				write_mcyc_after(m2); /* Write incremented value to address in HL during M3 */
 				last_mcyc(m3);
 
-				/* Read value from bus at address in HL into data latch during M2 */
-				read_indreg_m2(HL);
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
 
-				if (m2) begin
-					/* Read register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2,
+					m2 && t3:;
 
-				if (m3) begin
-					/* Write data latch into ALU operand A */
-					ctl_io_data_oe      |= t1;
-					ctl_db_c2l_oe       |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_a_bus    |= t1; /* negedge */
+					m2 && t4: begin
+						/* Read register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Zero ALU operand B */
-					ctl_alu_op_b_zero   |= t1; /* negedge */
+						/* Apply HL to address bus for write cycle */
+						reg_to_adr(HL);
+					end
 
-					/* Set carry for increment/decrement */
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1 && dec_r;
+					m3 && t1: begin
+						/* Write data latch into ALU operand A */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Complement ALU operand B for decrement */
-					ctl_alu_neg         |= t1 && dec_r;
+						/* Zero ALU operand B */
+						ctl_alu_op_b_zero    = 1; /* negedge */
 
-					/* Caclulate low nibble in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* Set carry for increment/decrement */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = dec_r;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_zero_we  |= t1; /* posedge */
-					ctl_alu_fl_half_we  |= t1; /* posedge */
-					ctl_alu_fl_neg_clr  |= t1;
-					ctl_alu_fl_neg_we   |= t1; /* posedge */
-					ctl_alu_fl_c2_we    |= t1; /* posedge */
+						/* Complement ALU operand B for decrement */
+						ctl_alu_neg          = dec_r;
 
-					/* Select secondary carry for high nibble calculation */
-					ctl_alu_fl_sel_c2   |= t2; // TODO: why?
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Clear carry output for high nibble decrement */
-					ctl_alu_fl_carry_set |= t2 && dec_r; // TODO: why?
-					ctl_alu_fl_carry_cpl |= t2 && dec_r; // TODO: why?
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_clr   = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_c2_we     = 1; /* posedge */
+					end
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t2;
+					m3 && t2: begin
+						/* Select secondary carry for high nibble calculation */
+						ctl_alu_fl_sel_c2    = 1; // TODO: why?
 
-					/* Complement ALU operand B for decrement */
-					ctl_alu_neg         |= t2 && dec_r;
+						/* Clear carry output for high nibble decrement */
+						ctl_alu_fl_carry_set = dec_r; // TODO: why?
+						ctl_alu_fl_carry_cpl = dec_r; // TODO: why?
 
-					/* Caclulate high nibble in ALU */
-					ctl_alu_op_b_high   |= t2;
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_zero_we  |= t2; /* posedge */
-					ctl_alu_fl_neg_set  |= t2 && dec_r;
-					ctl_alu_fl_neg_we   |= t2 && dec_r; /* posedge */
+						/* Complement ALU operand B for decrement */
+						ctl_alu_neg          = dec_r;
 
-					/* Write ALU result into data latch */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_db_l2c_oe       |= t2;
-					ctl_io_data_we      |= t2; /* negedge */
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Complement half carry flag after decrement */
-					ctl_alu_fl_half_cpl |= t3 && alu_fl_neg;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_neg_set   = dec_r;
+						ctl_alu_fl_neg_we    = dec_r; /* posedge */
 
-					/* Write ALU flags into register F */
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+						/* Write ALU result into data latch */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_db_l2c_oe        = 1;
+						ctl_io_data_we       = 1; /* negedge */
+					end
 
-				/* Write ALU result to address in HL during M3 */
-				write_indreg_m3(HL);
+					m3 && t3: begin
+						/* Complement half carry flag after decrement */
+						ctl_alu_fl_half_cpl  = alu_fl_neg;
+
+						/* Write ALU flags into register F */
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m3 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* CPL -- Complement A */
 			cpl: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Read register A into ALU operand B and register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
+				unique case (1)
+					m1 && t4: begin
+						/* Read register A into ALU operand B and register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Zero ALU operand A */
-					ctl_alu_op_a_zero   |= t1; /* negedge */
+					m1 && t1: begin
+						/* Zero ALU operand A */
+						ctl_alu_op_a_zero    = 1; /* negedge */
 
-					/* Complement ALU operand B */
-					ctl_alu_neg         |= t1;
+						/* Complement ALU operand B */
+						ctl_alu_neg          = 1;
 
-					/* Configure ALU for OR operation */
-					ctl_alu_nc           |= t1;
-					ctl_alu_fc           |= t1;
-					ctl_alu_ic           |= t1;
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1;
+						/* Configure ALU for OR operation */
+						ctl_alu_nc           = 1;
+						ctl_alu_fc           = 1;
+						ctl_alu_ic           = 1;
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
 
-					/* Caclulate low nibble in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_half_we  |= t1; /* posedge */
-					ctl_alu_fl_neg_set  |= t1;
-					ctl_alu_fl_neg_we   |= t1; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_set   = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+					end
 
-					/* Complement ALU operand B */
-					ctl_alu_neg         |= t2;
+					m1 && t2: begin
+						/* Complement ALU operand B */
+						ctl_alu_neg          = 1;
 
-					/* Configure ALU for OR operation */
-					ctl_alu_nc           |= t2;
-					ctl_alu_fc           |= t2;
-					ctl_alu_ic           |= t2;
-					ctl_alu_fl_carry_set |= t2;
-					ctl_alu_fl_carry_cpl |= t2;
+						/* Configure ALU for OR operation */
+						ctl_alu_nc           = 1;
+						ctl_alu_fc           = 1;
+						ctl_alu_ic           = 1;
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
 
-					/* Caclulate high nibble in ALU */
-					ctl_alu_op_b_high   |= t2;
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_neg_set  |= t2;
-					ctl_alu_fl_neg_we   |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_neg_set   = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
 
-					/* Select register A to receive ALU result */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					if (t2) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t2;
-					ctl_reg_gp_we       |= t2; /* posedge */
+						/* Select register A to receive ALU result */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
 
-					/* Complement half carry flag */
-					ctl_alu_fl_half_cpl  |= t3 && alu_fl_neg;
+					m1 && t3: begin
+						/* Complement half carry flag */
+						ctl_alu_fl_half_cpl  = alu_fl_neg;
 
-					/* Write ALU flags into register F */
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+						/* Write ALU flags into register F */
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* DAA -- Decimal adjust A */
 			daa: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Read register A into ALU operand A and register F into ALU flags (use DAA half carry) */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_daac_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
+				unique case (1)
+					m1 && t4: begin
+						/* Read register A into ALU operand A and register F into ALU flags (use DAA half carry) */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_daac_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Apply DAA correction to ALU operand B */
-					ctl_alu_daa_oe      |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_b_bus    |= t1; /* negedge */
+					m1 && t1: begin
+						/* Apply DAA correction to ALU operand B */
+						ctl_alu_daa_oe       = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-					/* Conditionally complement ALU operand B based on subtract flag (N) */
-					ctl_alu_neg         |= t1 && alu_fl_neg;
+						/* Conditionally complement ALU operand B based on subtract flag (N) */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Set carry flag for low byte calculation based on subtract flag (N) */
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1 && !alu_fl_neg;
+						/* Set carry flag for low byte calculation based on subtract flag (N) */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = !alu_fl_neg;
 
-					/* Caclulate low nibble in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_zero_we  |= t1; /* posedge */
-					ctl_alu_fl_half_we  |= t1; /* posedge */
-					ctl_alu_fl_c2_daa   |= t1;
-					ctl_alu_fl_c2_we    |= t1; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_c2_daa    = 1;
+						ctl_alu_fl_c2_we     = 1; /* posedge */
+					end
 
-					/* Conditionally complement ALU operand B based on subtract flag (N) */
-					ctl_alu_neg         |= t2 && alu_fl_neg;
+					m1 && t2: begin
+						/* Conditionally complement ALU operand B based on subtract flag (N) */
+						ctl_alu_neg          = alu_fl_neg;
 
-					ctl_alu_fl_carry_cpl |= t2 && !alu_fl_neg; // TODO: why?
+						ctl_alu_fl_carry_cpl = !alu_fl_neg; // TODO: why?
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t2;
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Caclulate high nibble in ALU */
-					ctl_alu_op_b_high   |= t2;
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_zero_we  |= t2; /* posedge */
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Select register A to receive ALU result */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					if (t2) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t2;
-					ctl_reg_gp_we       |= t2; /* posedge */
+						/* Select register A to receive ALU result */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
 
-					/* Clear half carry flag */
-					ctl_alu_fl_half_set  |= t3; // TODO: find other way to clear H flag; this is the only instruction that needs this signal
-					ctl_alu_fl_half_cpl  |= t3;
+					m1 && t3: begin
+						/* Clear half carry flag */
+						ctl_alu_fl_half_set  = 1; // TODO: find other way to clear H flag; this is the only instruction that needs this signal
+						ctl_alu_fl_half_cpl  = 1;
 
-					/* Select secondary carry */
-					ctl_alu_fl_sel_c2   |= t3;
+						/* Select secondary carry */
+						ctl_alu_fl_sel_c2    = 1;
 
-					/* Write ALU flags into register F */
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+						/* Write ALU flags into register F */
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+				endcase
 			end
 
 			/* ADD SP, e -- Add signed immediate value e to SP */
 			add_sp_e: begin
+				read_mcyc_after(m1); /* Read signed immediate value e during M2 */
 				last_mcyc(m4);
 
-				if (m1) begin
-					/* Read register F into ALU flags and clear zero flag */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_clr |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags and clear zero flag */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_clr  = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+						/* Apply PC to address bus for read cycle */
+						pc_to_adr();
+					end
 
-				if (m2) begin
-					/* Write immediate fetched during M2 from data latch into ALU operand B */
-					ctl_io_data_oe   |= t4;
-					ctl_db_c2l_oe    |= t4;
-					ctl_db_l2h_oe    |= t4;
-					ctl_alu_sh_oe    |= t4;
-					ctl_alu_op_b_bus |= t4; /* negedge */
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-					/* Update ALU subtract flag (N) with sign bit from ALU core */
-					ctl_alu_fl_alu    |= t4;
-					ctl_alu_fl_neg_we |= t4; /* posedge */
-				end
+					m2 && t4: begin
+						/* Write immediate fetched during M2 from data latch into ALU operand B */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-				if (m3) begin
-					/* Write low byte of SP into ALU operand A */
-					ctl_reg_sp_sel      |= t1;
-					ctl_reg_sys_lo_sel  |= t1;
-					ctl_reg_sys2gp_oe   |= t1;
-					ctl_reg_gp2l_oe     |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_a_bus    |= t1; /* negedge */
+						/* Update ALU subtract flag (N) with sign bit from ALU core */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+					end
 
-					/* No carry-in */
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1;
+					m3 && t1: begin
+						/* Write low byte of SP into ALU operand A */
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble of low byte in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* No carry-in */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_half_we  |= t1; /* posedge */
+						/* Caclulate low nibble of low byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t2;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Caclulate high nibble of low byte in ALU */
-					ctl_alu_op_b_high   |= t2;
+					m3 && t2: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+						/* Caclulate high nibble of low byte in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Write ALU result into low byte of SP */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					ctl_reg_gpl2sys_oe  |= t2;
-					ctl_reg_sp_sel      |= t2;
-					ctl_reg_sys_lo_sel  |= t2;
-					ctl_reg_sys_lo_we   |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Write high byte of SP into ALU operand A */
-					ctl_reg_sp_sel      |= t3;
-					ctl_reg_sys_hi_sel  |= t3;
-					ctl_reg_sys2gp_oe   |= t3;
-					ctl_reg_gp2h_oe     |= t3;
-					ctl_alu_sh_oe       |= t3;
-					ctl_alu_op_a_bus    |= t3; /* negedge */
+						/* Write ALU result into low byte of SP */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_gpl2sys_oe   = 1;
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+					end
 
-					/* Sign extend ALU operand B for high byte calculation */
-					ctl_alu_neg         |= t3 && alu_fl_neg;
-					ctl_alu_op_b_zero   |= t3; /* negedge */
+					m3 && t3: begin
+						/* Write high byte of SP into ALU operand A */
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble of high byte in ALU */
-					ctl_alu_op_low      |= t3; /* posedge */
+						/* Sign extend ALU operand B for high byte calculation */
+						ctl_alu_op_b_zero    = 1; /* negedge */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t3;
-					ctl_alu_fl_half_we  |= t3; /* posedge */
+						/* Caclulate low nibble of high byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t4;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Sign extend ALU operand B for high byte calculation */
-					ctl_alu_neg         |= t4 && alu_fl_neg;
+					m3 && t4: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Caclulate high nibble of high byte in ALU */
-					ctl_alu_op_b_high   |= t4;
+						/* Sign extend ALU operand B for high byte calculation */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t4;
-					ctl_alu_fl_neg_clr  |= t4;
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+						/* Caclulate high nibble of high byte in ALU */
+						ctl_alu_op_b_high    = 1;
 
-				if (m4) begin
-					/* Write ALU result into high byte of SP */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_reg_h2gp_oe     |= t2;
-					ctl_reg_gph2sys_oe  |= t2;
-					ctl_reg_sp_sel      |= t2;
-					ctl_reg_sys_hi_sel  |= t2;
-					ctl_reg_sys_hi_we   |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_neg_clr   = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
+					end
 
-					/* Write ALU flags into register F */
-					ctl_alu_fl_oe       |= t3;
-					ctl_db_l2h_oe       |= t3;
-					ctl_reg_h2gp_oe     |= t3;
-					ctl_reg_l2gp_oe     |= t3;
-					if (t3) reg_sel      = AF;
-					ctl_reg_gp_lo_sel   |= t3;
-					ctl_reg_gp_we       |= t3; /* posedge */
-				end
+					m4 && t1:;
+
+					m4 && t2: begin
+						/* Write ALU result into high byte of SP */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_gph2sys_oe   = 1;
+						ctl_reg_sp_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
+					end
+
+					m4 && t3: begin
+						/* Write ALU flags into register F */
+						ctl_alu_fl_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_l2gp_oe      = 1;
+						reg_sel              = AF;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp_we        = 1; /* posedge */
+					end
+
+					m4 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* JP nn     -- Jump to immediate address nn */
 			/* JP cc, nn -- Jump to immediate address nn if condition cc is met */
 			jp_nn, jp_cc_nn: begin
+				read_mcyc_after(m1); /* Read immediate address nn low byte during M2 */
+				read_mcyc_after(m2); /* Read immediate address nn high byte during M3 */
 				last_mcyc(m3 && !alu_cond_result && jp_cc_nn);
 				last_mcyc(m4);
 
-				if (m1) begin
-					/* Read register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+						/* Apply PC to address bus for read cycle */
+						pc_to_adr();
+					end
 
-				if (m3) begin
-					/* Write immediate fetched during M2 from data latch into Z */
-					ctl_io_data_oe     |= t2;
-					ctl_db_c2l_oe      |= t2;
-					ctl_db_l2h_oe      |= t2;
-					ctl_reg_l2gp_oe    |= t2;
-					ctl_reg_wz_sel     |= t2;
-					ctl_reg_sys_lo_sel |= t2;
-					ctl_reg_sys_lo_we  |= t2; /* posedge */
-				end
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-				/* Read immediate value from bus into data latch during M3 and incement PC */
-				read_imm_m3();
+					/* Apply PC to address bus for read cycle */
+					m2 && t4: pc_to_adr();
 
-				if (m4) begin
-					/* Write immediate fetched during M3 from data latch into W */
-					ctl_io_data_oe     |= t2;
-					ctl_db_c2l_oe      |= t2;
-					ctl_db_l2h_oe      |= t2;
-					ctl_reg_h2gp_oe    |= t2;
-					ctl_reg_wz_sel     |= t2;
-					ctl_reg_sys_hi_sel |= t2;
-					ctl_reg_sys_hi_we  |= t2; /* posedge */
+					/* Increment PC */
+					m3 && t1: pc_from_adr_inc();
 
-					/* Write WZ to address latch instead of PC */
-					wz_to_adr();
-					no_pc |= t4;
-				end
+					m3 && t2: begin
+						/* Write immediate fetched during M2 from data latch into Z */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+					end
+
+					m3 && t3,
+					m3 && t4:;
+
+					m4 && t1:;
+
+					m4 && t2: begin
+						/* Write immediate fetched during M3 from data latch into W */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
+					end
+
+					m4 && t3:;
+
+					m4 && t4: begin
+						/* Apply WZ to address bus instead of PC */
+						wz_to_adr();
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* JR e     -- Jump to immediate relative address e */
-			/* JR cc, e -- Jump to immediate relative e if condition cc is met */
+			/* JR cc, e -- Jump to immediate relative address e if condition cc is met */
 			jr_e, jr_cc_e: begin
+				read_mcyc_after(m1); /* Read immediate relative address e during M2 */
 				last_mcyc(m2 && !alu_cond_result && jr_cc_e);
 				last_mcyc(m3);
 
-				if (m1) begin
-					/* Read register F into ALU flags */
-					if (t4) reg_sel      = AF;
-					ctl_reg_gp_hi_sel   |= t4;
-					ctl_reg_gp_lo_sel   |= t4;
-					ctl_reg_gp2h_oe     |= t4;
-					ctl_reg_gp2l_oe     |= t4;
-					ctl_alu_sh_oe       |= t4;
-					ctl_alu_op_a_bus    |= t4; /* negedge */
-					ctl_alu_op_b_bus    |= t4; /* negedge */
-					ctl_alu_fl_bus      |= t4;
-					ctl_alu_fl_zero_we  |= t4; /* posedge */
-					ctl_alu_fl_half_we  |= t4; /* posedge */
-					ctl_alu_fl_neg_we   |= t4; /* posedge */
-					ctl_alu_fl_carry_we |= t4; /* posedge */
-				end
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags */
+						reg_sel              = AF;
+						ctl_reg_gp_hi_sel    = 1;
+						ctl_reg_gp_lo_sel    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
+						ctl_alu_op_b_bus     = 1; /* negedge */
+						ctl_alu_fl_bus       = 1;
+						ctl_alu_fl_zero_we   = 1; /* posedge */
+						ctl_alu_fl_half_we   = 1; /* posedge */
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-				/* Read immediate value from bus into data latch during M2 and incement PC */
-				read_imm_m2();
+						/* Apply PC to address bus for read cycle */
+						pc_to_adr();
+					end
 
-				if (m2) begin
-					/* Write immediate fetched during M2 from data latch into ALU operand B */
-					ctl_io_data_oe   |= t4;
-					ctl_db_c2l_oe    |= t4;
-					ctl_db_l2h_oe    |= t4;
-					ctl_alu_sh_oe    |= t4;
-					ctl_alu_op_b_bus |= t4; /* negedge */
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1: pc_from_adr_inc();
+					m2 && t2,
+					m2 && t3:;
 
-					/* Update ALU subtract flag (N) with sign bit from ALU core */
-					ctl_alu_fl_alu    |= t4;
-					ctl_alu_fl_neg_we |= t4; /* posedge */
-				end
+					m2 && t4: begin
+						/* Write immediate fetched during M2 from data latch into ALU operand B */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_oe        = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
 
-				if (m3) begin
-					/* Write low byte of PC into ALU operand A */
-					ctl_reg_pc_sel      |= t1;
-					ctl_reg_sys_lo_sel  |= t1;
-					ctl_reg_sys2gp_oe   |= t1;
-					ctl_reg_gp2l_oe     |= t1;
-					ctl_db_l2h_oe       |= t1;
-					ctl_alu_sh_oe       |= t1;
-					ctl_alu_op_a_bus    |= t1; /* negedge */
+						/* Update ALU subtract flag (N) with sign bit from ALU core */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_neg_we    = 1; /* posedge */
+					end
 
-					/* No carry-in */
-					ctl_alu_fl_carry_set |= t1;
-					ctl_alu_fl_carry_cpl |= t1;
+					m3 && t1: begin
+						/* Write low byte of PC into ALU operand A */
+						ctl_reg_pc_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2l_oe      = 1;
+						ctl_db_l2h_oe        = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble of low byte in ALU */
-					ctl_alu_op_low      |= t1; /* posedge */
+						/* No carry-in */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t1;
-					ctl_alu_fl_half_we  |= t1; /* posedge */
+						/* Caclulate low nibble of low byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t2;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Caclulate high nibble of low byte in ALU */
-					ctl_alu_op_b_high   |= t2;
+					m3 && t2: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t2;
-					ctl_alu_fl_carry_we |= t2; /* posedge */
+						/* Caclulate high nibble of low byte in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Write ALU result into Z */
-					ctl_alu_res_oe      |= t2;
-					ctl_alu_oe          |= t2;
-					ctl_db_h2l_oe       |= t2;
-					ctl_reg_l2gp_oe     |= t2;
-					ctl_reg_wz_sel      |= t2;
-					ctl_reg_sys_lo_sel  |= t2;
-					ctl_reg_sys_lo_we   |= t2; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_carry_we  = 1; /* posedge */
 
-					/* Write high byte of PC into ALU operand A */
-					ctl_reg_pc_sel      |= t3;
-					ctl_reg_sys_hi_sel  |= t3;
-					ctl_reg_sys2gp_oe   |= t3;
-					ctl_reg_gp2h_oe     |= t3;
-					ctl_alu_sh_oe       |= t3;
-					ctl_alu_op_a_bus    |= t3; /* negedge */
+						/* Write ALU result into Z */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_db_h2l_oe        = 1;
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_lo_sel   = 1;
+						ctl_reg_sys_lo_we    = 1; /* posedge */
+					end
 
-					/* Sign extend ALU operand B for high byte calculation */
-					ctl_alu_neg         |= t3 && alu_fl_neg;
-					ctl_alu_op_b_zero   |= t3; /* negedge */
+					m3 && t3: begin
+						/* Write high byte of PC into ALU operand A */
+						ctl_reg_pc_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys2gp_oe    = 1;
+						ctl_reg_gp2h_oe      = 1;
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_a_bus     = 1; /* negedge */
 
-					/* Caclulate low nibble of high byte in ALU */
-					ctl_alu_op_low      |= t3; /* posedge */
+						/* Sign extend ALU operand B for high byte calculation */
+						ctl_alu_op_b_zero    = 1; /* negedge */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t3;
-					ctl_alu_fl_half_we  |= t3; /* posedge */
+						/* Caclulate low nibble of high byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
 
-					/* Use half carry for high nibble calculation */
-					ctl_alu_sel_hc      |= t4;
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
+						ctl_alu_fl_half_we   = 1; /* posedge */
+					end
 
-					/* Sign extend ALU operand B for high byte calculation */
-					ctl_alu_neg         |= t4 && alu_fl_neg;
+					m3 && t4: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
 
-					/* Caclulate high nibble of high byte in ALU */
-					ctl_alu_op_b_high   |= t4;
+						/* Sign extend ALU operand B for high byte calculation */
+						ctl_alu_neg          = alu_fl_neg;
 
-					/* Update ALU flags */
-					ctl_alu_fl_alu      |= t4;
+						/* Caclulate high nibble of high byte in ALU */
+						ctl_alu_op_b_high    = 1;
 
-					/* Write ALU result into W */
-					ctl_alu_res_oe      |= t4;
-					ctl_alu_oe          |= t4;
-					ctl_reg_h2gp_oe     |= t4;
-					ctl_reg_wz_sel      |= t4;
-					ctl_reg_sys_hi_sel  |= t4;
-					ctl_reg_sys_hi_we   |= t4; /* posedge */
+						/* Update ALU flags */
+						ctl_alu_fl_alu       = 1;
 
-					/* Write WZ to address latch instead of PC */
-					wz_to_adr();
-					no_pc |= t4;
-				end
+						/* Write ALU result into W */
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+						ctl_reg_h2gp_oe      = 1;
+						ctl_reg_wz_sel       = 1;
+						ctl_reg_sys_hi_sel   = 1;
+						ctl_reg_sys_hi_we    = 1; /* posedge */
+
+						/* Apply WZ to address bus instead of PC */
+						wz_to_adr();
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* JP (HL) -- Jump to address in HL */
 			jp_hl: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Write HL to address latch instead of PC */
-					reg_to_adr(HL);
-					no_pc |= t4;
-				end
+				unique case (1)
+					m1 && t4: begin
+						/* Apply HL to address bus instead of PC */
+						reg_to_adr(HL);
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* Prefix CB */
 			prefix_cb: begin
 				last_mcyc(m1);
 
-				if (m1) begin
-					/* Select CB bank for next instruction */
-					ctl_ir_bank_cb_set |= t3;
+				unique case (1)
+					m1 && t4: begin
+						/* Don't allow interrupts between prefix and actual instruction */
+						no_int               = 1;
+					end
 
-					/* Don't allow interrupts between prefix and actual instruction */
-					no_int |= t4;
-				end
+					m1 && t1,
+					m1 && t2:;
+
+					m1 && t3: begin
+						/* Select CB bank for next instruction */
+						ctl_ir_bank_cb_set   = 1;
+					end
+				endcase
 			end
 		endcase
 
@@ -2104,7 +2454,7 @@ module sm83_control(
 				end
 
 				/* Use (zeroed) carry for low nibble and half carry for high nibble calculation */
-				ctl_alu_sel_hc |= !ctl_alu_op_low;
+				ctl_alu_sel_hc = !ctl_alu_op_low;
 
 				/* Clear subtract (N) flag */
 				ctl_alu_fl_neg_clr = 1;
@@ -2124,7 +2474,7 @@ module sm83_control(
 				ctl_alu_neg = 1;
 
 				/* Use carry for low nibble and half carry for high nibble calculation */
-				ctl_alu_sel_hc |= !ctl_alu_op_low;
+				ctl_alu_sel_hc = !ctl_alu_op_low;
 
 				/* Set subtract (N) flag */
 				ctl_alu_fl_neg_we  = 1;
@@ -2140,9 +2490,9 @@ module sm83_control(
 				ctl_alu_fl_neg_clr = 1;
 				ctl_alu_fl_neg_we  = 1; /* posedge */
 
-				if (m1) begin
+				if (m1 && t3) begin
 					/* Clear carry flag for write back to register F */
-					ctl_alu_fl_carry_cpl |= t3;
+					ctl_alu_fl_carry_cpl = 1;
 				end
 			end
 
@@ -2174,10 +2524,10 @@ module sm83_control(
 		endcase
 
 		if (add_x || adc_x || sub_x || sbc_x || and_x || xor_x || or_x) begin
-			if (m1) begin
+			if (m1 && t2) begin
 				/* Write ALU result into register A */
-				ctl_reg_gp_hi_sel |= t2;
-				ctl_reg_gp_we     |= t2; /* posedge */
+				ctl_reg_gp_hi_sel = 1;
+				ctl_reg_gp_we     = 1; /* posedge */
 			end
 		end
 
@@ -2185,28 +2535,33 @@ module sm83_control(
 		if (set_m1) pc_to_adr();
 
 		/* Read opcode from bus during next M1 cycle */
-		ctl_mread |= set_m1;
+		read_mcyc_after(set_m1);
 
 		/* Instruction fetch */
-		if (m1) begin
-			/* Write incemented address latch to PC */
-			pc_from_adr_inc();
+		unique case (1)
+			/* Increment PC */
+			m1 && t1: pc_from_adr_inc();
+
+			/* Wait for read cycle to finish */
+			m1 && t2:;
 
 			/* Select opcode bank for next instruction */
-			ctl_ir_bank_we   |= t3; /* posedge */
+			m1 && t3: ctl_ir_bank_we = 1; /* posedge */
 
-			/* Write fetched opcode to instruction register (IR) */
-			ctl_io_data_oe   |= t4;
-			ctl_ir_we        |= t4; /* posedge (emulated latch) */
+			m1 && t4: begin
+				/* Write fetched opcode to instruction register (IR) */
+				ctl_io_data_oe   = 1;
+				ctl_ir_we        = 1; /* posedge (emulated latch) */
 
-			/* Override data (opcode) with zero when halted or under reset; executing a no-op effectively */
-			ctl_zero_data_oe |= t4 && (in_halt || in_rst);
-		end
+				/* Override data (opcode) with zero when halted or under reset; executing a no-op effectively */
+				ctl_zero_data_oe = in_halt || in_rst;
+			end
+
+			default;
+		endcase
 
 		/* Evaluate ALU flags for conditional instructions; F must be loaded into ALU on M1 T4 */
-		if (m2) begin
-			ctl_alu_cond_we |= t1; /* posedge */
-		end
+		if (m2 && t1) ctl_alu_cond_we = 1; /* posedge */
 	end
 
 	always_ff @(posedge clk) begin
