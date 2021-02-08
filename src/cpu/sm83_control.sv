@@ -902,8 +902,7 @@ module sm83_control(
 						reg_from_dl(AF, HIGH);
 					end
 
-					m1 && t3,
-					m1 && t4:;
+					m1 && t3:;
 				endcase
 			end
 
@@ -950,8 +949,7 @@ module sm83_control(
 						reg_from_dl(AF, HIGH);
 					end
 
-					m1 && t3,
-					m1 && t4:;
+					m1 && t3:;
 				endcase
 			end
 
@@ -990,8 +988,7 @@ module sm83_control(
 						reg_from_dl(AF, HIGH);
 					end
 
-					m1 && t3,
-					m1 && t4:;
+					m1 && t3:;
 				endcase
 			end
 
@@ -1030,8 +1027,7 @@ module sm83_control(
 					 * after PC increment of next opcode is done */
 					m1 && t2: regsp_from_dl(opcode[5:4], HIGH);
 
-					m1 && t3,
-					m1 && t4:;
+					m1 && t3:;
 				endcase
 			end
 
@@ -1264,7 +1260,8 @@ module sm83_control(
 					/* Wait for write cycle to finish */
 					m4 && t1,
 					m4 && t2,
-					m4 && t3:;
+					m4 && t3,
+					m4 && t4:;
 
 					/* No overlap */
 					m1 && t1,
