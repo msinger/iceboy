@@ -154,6 +154,10 @@ module sm83_control(
 	localparam LOW  = 1;
 	localparam HIGH = 2;
 
+	/* Specifies direction of data flow within register file for write_regsp() task */
+	localparam GP2SYS = 0;
+	localparam SYS2GP = 1;
+
 	/* Opcode bits for selecting general purpose register */
 	logic [1:0] op210_gp_reg  = opcode[2:1];
 	logic [1:0] op543_gp_reg  = opcode[5:4];
@@ -192,12 +196,38 @@ module sm83_control(
 		ctl_reg_gp_hi_sel = 1;
 	endtask
 
+	/* Read general purpose register or SP iff r==AF */
+	task read_regsp(input logic [1:0] r);
+		use_sp             = r == AF;
+		read_reg(r);
+		ctl_reg_sp_sel     = use_sp;
+		ctl_reg_sys2gp_oe  = use_sp;
+		ctl_reg_gph2sys_oe = !use_sp;
+		ctl_reg_gpl2sys_oe = !use_sp;
+		ctl_reg_sys_lo_sel = 1;
+		ctl_reg_sys_hi_sel = 1;
+	endtask
+
 	/* Write general purpose register */
 	task write_reg(input logic [1:0] r, input logic [1:0] hilo);
 		reg_sel           = r;
 		ctl_reg_gp_lo_sel = hilo[0];
 		ctl_reg_gp_hi_sel = hilo[1];
 		ctl_reg_gp_we     = 1; /* posedge */
+	endtask
+
+	/* Write general purpose register or to SP iff r==AF */
+	task write_regsp(input logic [1:0] r, input logic [1:0] hilo, input logic sys2gp);
+		use_sp             = r == AF;
+		write_reg(r, hilo);
+		ctl_reg_sp_sel     = use_sp;
+		ctl_reg_sys2gp_oe  = sys2gp;
+		ctl_reg_gpl2sys_oe = !sys2gp;
+		ctl_reg_gph2sys_oe = !sys2gp;
+		ctl_reg_sys_lo_sel = hilo[0];
+		ctl_reg_sys_hi_sel = hilo[1];
+		ctl_reg_sys_lo_we  = hilo[0]; /* posedge */
+		ctl_reg_sys_hi_we  = hilo[1]; /* posedge */
 	endtask
 
 	/* Write system register (PC, SP or WZ) */
@@ -350,15 +380,8 @@ module sm83_control(
 
 	/* Write value from data latch to general purpose register or to SP iff r==AF */
 	task regsp_from_dl(input logic [1:0] r, input logic [1:0] hilo);
-		use_sp             = r == AF;
 		reg_from_dl(r, hilo);
-		ctl_reg_sp_sel     = use_sp;
-		ctl_reg_gph2sys_oe = 1;
-		ctl_reg_gpl2sys_oe = 1;
-		ctl_reg_sys_lo_sel = hilo[0];
-		ctl_reg_sys_hi_sel = hilo[1];
-		ctl_reg_sys_lo_we  = hilo[0]; /* posedge */
-		ctl_reg_sys_hi_we  = hilo[1]; /* posedge */
+		write_regsp(r, hilo, GP2SYS);
 	endtask
 
 	/* Apply SP to internal data bus (dbl and dbh) */
@@ -1839,6 +1862,35 @@ module sm83_control(
 					m4 && t3: f_from_alu();
 
 					m4 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
+			end
+
+			/* INC ss -- Increment register ss */
+			/* DEC ss -- Decrement register ss */
+			inc_ss: begin
+				last_mcyc(m2);
+
+				unique case (1)
+					m1 && t4: begin
+						/* Read register into address latch */
+						read_regsp(opcode[54]);
+						ctl_al_we            = 1;
+					end
+
+					m2 && t1: begin
+						/* Write incremented or decremented value back into register */
+						inc_al(opcode[3]);
+						write_regsp(opcode[5:4], HIGH|LOW, SYS2GP);
+					end
+
+					m2 && t2,
+					m2 && t3,
+					m2 && t4:;
 
 					/* No overlap */
 					m1 && t1,
