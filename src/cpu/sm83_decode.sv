@@ -8,7 +8,7 @@ module sm83_decode(
 		input  logic                 in_halt,
 		input  logic                 in_alu,
 
-		output logic                 add_r,      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL)/n */
+		output logic                 add_r,      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL) */
 		output logic                 add_hl,     /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP (HL) */
 		output logic                 add_n,      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP n */
 		output logic                 add_x,      /* ADD r/(HL)/n */
@@ -19,9 +19,9 @@ module sm83_decode(
 		output logic                 xor_x,      /* XOR r/(HL)/n */
 		output logic                 or_x,       /* OR r/(HL)/n */
 		output logic                 cp_x,       /* CP r/(HL)/n */
-		output logic                 inc_r,      /* INC/DEC r/(HL) */
+		output logic                 inc_m,      /* INC/DEC r/(HL) */
 		output logic                 inc_hl,     /* INC/DEC (HL) */
-		output logic                 dec_r,      /* DEC r/(HL) */
+		output logic                 dec_m,      /* DEC r/(HL) */
 		output logic                 rxxa,       /* RLCA/RLA/RRCA/RRA */
 		output logic                 daa,        /* DAA */
 		output logic                 cpl,        /* CPL */
@@ -38,14 +38,14 @@ module sm83_decode(
 		output logic                 ld_xx_a,    /* LD (BC/DE), A  ~or~  LD A, (BC/DE) */
 		output logic                 ld_hl_a,    /* LD (HLI/HLD), A  ~or~  LD A, (HLI/HLD) */
 		output logic                 ld_x_dir,   /* LD (BC/DE), A  ~or~  LD (HLI/HLD), A */
-		output logic                 ld_nn_a,    /* LDX (nn), A  ~or~  LDX A, (nn) */
+		output logic                 ldx_nn_a,   /* LDX (nn), A  ~or~  LDX A, (nn) */
 		output logic                 ld_n_a,     /* LD (n), A  ~or~  LD A, (n) */
 		output logic                 ld_c_a,     /* LD (C), A  ~or~  LD A, (C) */
 		output logic                 ld_n_dir,   /* LD (n), A  ~or~  LD (C), A  ~or~  LDX (nn), A  (~or~  ADD SP, e) */
 		output logic                 ld_dd_nn,   /* LD dd, nn */
 		output logic                 ld_sp_hl,   /* LD SP, HL */
 		output logic                 ld_nn_sp,   /* LD (nn), SP */
-		output logic                 ld_hl_sp_e, /* LDHL SP, e */
+		output logic                 ldhl_sp_e,  /* LDHL SP, e */
 		output logic                 push_pop,   /* PUSH/POP qq */
 		output logic                 push_qq,    /* PUSH qq */
 		output logic                 jp_nn,      /* JP nn */
@@ -58,16 +58,16 @@ module sm83_decode(
 		output logic                 ret,        /* RET */
 		output logic                 reti,       /* RETI */
 		output logic                 ret_cc,     /* RET cc */
-		output logic                 rst_p,      /* RST p */
+		output logic                 rst_t,      /* RST t */
 		output logic                 nop,        /* NOP */
 		output logic                 stop,       /* STOP */
 		output logic                 halt,       /* HALT */
 		output logic                 di_ei,      /* DI/EI */
 		output logic                 prefix_cb,  /* Prefix CB */
-		output logic                 rlc_r,      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
-		output logic                 bit_b_r,    /* BIT b, r/(HL) */
-		output logic                 res_b_r,    /* RES b, r/(HL) */
-		output logic                 set_b_r,    /* SET b, r/(HL) */
+		output logic                 rlc_m,      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
+		output logic                 bit_b_m,    /* BIT b, r/(HL) */
+		output logic                 res_b_m,    /* RES b, r/(HL) */
+		output logic                 set_b_m,    /* SET b, r/(HL) */
 		output logic                 cb_hl,      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL (HL)  ~or~  BIT/RES/SET b, (HL) */
 	);
 
@@ -85,9 +85,9 @@ module sm83_decode(
 		xor_x      = 0;
 		or_x       = 0;
 		cp_x       = 0;
-		inc_r      = 0;
+		inc_m      = 0;
 		inc_hl     = 0;
-		dec_r      = 0;
+		dec_m      = 0;
 		rxxa       = 0;
 		daa        = 0;
 		cpl        = 0;
@@ -104,14 +104,14 @@ module sm83_decode(
 		ld_xx_a    = 0;
 		ld_hl_a    = 0;
 		ld_x_dir   = 0;
-		ld_nn_a    = 0;
+		ldx_nn_a   = 0;
 		ld_n_a     = 0;
 		ld_c_a     = 0;
 		ld_n_dir   = 0;
 		ld_dd_nn   = 0;
 		ld_sp_hl   = 0;
 		ld_nn_sp   = 0;
-		ld_hl_sp_e = 0;
+		ldhl_sp_e  = 0;
 		push_pop   = 0;
 		push_qq    = 0;
 		jp_nn      = 0;
@@ -124,16 +124,16 @@ module sm83_decode(
 		ret        = 0;
 		reti       = 0;
 		ret_cc     = 0;
-		rst_p      = 0;
+		rst_t      = 0;
 		nop        = 0;
 		stop       = 0;
 		halt       = 0;
 		di_ei      = 0;
 		prefix_cb  = 0;
-		rlc_r      = 0;
-		bit_b_r    = 0;
-		res_b_r    = 0;
-		set_b_r    = 0;
+		rlc_m      = 0;
+		bit_b_m    = 0;
+		res_b_m    = 0;
+		set_b_m    = 0;
 		cb_hl      = 0;
 
 		if (in_alu) unique case (opcode[5:3])
@@ -150,7 +150,7 @@ module sm83_decode(
 		unique case (1)
 			default: begin /* unprefixed instructions */
 				/* 8 bit arithmetic */
-				if (opcode[7:6] == 2) add_r    = 1; /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL)/n */
+				if (opcode[7:6] == 2) add_r    = 1; /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL) */
 				if (opcode == 'h86) add_hl     = 1; /* ADD (HL) */
 				if (opcode == 'h96) add_hl     = 1; /* SUB (HL) */
 				if (opcode == 'ha6) add_hl     = 1; /* AND (HL) */
@@ -167,32 +167,32 @@ module sm83_decode(
 				if (opcode == 'hde) add_n      = 1; /* SBC n */
 				if (opcode == 'hee) add_n      = 1; /* XOR n */
 				if (opcode == 'hfe) add_n      = 1; /* CP n */
-				if (opcode == 'h04) inc_r      = 1; /* INC B */
-				if (opcode == 'h14) inc_r      = 1; /* INC D */
-				if (opcode == 'h24) inc_r      = 1; /* INC H */
-				if (opcode == 'h34) inc_r      = 1; /* INC (HL) */
-				if (opcode == 'h0c) inc_r      = 1; /* INC C */
-				if (opcode == 'h1c) inc_r      = 1; /* INC E */
-				if (opcode == 'h2c) inc_r      = 1; /* INC L */
-				if (opcode == 'h3c) inc_r      = 1; /* INC A */
-				if (opcode == 'h05) inc_r      = 1; /* DEC B */
-				if (opcode == 'h15) inc_r      = 1; /* DEC D */
-				if (opcode == 'h25) inc_r      = 1; /* DEC H */
-				if (opcode == 'h35) inc_r      = 1; /* DEC (HL) */
-				if (opcode == 'h0d) inc_r      = 1; /* DEC C */
-				if (opcode == 'h1d) inc_r      = 1; /* DEC E */
-				if (opcode == 'h2d) inc_r      = 1; /* DEC L */
-				if (opcode == 'h3d) inc_r      = 1; /* DEC A */
+				if (opcode == 'h04) inc_m      = 1; /* INC B */
+				if (opcode == 'h14) inc_m      = 1; /* INC D */
+				if (opcode == 'h24) inc_m      = 1; /* INC H */
+				if (opcode == 'h34) inc_m      = 1; /* INC (HL) */
+				if (opcode == 'h0c) inc_m      = 1; /* INC C */
+				if (opcode == 'h1c) inc_m      = 1; /* INC E */
+				if (opcode == 'h2c) inc_m      = 1; /* INC L */
+				if (opcode == 'h3c) inc_m      = 1; /* INC A */
+				if (opcode == 'h05) inc_m      = 1; /* DEC B */
+				if (opcode == 'h15) inc_m      = 1; /* DEC D */
+				if (opcode == 'h25) inc_m      = 1; /* DEC H */
+				if (opcode == 'h35) inc_m      = 1; /* DEC (HL) */
+				if (opcode == 'h0d) inc_m      = 1; /* DEC C */
+				if (opcode == 'h1d) inc_m      = 1; /* DEC E */
+				if (opcode == 'h2d) inc_m      = 1; /* DEC L */
+				if (opcode == 'h3d) inc_m      = 1; /* DEC A */
 				if (opcode == 'h34) inc_hl     = 1; /* INC (HL) */
 				if (opcode == 'h35) inc_hl     = 1; /* DEC (HL) */
-				if (opcode == 'h05) dec_r      = 1; /* DEC B */
-				if (opcode == 'h15) dec_r      = 1; /* DEC D */
-				if (opcode == 'h25) dec_r      = 1; /* DEC H */
-				if (opcode == 'h35) dec_r      = 1; /* DEC (HL) */
-				if (opcode == 'h0d) dec_r      = 1; /* DEC C */
-				if (opcode == 'h1d) dec_r      = 1; /* DEC E */
-				if (opcode == 'h2d) dec_r      = 1; /* DEC L */
-				if (opcode == 'h3d) dec_r      = 1; /* DEC A */
+				if (opcode == 'h05) dec_m      = 1; /* DEC B */
+				if (opcode == 'h15) dec_m      = 1; /* DEC D */
+				if (opcode == 'h25) dec_m      = 1; /* DEC H */
+				if (opcode == 'h35) dec_m      = 1; /* DEC (HL) */
+				if (opcode == 'h0d) dec_m      = 1; /* DEC C */
+				if (opcode == 'h1d) dec_m      = 1; /* DEC E */
+				if (opcode == 'h2d) dec_m      = 1; /* DEC L */
+				if (opcode == 'h3d) dec_m      = 1; /* DEC A */
 				if (opcode == 'h07) rxxa       = 1; /* RLCA */
 				if (opcode == 'h17) rxxa       = 1; /* RLA */
 				if (opcode == 'h0f) rxxa       = 1; /* RRCA */
@@ -258,8 +258,8 @@ module sm83_decode(
 				if (opcode == 'h12) ld_x_dir   = 1; /* LD (DE), A */
 				if (opcode == 'h22) ld_x_dir   = 1; /* LD (HLI), A */
 				if (opcode == 'h32) ld_x_dir   = 1; /* LD (HLD), A */
-				if (opcode == 'hea) ld_nn_a    = 1; /* LDX (nn), A */
-				if (opcode == 'hfa) ld_nn_a    = 1; /* LDX A, (nn) */
+				if (opcode == 'hea) ldx_nn_a   = 1; /* LDX (nn), A */
+				if (opcode == 'hfa) ldx_nn_a   = 1; /* LDX A, (nn) */
 				if (opcode == 'he0) ld_n_a     = 1; /* LD (n), A */
 				if (opcode == 'hf0) ld_n_a     = 1; /* LD A, (n) */
 				if (opcode == 'he2) ld_c_a     = 1; /* LD (C), A */
@@ -276,7 +276,7 @@ module sm83_decode(
 				if (opcode == 'h31) ld_dd_nn   = 1; /* LD SP, nn */
 				if (opcode == 'hf9) ld_sp_hl   = 1; /* LD SP, HL */
 				if (opcode == 'h08) ld_nn_sp   = 1; /* LD (nn), SP */
-				if (opcode == 'hf8) ld_hl_sp_e = 1; /* LDHL SP, e */
+				if (opcode == 'hf8) ldhl_sp_e  = 1; /* LDHL SP, e */
 				if (opcode == 'hc1) push_pop   = 1; /* POP BC */
 				if (opcode == 'hd1) push_pop   = 1; /* POP DE */
 				if (opcode == 'he1) push_pop   = 1; /* POP HL */
@@ -313,14 +313,14 @@ module sm83_decode(
 				if (opcode == 'hd0) ret_cc     = 1; /* RET NC */
 				if (opcode == 'hc8) ret_cc     = 1; /* RET Z */
 				if (opcode == 'hd8) ret_cc     = 1; /* RET C */
-				if (opcode == 'hc0) rst_p      = 1; /* RST 00h */
-				if (opcode == 'hcf) rst_p      = 1; /* RST 08h */
-				if (opcode == 'hd0) rst_p      = 1; /* RST 10h */
-				if (opcode == 'hdf) rst_p      = 1; /* RST 18h */
-				if (opcode == 'he0) rst_p      = 1; /* RST 20h */
-				if (opcode == 'hef) rst_p      = 1; /* RST 28h */
-				if (opcode == 'hf0) rst_p      = 1; /* RST 30h */
-				if (opcode == 'hff) rst_p      = 1; /* RST 38h */
+				if (opcode == 'hc0) rst_t      = 1; /* RST 00h */
+				if (opcode == 'hcf) rst_t      = 1; /* RST 08h */
+				if (opcode == 'hd0) rst_t      = 1; /* RST 10h */
+				if (opcode == 'hdf) rst_t      = 1; /* RST 18h */
+				if (opcode == 'he0) rst_t      = 1; /* RST 20h */
+				if (opcode == 'hef) rst_t      = 1; /* RST 28h */
+				if (opcode == 'hf0) rst_t      = 1; /* RST 30h */
+				if (opcode == 'hff) rst_t      = 1; /* RST 38h */
 
 				/* misc */
 				if (opcode == 'h00) nop        = 1; /* NOP */
@@ -332,10 +332,10 @@ module sm83_decode(
 			end
 
 			bank_cb: begin /* CB prefixed instructions */
-				if (opcode[7:6] == 0) rlc_r    = 1; /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
-				if (opcode[7:6] == 1) bit_b_r  = 1; /* BIT b, r/(HL) */
-				if (opcode[7:6] == 2) res_b_r  = 1; /* RES b, r/(HL) */
-				if (opcode[7:6] == 3) set_b_r  = 1; /* SET b, r/(HL) */
+				if (opcode[7:6] == 0) rlc_m    = 1; /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
+				if (opcode[7:6] == 1) bit_b_m  = 1; /* BIT b, r/(HL) */
+				if (opcode[7:6] == 2) res_b_m  = 1; /* RES b, r/(HL) */
+				if (opcode[7:6] == 3) set_b_m  = 1; /* SET b, r/(HL) */
 				if (opcode[2:0] == 6) cb_hl    = 1; /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL (HL)  ~or~  BIT/RES/SET b, (HL) */
 			end
 		endcase

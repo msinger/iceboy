@@ -73,7 +73,7 @@ module sm83_control(
 	logic in_halt;
 	logic in_alu;
 
-	logic add_r;      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL)/n */
+	logic add_r;      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL) */
 	logic add_hl;     /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP (HL) */
 	logic add_n;      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP n */
 	logic add_x;      /* ADD r/(HL)/n */
@@ -84,9 +84,9 @@ module sm83_control(
 	logic xor_x;      /* XOR r/(HL)/n */
 	logic or_x;       /* OR r/(HL)/n */
 	logic cp_x;       /* CP r/(HL)/n */
-	logic inc_r;      /* INC/DEC r/(HL) */
+	logic inc_m;      /* INC/DEC r/(HL) */
 	logic inc_hl;     /* INC/DEC (HL) */
-	logic dec_r;      /* DEC r/(HL) */
+	logic dec_m;      /* DEC r/(HL) */
 	logic rxxa;       /* RLCA/RLA/RRCA/RRA */
 	logic daa;        /* DAA */
 	logic cpl;        /* CPL */
@@ -103,14 +103,14 @@ module sm83_control(
 	logic ld_xx_a;    /* LD (BC/DE), A  ~or~  LD A, (BC/DE) */
 	logic ld_hl_a;    /* LD (HLI/HLD), A  ~or~  LD A, (HLI/HLD) */
 	logic ld_x_dir;   /* LD (BC/DE), A  ~or~  LD (HLI/HLD), A */
-	logic ld_nn_a;    /* LDX (nn), A  ~or~  LDX A, (nn) */
+	logic ldx_nn_a;   /* LDX (nn), A  ~or~  LDX A, (nn) */
 	logic ld_n_a;     /* LD (n), A  ~or~  LD A, (n) */
 	logic ld_c_a;     /* LD (C), A  ~or~  LD A, (C) */
 	logic ld_n_dir;   /* LD (n), A  ~or~  LD (C), A  ~or~  LDX (nn), A  (~or~  ADD SP, e) */
 	logic ld_dd_nn;   /* LD dd, nn */
 	logic ld_sp_hl;   /* LD SP, HL */
 	logic ld_nn_sp;   /* LD (nn), SP */
-	logic ld_hl_sp_e; /* LDHL SP, e */
+	logic ldhl_sp_e;  /* LDHL SP, e */
 	logic push_pop;   /* PUSH/POP qq */
 	logic push_qq;    /* PUSH qq */
 	logic jp_nn;      /* JP nn */
@@ -123,16 +123,16 @@ module sm83_control(
 	logic ret;        /* RET */
 	logic reti;       /* RETI */
 	logic ret_cc;     /* RET cc */
-	logic rst_p;      /* RST p */
+	logic rst_t;      /* RST t */
 	logic nop;        /* NOP */
 	logic stop;       /* STOP */
 	logic halt;       /* HALT */
 	logic di_ei;      /* DI/EI */
 	logic prefix_cb;  /* Prefix CB */
-	logic rlc_r;      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
-	logic bit_b_r;    /* BIT b, r/(HL) */
-	logic res_b_r;    /* RES b, r/(HL) */
-	logic set_b_r;    /* SET b, r/(HL) */
+	logic rlc_m;      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
+	logic bit_b_m;    /* BIT b, r/(HL) */
+	logic res_b_m;    /* RES b, r/(HL) */
+	logic set_b_m;    /* SET b, r/(HL) */
 	logic cb_hl;      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL (HL)  ~or~  BIT/RES/SET b, (HL) */
 
 	/*  */
@@ -842,7 +842,7 @@ module sm83_control(
 
 			/* LDX (nn), A -- Load A to immediate address nn */
 			/* LDX A, (nn) -- Load A with value stored at immediate address nn */
-			ld_nn_a: begin
+			ldx_nn_a: begin
 				read_mcyc_after(m1);              /* Read immediate address nn low byte during M2 */
 				read_mcyc_after(m2);              /* Read immediate address nn high byte during M3 */
 				write_mcyc_after(m3 && ld_n_dir); /* Write to immediate address nn during M4 */
@@ -1105,7 +1105,7 @@ module sm83_control(
 			end
 
 			/* LDHL SP, e -- Load HL with the sum of SP and the signed immediate value e */
-			ld_hl_sp_e: begin
+			ldhl_sp_e: begin
 				read_mcyc_after(m1); /* Read signed immediate value e during M2 */
 				last_mcyc(m3);
 
@@ -1453,7 +1453,7 @@ module sm83_control(
 
 			/* INC r -- Increment register r */
 			/* DEC r -- Decrement register r */
-			inc_r && !inc_hl: begin
+			inc_m && !inc_hl: begin
 				last_mcyc(m1);
 
 				unique case (1)
@@ -1469,10 +1469,10 @@ module sm83_control(
 
 						/* Set carry for increment/decrement */
 						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = dec_r;
+						ctl_alu_fl_carry_cpl = dec_m;
 
 						/* Complement ALU operand B for decrement */
-						ctl_alu_neg          = dec_r;
+						ctl_alu_neg          = dec_m;
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -1488,20 +1488,20 @@ module sm83_control(
 						ctl_alu_fl_sel_c2    = 1; // TODO: why?
 
 						/* Clear carry output for high nibble decrement */
-						ctl_alu_fl_carry_set = dec_r; // TODO: why?
-						ctl_alu_fl_carry_cpl = dec_r; // TODO: why?
+						ctl_alu_fl_carry_set = dec_m; // TODO: why?
+						ctl_alu_fl_carry_cpl = dec_m; // TODO: why?
 
 						/* Use half carry for high nibble calculation */
 						ctl_alu_sel_hc       = 1;
 
 						/* Complement ALU operand B for decrement */
-						ctl_alu_neg          = dec_r;
+						ctl_alu_neg          = dec_m;
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
 
 						/* Update ALU flags */
-						ctl_alu_fl_neg_set   = dec_r;
+						ctl_alu_fl_neg_set   = dec_m;
 						update_alu_flags(Z|N|0|0);
 
 						/* Write ALU result into register selected by opcode[5:3] */
@@ -1551,10 +1551,10 @@ module sm83_control(
 
 						/* Set carry for increment/decrement */
 						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = dec_r;
+						ctl_alu_fl_carry_cpl = dec_m;
 
 						/* Complement ALU operand B for decrement */
-						ctl_alu_neg          = dec_r;
+						ctl_alu_neg          = dec_m;
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -1570,20 +1570,20 @@ module sm83_control(
 						ctl_alu_fl_sel_c2    = 1; // TODO: why?
 
 						/* Clear carry output for high nibble decrement */
-						ctl_alu_fl_carry_set = dec_r; // TODO: why?
-						ctl_alu_fl_carry_cpl = dec_r; // TODO: why?
+						ctl_alu_fl_carry_set = dec_m; // TODO: why?
+						ctl_alu_fl_carry_cpl = dec_m; // TODO: why?
 
 						/* Use half carry for high nibble calculation */
 						ctl_alu_sel_hc       = 1;
 
 						/* Complement ALU operand B for decrement */
-						ctl_alu_neg          = dec_r;
+						ctl_alu_neg          = dec_m;
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
 
 						/* Update ALU flags */
-						ctl_alu_fl_neg_set   = dec_r;
+						ctl_alu_fl_neg_set   = dec_m;
 						update_alu_flags(Z|N|0|0);
 
 						/* Write ALU result into data latch */
