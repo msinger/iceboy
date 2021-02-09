@@ -1960,6 +1960,60 @@ module sm83_control(
 			/* SRL r -- Shift register r right logical */
 			rxxa, rlc_m && !swap_m && !cb_hl: begin
 				last_mcyc(m1);
+
+				unique case (1)
+					/* Read register F into ALU flags */
+					m1 && t4: af_to_alu(Z|N|H|C);
+
+					m1 && t1: begin
+						/* Read register selected by opcode[2:0] into ALU operands with shift */
+						reg_to_alu_op_a(op210_gp_reg, op210_gp_hilo);
+						reg_to_alu_op_b(op210_gp_reg, op210_gp_hilo);
+						ctl_alu_shift        = 1;
+
+						/* Configure ALU for OR operation */
+						ctl_alu_nc           = 1;
+						ctl_alu_fc           = 1;
+						ctl_alu_ic           = 1;
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(0|N|H|0);
+						ctl_alu_fl_c2_sh     = 1;
+						ctl_alu_fl_c2_we     = 1;
+					end
+
+					m1 && t2: begin
+						/* Configure ALU for OR operation */
+						ctl_alu_nc           = 1;
+						ctl_alu_fc           = 1;
+						ctl_alu_ic           = 1;
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Update ALU flags */
+						ctl_alu_fl_zero_clr  = rxxa;
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(Z|N|H|C);
+
+						/* Write ALU result into register selected by opcode[2:0] */
+						reg_from_alu(op210_gp_reg, op210_gp_hilo);
+					end
+
+					m1 && t3: begin
+						/* Write ALU flags into register F */
+						ctl_alu_fl_sel_c2    = 1;
+						f_from_alu();
+					end
+				endcase
 			end
 
 			/* RLC (HL) -- Rotate value at address in HL left circular */
@@ -1973,6 +2027,74 @@ module sm83_control(
 				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
 				write_mcyc_after(m2); /* Write value to address in HL during M3 */
 				last_mcyc(m3);
+
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
+
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2,
+					m2 && t3:;
+
+					/* Read register F into ALU flags */
+					m2 && t4: af_to_alu(Z|N|H|C);
+
+					m3 && t1: begin
+						/* Write data latch into ALU operands with shift */
+						dl_to_alu_op_a();
+						dl_to_alu_op_b();
+						ctl_alu_shift        = 1;
+
+						/* Configure ALU for OR operation */
+						ctl_alu_nc           = 1;
+						ctl_alu_fc           = 1;
+						ctl_alu_ic           = 1;
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(0|N|H|0);
+						ctl_alu_fl_c2_sh     = 1;
+						ctl_alu_fl_c2_we     = 1;
+					end
+
+					m3 && t2: begin
+						/* Configure ALU for OR operation */
+						ctl_alu_nc           = 1;
+						ctl_alu_fc           = 1;
+						ctl_alu_ic           = 1;
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(Z|N|H|C);
+
+						/* Write ALU result into data latch */
+						dl_from_alu();
+					end
+
+					m3 && t3: begin
+						/* Write ALU flags into register F */
+						ctl_alu_fl_sel_c2    = 1;
+						f_from_alu();
+					end
+
+					m3 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* SWAP r -- Swap nibbles of register r */
