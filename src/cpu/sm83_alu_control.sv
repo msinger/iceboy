@@ -51,7 +51,7 @@ module sm83_alu_control(
 		1:    shift_into_alu = shift_dbl; /* RRC */
 		2, 3: shift_into_alu = pri_carry; /* RL, RR */
 		4, 7: shift_into_alu = 0;         /* SLA, SRL */
-		6:    shift_into_alu = 1;         /* SLL */
+		6:    shift_into_alu = 'bx;       /* (SWAP doesn't use shift) */
 	endcase
 
 	assign shift_out = op543[0] ? shift_dbl : shift_dbh;

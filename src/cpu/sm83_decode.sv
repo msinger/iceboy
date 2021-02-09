@@ -65,6 +65,7 @@ module sm83_decode(
 		output logic                 di_ei,      /* DI/EI */
 		output logic                 prefix_cb,  /* Prefix CB */
 		output logic                 rlc_m,      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
+		output logic                 swap_m,     /* SWAP r/(HL) */
 		output logic                 bit_b_m,    /* BIT b, r/(HL) */
 		output logic                 res_b_m,    /* RES b, r/(HL) */
 		output logic                 set_b_m,    /* SET b, r/(HL) */
@@ -131,6 +132,7 @@ module sm83_decode(
 		di_ei      = 0;
 		prefix_cb  = 0;
 		rlc_m      = 0;
+		swap_m     = 0;
 		bit_b_m    = 0;
 		res_b_m    = 0;
 		set_b_m    = 0;
@@ -333,6 +335,7 @@ module sm83_decode(
 
 			bank_cb: begin /* CB prefixed instructions */
 				if (opcode[7:6] == 0) rlc_m    = 1; /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
+				if (opcode[7:3] == 6) swap_m   = 1; /* SWAP r/(HL) */
 				if (opcode[7:6] == 1) bit_b_m  = 1; /* BIT b, r/(HL) */
 				if (opcode[7:6] == 2) res_b_m  = 1; /* RES b, r/(HL) */
 				if (opcode[7:6] == 3) set_b_m  = 1; /* SET b, r/(HL) */

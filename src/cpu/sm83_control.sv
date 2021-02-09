@@ -130,6 +130,7 @@ module sm83_control(
 	logic di_ei;      /* DI/EI */
 	logic prefix_cb;  /* Prefix CB */
 	logic rlc_m;      /* RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL r/(HL) */
+	logic swap_m;     /* SWAP r/(HL) */
 	logic bit_b_m;    /* BIT b, r/(HL) */
 	logic res_b_m;    /* RES b, r/(HL) */
 	logic set_b_m;    /* SET b, r/(HL) */
@@ -1955,6 +1956,77 @@ module sm83_control(
 				endcase
 			end
 
+			/* RLC r -- Rotate register r left circular */
+			/* RRC r -- Rotate register r right circular */
+			/* RL r  -- Rotate register r left through carry */
+			/* RR r  -- Rotate register r right through carry */
+			/* SLA r -- Shift register r left arithmetic */
+			/* SRA r -- Shift register r right arithmetic */
+			/* SRL r -- Shift register r right logical */
+			rxxa, rlc_m && !swap_m && !cb_hl: begin
+				last_mcyc(m1);
+			end
+
+			/* RLC (HL) -- Rotate value at address in HL left circular */
+			/* RRC (HL) -- Rotate value at address in HL right circular */
+			/* RL (HL)  -- Rotate value at address in HL left through carry */
+			/* RR (HL)  -- Rotate value at address in HL right through carry */
+			/* SLA (HL) -- Shift value at address in HL left arithmetic */
+			/* SRA (HL) -- Shift value at address in HL right arithmetic */
+			/* SRL (HL) -- Shift value at address in HL right logical */
+			rlc_m && !swap_m && cb_hl: begin
+				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
+				write_mcyc_after(m2); /* Write value to address in HL during M3 */
+				last_mcyc(m3);
+			end
+
+			/* SWAP r -- Swap nibbles of register r */
+			swap_m && !cb_hl: begin
+				last_mcyc(m1);
+			end
+
+			/* SWAP (HL) -- Swap nibbles of value at address in HL */
+			swap_m && cb_hl: begin
+				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
+				write_mcyc_after(m2); /* Write value to address in HL during M3 */
+				last_mcyc(m3);
+			end
+
+			/* BIT b, r -- Test bit b of register r */
+			bit_b_m && !cb_hl: begin
+				last_mcyc(m1);
+			end
+
+			/* BIT b, (HL) -- Test bit b of value at address in HL */
+			bit_b_m && cb_hl: begin
+				read_mcyc_after(m1); /* Read value from address in HL during M2 */
+				last_mcyc(m3);
+			end
+
+			/* RES b, r -- Reset bit b of register r */
+			res_b_m && !cb_hl: begin
+				last_mcyc(m1);
+			end
+
+			/* RES b, (HL) -- Reset bit b of value at address in HL */
+			res_b_m && cb_hl: begin
+				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
+				write_mcyc_after(m2); /* Write value to address in HL during M3 */
+				last_mcyc(m3);
+			end
+
+			/* SET b, r -- Set bit b of register r */
+			set_b_m && !cb_hl: begin
+				last_mcyc(m1);
+			end
+
+			/* SET b, (HL) -- Set bit b of value at address in HL */
+			set_b_m && cb_hl: begin
+				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
+				write_mcyc_after(m2); /* Write value to address in HL during M3 */
+				last_mcyc(m3);
+			end
+
 			/* JP nn     -- Jump to immediate address nn */
 			/* JP cc, nn -- Jump to immediate address nn if condition cc is met */
 			jp_nn, jp_cc_nn: begin
@@ -2125,6 +2197,66 @@ module sm83_control(
 					m1 && t2,
 					m1 && t3:;
 				endcase
+			end
+
+			/* CALL nn     -- Push PC and jump to immediate address nn */
+			/* CALL cc, nn -- Push PC and jump to immediate address nn if condition cc is met */
+			call_nn, call_cc_nn: begin
+				read_mcyc_after(m1);  /* Read immediate address nn low byte during M2 */
+				read_mcyc_after(m2);  /* Read immediate address nn high byte during M3 */
+				write_mcyc_after(m4); /* Write PC high byte to address in SP-1 during M5 */
+				write_mcyc_after(m5); /* Write PC low byte to address in SP-2 during M6 */
+				last_mcyc(m3 && !alu_cond_result && call_cc_nn);
+				last_mcyc(m6);
+			end
+
+			/* RET  -- Pop PC */
+			/* RETI -- Pop PC and enable interrupts */
+			ret, reti: begin
+				read_mcyc_after(m1); /* Read PC low byte from address in SP during M2 */
+				read_mcyc_after(m2); /* Read PC high byte from address in SP+1 during M3 */
+				last_mcyc(m4);
+			end
+
+			/* RET cc -- Pop PC if condition cc is met */
+			ret_cc: begin
+				read_mcyc_after(m2); /* Read PC low byte from address in SP during M3 */
+				read_mcyc_after(m3); /* Read PC high byte from address in SP+1 during M4 */
+				last_mcyc(m2 && !alu_cond_result);
+				last_mcyc(m5);
+			end
+
+			/* RST t -- Push PC and jump to vector t */
+			rst_t: begin
+				write_mcyc_after(m2); /* Write PC high byte to address in SP-1 during M3 */
+				write_mcyc_after(m3); /* Write PC low byte to address in SP-2 during M4 */
+				last_mcyc(m4);
+			end
+
+			/* SCF -- Set carry flag */
+			scf: begin
+				last_mcyc(m1);
+			end
+
+			/* CCF -- Complement carry flag */
+			scf: begin
+				last_mcyc(m1);
+			end
+
+			/* HALT -- Halt CPU and wake on interrupt */
+			halt: begin
+				last_mcyc(m1);
+			end
+
+			/* STOP -- Halt CPU and wake on interrupt */
+			stop: begin
+				last_mcyc(m1);
+			end
+
+			/* EI -- Enable interrupts */
+			/* DI -- Disable interrupts */
+			di_ei: begin
+				last_mcyc(m1);
 			end
 
 			/* Prefix CB */
