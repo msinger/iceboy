@@ -313,13 +313,13 @@ module sm83_decode(
 				if (opcode == 'hd0) ret_cc     = 1; /* RET NC */
 				if (opcode == 'hc8) ret_cc     = 1; /* RET Z */
 				if (opcode == 'hd8) ret_cc     = 1; /* RET C */
-				if (opcode == 'hc0) rst_t      = 1; /* RST 00h */
+				if (opcode == 'hc7) rst_t      = 1; /* RST 00h */
 				if (opcode == 'hcf) rst_t      = 1; /* RST 08h */
-				if (opcode == 'hd0) rst_t      = 1; /* RST 10h */
+				if (opcode == 'hd7) rst_t      = 1; /* RST 10h */
 				if (opcode == 'hdf) rst_t      = 1; /* RST 18h */
-				if (opcode == 'he0) rst_t      = 1; /* RST 20h */
+				if (opcode == 'he7) rst_t      = 1; /* RST 20h */
 				if (opcode == 'hef) rst_t      = 1; /* RST 28h */
-				if (opcode == 'hf0) rst_t      = 1; /* RST 30h */
+				if (opcode == 'hf7) rst_t      = 1; /* RST 30h */
 				if (opcode == 'hff) rst_t      = 1; /* RST 38h */
 
 				/* misc */
