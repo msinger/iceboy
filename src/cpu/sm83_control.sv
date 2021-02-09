@@ -632,17 +632,16 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3,
 					m2 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
 					/* Write fetched immediate from data latch into register selected by opcode[5:3] */
-					m1 && t2: reg_from_dl(op543_gp_reg, op543_gp_hilo);
-
-					m1 && t3:;
+					m1 && t3: reg_from_dl(op543_gp_reg, op543_gp_hilo);
 				endcase
 			end
 
@@ -656,10 +655,10 @@ module sm83_control(
 					/* Read register selected by opcode[2:0] into ALU operand A */
 					m1 && t1: reg_to_alu_op_a(op210_gp_reg, op210_gp_hilo);
 
-					/* Write ALU operand A into register selected by opcode[5:3] */
-					m1 && t2: reg_from_alu_op_a(op543_gp_reg, op543_gp_hilo);
+					m1 && t2:;
 
-					m1 && t3:;
+					/* Write ALU operand A into register selected by opcode[5:3] */
+					m1 && t3: reg_from_alu_op_a(op543_gp_reg, op543_gp_hilo);
 				endcase
 			end
 
@@ -678,12 +677,11 @@ module sm83_control(
 					m2 && t3,
 					m2 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
 					/* Write fetched value from data latch into register selected by opcode[5:3] */
-					m1 && t2: reg_from_dl(op543_gp_reg, op543_gp_hilo);
-
-					m1 && t3:;
+					m1 && t3: reg_from_dl(op543_gp_reg, op543_gp_hilo);
 				endcase
 			end
 
@@ -696,12 +694,11 @@ module sm83_control(
 					/* Apply HL to address bus for write cycle */
 					m1 && t4: reg_to_adr(HL);
 
-					m2 && t1:;
-
 					/* Read register selected by opcode[2:0] into data latch */
-					m2 && t2: reg_to_dl(op210_gp_reg, op210_gp_hilo);
+					m2 && t1: reg_to_dl(op210_gp_reg, op210_gp_hilo);
 
 					/* Wait for write cycle to finish */
+					m2 && t2,
 					m2 && t3,
 					m2 && t4:;
 
@@ -723,8 +720,8 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					/* Apply HL to address bus for write cycle */
@@ -753,12 +750,11 @@ module sm83_control(
 					/* Apply BC/DE to address bus for write cycle */
 					m1 && t4: reg_to_adr(opcode[5:4]);
 
-					m2 && t1:;
-
 					/* Write A into data latch */
-					m2 && t2: reg_to_dl(AF, HIGH);
+					m2 && t1: reg_to_dl(AF, HIGH);
 
 					/* Wait for write cycle to finish */
+					m2 && t2,
 					m2 && t3,
 					m2 && t4:;
 
@@ -785,12 +781,11 @@ module sm83_control(
 					m2 && t3,
 					m2 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
 					/* Write fetched value from data latch into A */
-					m1 && t2: reg_from_dl(AF, HIGH);
-
-					m1 && t3:;
+					m1 && t3: reg_from_dl(AF, HIGH);
 				endcase
 			end
 
@@ -804,11 +799,11 @@ module sm83_control(
 					/* Apply HL to address bus for write cycle */
 					m1 && t4: reg_to_adr(HL);
 
-					/* Increment or decrement HL */
-					m2 && t1: reg_from_adr_inc(HL, opcode[4]);
-
 					/* Write A into data latch */
-					m2 && t2: reg_to_dl(AF, HIGH);
+					m2 && t1: reg_to_dl(AF, HIGH);
+
+					/* Increment or decrement HL */
+					m2 && t2: reg_from_adr_inc(HL, opcode[4]);
 
 					/* Wait for write cycle to finish */
 					m2 && t3,
@@ -832,17 +827,16 @@ module sm83_control(
 					m1 && t4: reg_to_adr(HL);
 
 					/* Increment or decrement HL and wait for read cycle to finish */
-					m2 && t1: reg_from_adr_inc(HL, opcode[4]);
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: reg_from_adr_inc(HL, opcode[4]);
 					m2 && t3,
 					m2 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
 					/* Write fetched value from data latch into A */
-					m1 && t2: reg_from_dl(AF, HIGH);
-
-					m1 && t3:;
+					m1 && t3: reg_from_dl(AF, HIGH);
 				endcase
 			end
 
@@ -860,22 +854,20 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					/* Apply PC to address bus for read cycle */
 					m2 && t4: pc_to_adr();
 
 					/* Increment PC */
-					m3 && t1: pc_from_adr_inc();
+					m3 && t1:;
+					m3 && t2: pc_from_adr_inc();
 
 					/* Write immediate fetched during M2 from data latch into Z
 					 * before second read cycle overwrites data latch */
-					m3 && t2: wz_from_dl(LOW);
-
-					/* Wait for read cycle to finish */
-					m3 && t3:;
+					m3 && t3: wz_from_dl(LOW);
 
 					m3 && t4: begin
 						/* Write immediate fetched during M3 from data latch into W */
@@ -885,24 +877,22 @@ module sm83_control(
 						wz_to_adr();
 					end
 
-					m4 && t1:;
-
-					m4 && t2: if (ld_n_dir) begin /* LDX (nn), A */
+					m4 && t1: if (ld_n_dir) begin /* LDX (nn), A */
 						/* Write A into data latch */
 						reg_to_dl(AF, HIGH);
 					end
 
+					m4 && t2,
 					m4 && t3,
 					m4 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
-					m1 && t2: if (!ld_n_dir) begin /* LDX A, (nn) */
+					m1 && t3: if (!ld_n_dir) begin /* LDX A, (nn) */
 						/* Write value from data latch into A */
 						reg_from_dl(AF, HIGH);
 					end
-
-					m1 && t3:;
 				endcase
 			end
 
@@ -919,8 +909,8 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					m2 && t4: begin
@@ -932,24 +922,22 @@ module sm83_control(
 						wz_to_adr();
 					end
 
-					m3 && t1:;
-
-					m3 && t2: if (ld_n_dir) begin /* LD (n), A */
+					m3 && t1: if (ld_n_dir) begin /* LD (n), A */
 						/* Write A into data latch */
 						reg_to_dl(AF, HIGH);
 					end
 
+					m3 && t2,
 					m3 && t3,
 					m3 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
-					m1 && t2: if (!ld_n_dir) begin /* LD A, (n) */
+					m1 && t3: if (!ld_n_dir) begin /* LD A, (n) */
 						/* Write value from data latch into A */
 						reg_from_dl(AF, HIGH);
 					end
-
-					m1 && t3:;
 				endcase
 			end
 
@@ -971,24 +959,22 @@ module sm83_control(
 						wz_to_adr();
 					end
 
-					m2 && t1:;
-
-					m2 && t2: if (ld_n_dir) begin /* LD (C), A */
+					m2 && t1: if (ld_n_dir) begin /* LD (C), A */
 						/* Write A into data latch */
 						reg_to_dl(AF, HIGH);
 					end
 
+					m2 && t2,
 					m2 && t3,
 					m2 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
-					m1 && t2: if (!ld_n_dir) begin /* LD A, (C) */
+					m1 && t3: if (!ld_n_dir) begin /* LD A, (C) */
 						/* Write value from data latch into A */
 						reg_from_dl(AF, HIGH);
 					end
-
-					m1 && t3:;
 				endcase
 			end
 
@@ -1003,31 +989,28 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					/* Apply PC to address bus for read cycle */
 					m2 && t4: pc_to_adr();
 
 					/* Increment PC */
-					m3 && t1: pc_from_adr_inc();
+					m3 && t1:;
+					m3 && t2: pc_from_adr_inc();
 
-					/* Write immediate fetched during M2 from data latch into low byte register
-					 * before second read cycle overwrites data latch */
-					m3 && t2: regsp_from_dl(opcode[5:4], LOW);
+					/* Write immediate fetched during M2 from data latch into low byte register */
+					m3 && t3: regsp_from_dl(opcode[5:4], LOW);
 
 					/* Wait for read cycle to finish */
-					m3 && t3,
 					m3 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
-					/* Write immediate fetched during M3 from data latch into high byte register
-					 * after PC increment of next opcode is done */
-					m1 && t2: regsp_from_dl(opcode[5:4], HIGH);
-
-					m1 && t3:;
+					/* Write immediate fetched during M3 from data latch into high byte register */
+					m1 && t3: regsp_from_dl(opcode[5:4], HIGH);
 				endcase
 			end
 
@@ -1038,15 +1021,15 @@ module sm83_control(
 				unique case (1)
 					m1 && t4:;
 
-					m2 && t1:;
+					m2 && t1,
+					m2 && t2:;
 
-					m2 && t2: begin
+					m2 && t3: begin
 						/* Write HL into SP */
 						reg_to_sys(HL);
 						write_sp(HIGH|LOW);
 					end
 
-					m2 && t3,
 					m2 && t4:;
 
 					/* No overlap */
@@ -1069,22 +1052,20 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					/* Apply PC to address bus for read cycle */
 					m2 && t4: pc_to_adr();
 
 					/* Increment PC */
-					m3 && t1: pc_from_adr_inc();
+					m3 && t1:;
+					m3 && t2: pc_from_adr_inc();
 
 					/* Write immediate fetched during M2 from data latch into Z
 					 * before second read cycle overwrites data latch */
-					m3 && t2: wz_from_dl(LOW);
-
-					/* Wait for read cycle to finish */
-					m3 && t3:;
+					m3 && t3: wz_from_dl(LOW);
 
 					m3 && t4: begin
 						/* Write immediate fetched during M3 from data latch into W */
@@ -1094,11 +1075,11 @@ module sm83_control(
 						wz_to_adr();
 					end
 
-					/* Increment address latch */
-					m4 && t1: inc_al(INC);
-
 					/* Write low byte of SP into data latch */
-					m4 && t2: sp_to_dl(LOW);
+					m4 && t1: sp_to_dl(LOW);
+
+					/* Increment address latch */
+					m4 && t2: inc_al(INC);
 
 					m4 && t3:;
 
@@ -1107,11 +1088,11 @@ module sm83_control(
 						ctl_io_adr_we        = 1; /* posedge */
 					end
 
-					/* Increment address latch */
-					m5 && t1: inc_al(INC);
-
 					/* Write high byte of SP into data latch */
-					m5 && t2: sp_to_dl(HIGH);
+					m5 && t1: sp_to_dl(HIGH);
+
+					/* Increment address latch */
+					m5 && t2: inc_al(INC);
 
 					m5 && t3,
 					m5 && t4:;
@@ -1139,8 +1120,8 @@ module sm83_control(
 					end
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					m2 && t4: begin
@@ -1232,33 +1213,27 @@ module sm83_control(
 					m1 && t4: sp_to_adr();
 
 					/* Decrement SP */
-					m2 && t1: sp_from_adr_inc(DEC);
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: sp_from_adr_inc(DEC);
 					m2 && t3:;
 
-					m2 && t4: begin
-						/* Read high byte register into data latch */
-						reg_to_dl(opcode[5:4], HIGH); /* negedge */
+					/* Apply SP to address bus for write cycle */
+					m2 && t4: sp_to_adr();
 
-						/* Apply SP to address bus for write cycle */
-						sp_to_adr();
-					end
+					/* Read high byte register into data latch */
+					m3 && t1: reg_to_dl(opcode[5:4], HIGH); /* negedge */
 
 					/* Decrement SP and wait for write cycle to finish */
-					m3 && t1: sp_from_adr_inc(DEC);
-					m3 && t2,
+					m3 && t2: sp_from_adr_inc(DEC);
 					m3 && t3:;
 
-					m3 && t4: begin
-						/* Read low byte register into data latch */
-						reg_to_dl(opcode[5:4], LOW); /* negedge */
+					/* Apply SP to address bus for write cycle */
+					m3 && t4: sp_to_adr();
 
-						/* Apply SP to address bus for write cycle */
-						sp_to_adr();
-					end
+					/* Read low byte register into data latch */
+					m4 && t1: reg_to_dl(opcode[5:4], LOW); /* negedge */
 
 					/* Wait for write cycle to finish */
-					m4 && t1,
 					m4 && t2,
 					m4 && t3,
 					m4 && t4:;
@@ -1281,28 +1256,27 @@ module sm83_control(
 					m1 && t4: sp_to_adr();
 
 					/* Increment SP and wait for read cycle to finish */
-					m2 && t1: sp_from_adr_inc(INC);
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: sp_from_adr_inc(INC);
 					m2 && t3:;
 
 					/* Apply SP to address bus for read cycle */
 					m2 && t4: sp_to_adr();
 
 					/* Increment SP */
-					m3 && t1: sp_from_adr_inc(INC);
+					m3 && t1:;
+					m3 && t2: sp_from_adr_inc(INC);
 
 					/* Write value from data latch that was fetched during M2 into low byte register */
-					m3 && t2: reg_from_dl(opcode[5:4], LOW);
+					m3 && t3: reg_from_dl(opcode[5:4], LOW);
 
-					m3 && t3,
 					m3 && t4:;
 
-					m1 && t1:;
+					m1 && t1,
+					m1 && t2:;
 
 					/* Write value from data latch that was fetched during M3 into high byte register */
-					m1 && t2: reg_from_dl(opcode[5:4], HIGH);
-
-					m1 && t3:;
+					m1 && t3: reg_from_dl(opcode[5:4], HIGH);
 				endcase
 			end
 
@@ -1374,8 +1348,8 @@ module sm83_control(
 					m1 && t4: pc_to_adr();
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					/* Read register A into ALU operand A and register F into ALU flags */
@@ -1778,8 +1752,8 @@ module sm83_control(
 					end
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					m2 && t4: begin
@@ -1875,17 +1849,18 @@ module sm83_control(
 				unique case (1)
 					m1 && t4: begin
 						/* Read register into address latch */
-						read_regsp(opcode[54]);
+						read_regsp(opcode[5:4]);
 						ctl_al_we            = 1;
 					end
 
-					m2 && t1: begin
+					m2 && t1:;
+
+					m2 && t2: begin
 						/* Write incremented or decremented value back into register */
 						inc_al(opcode[3]);
 						write_regsp(opcode[5:4], HIGH|LOW, SYS2GP);
 					end
 
-					m2 && t2,
 					m2 && t3,
 					m2 && t4:;
 
@@ -1914,28 +1889,27 @@ module sm83_control(
 					end
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					/* Apply PC to address bus for read cycle */
 					m2 && t4: pc_to_adr();
 
 					/* Increment PC */
-					m3 && t1: pc_from_adr_inc();
+					m3 && t1:;
+					m3 && t2: pc_from_adr_inc();
 
 					/* Write immediate fetched during M2 from data latch into Z */
-					m3 && t2: wz_from_dl(LOW);
+					m3 && t3: wz_from_dl(LOW);
 
-					m3 && t3,
 					m3 && t4:;
 
-					m4 && t1:;
+					m4 && t1,
+					m4 && t2:;
 
 					/* Write immediate fetched during M3 from data latch into W */
-					m4 && t2: wz_from_dl(HIGH);
-
-					m4 && t3:;
+					m4 && t3: wz_from_dl(HIGH);
 
 					m4 && t4: begin
 						/* Apply WZ to address bus instead of PC */
@@ -1967,8 +1941,8 @@ module sm83_control(
 					end
 
 					/* Increment PC and wait for read cycle to finish */
-					m2 && t1: pc_from_adr_inc();
-					m2 && t2,
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
 					m2 && t3:;
 
 					m2 && t4: begin
@@ -2184,10 +2158,7 @@ module sm83_control(
 		/* Instruction fetch */
 		unique case (1)
 			/* Increment PC */
-			m1 && t1: pc_from_adr_inc();
-
-			/* Wait for read cycle to finish */
-			m1 && t2:;
+			m1 && t2: pc_from_adr_inc();
 
 			/* Select opcode bank for next instruction */
 			m1 && t3: ctl_ir_bank_we = 1; /* posedge */
