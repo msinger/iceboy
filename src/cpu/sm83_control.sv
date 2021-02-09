@@ -1736,6 +1736,90 @@ module sm83_control(
 				endcase
 			end
 
+			/* ADD HL, ss -- Add register ss to HL */
+			add_hl_ss: begin
+				last_mcyc(m2);
+
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags and clear subtract (N) flag */
+						ctl_alu_fl_neg_clr   = 1;
+						af_to_alu(Z|N|H|C);
+					end
+
+					/* Write low byte of HL into ALU operand A */
+					m2 && t1: reg_to_alu_op_a(HL, LOW);
+
+					m2 && t2: begin
+						/* Write low byte of register ss into ALU operand B */
+						read_regsp(opcode[5:4]);
+						reg_to_db(opcode[5:4], LOW);
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
+
+						/* No carry-in */
+						ctl_alu_fl_carry_set = 1;
+						ctl_alu_fl_carry_cpl = 1;
+
+						/* Caclulate low nibble of low byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+
+						/* Update ALU flags */
+						update_alu_flags(0|0|H|0);
+					end
+
+					m2 && t3: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
+
+						/* Caclulate high nibble of low byte in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Update ALU flags */
+						update_alu_flags(0|0|0|C);
+
+						/* Write ALU result into low byte of HL */
+						reg_from_alu(HL, LOW);
+					end
+
+					/* Write high byte of HL into ALU operand A */
+					m2 && t4: reg_to_alu_op_a(HL, HIGH);
+
+					m1 && t1: begin
+						/* Write high byte of register ss into ALU operand B */
+						read_regsp(opcode[5:4]);
+						reg_to_db(opcode[5:4], HIGH);
+						ctl_alu_sh_oe        = 1;
+						ctl_alu_op_b_bus     = 1; /* negedge */
+
+						/* Caclulate low nibble of high byte in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+
+						/* Update ALU flags */
+						update_alu_flags(0|0|H|0);
+					end
+
+					m1 && t2: begin
+						/* Use half carry for high nibble calculation */
+						ctl_alu_sel_hc       = 1;
+
+						/* Caclulate high nibble of high byte in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Update ALU flags */
+						update_alu_flags(0|0|0|C);
+
+						/* Write ALU result into high byte of HL */
+						reg_from_alu(HL, HIGH);
+					end
+
+					m1 && t3: begin
+						/* Write ALU flags into register F */
+						f_from_alu();
+					end
+				endcase
+			end
+
 			/* ADD SP, e -- Add signed immediate value e to SP */
 			add_sp_e: begin
 				read_mcyc_after(m1); /* Read signed immediate value e during M2 */
