@@ -1535,13 +1535,8 @@ module sm83_control(
 					m2 && t2,
 					m2 && t3:;
 
-					m2 && t4: begin
-						/* Read register F into ALU flags */
-						af_to_alu(Z|N|H|C);
-
-						/* Apply HL to address bus for write cycle */
-						reg_to_adr(HL);
-					end
+					/* Read register F into ALU flags */
+					m2 && t4: af_to_alu(Z|N|H|C);
 
 					m3 && t1: begin
 						/* Write data latch into ALU operand A */
