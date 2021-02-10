@@ -527,6 +527,36 @@ module sm83_control(
 		ctl_alu_op_b_bus = 1; /* negedge */
 	endtask
 
+	/* Demux 8 bit mask from bits 5:3 of DL into ALU operands */
+	task dl_to_alu_bsel();
+		ctl_io_data_oe   = 1;
+		ctl_alu_bs_oe    = 1;
+		ctl_alu_op_a_bus = 1; /* negedge */
+		ctl_alu_op_b_bus = 1; /* negedge */
+	endtask
+
+	/* Configure ALU for AND operation */
+	task alu_op_and();
+		ctl_alu_fc           = 1;
+		ctl_alu_fl_carry_set = 1;
+	endtask
+
+	/* Configure ALU for XOR operation */
+	task alu_op_xor();
+		ctl_alu_nc           = 1;
+		ctl_alu_fl_carry_set = 1;
+		ctl_alu_fl_carry_cpl = 1;
+	endtask
+
+	/* Configure ALU for OR operation */
+	task alu_op_or();
+		ctl_alu_nc           = 1;
+		ctl_alu_fc           = 1;
+		ctl_alu_ic           = 1;
+		ctl_alu_fl_carry_set = 1;
+		ctl_alu_fl_carry_cpl = 1;
+	endtask
+
 	always_comb begin
 		set_m1  = 0;
 		no_int  = 0;
@@ -1972,11 +2002,7 @@ module sm83_control(
 						ctl_alu_shift        = 1;
 
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -1990,11 +2016,7 @@ module sm83_control(
 
 					m1 && t2: begin
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
@@ -2047,11 +2069,7 @@ module sm83_control(
 						ctl_alu_shift        = 1;
 
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -2065,11 +2083,7 @@ module sm83_control(
 
 					m3 && t2: begin
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
@@ -2113,11 +2127,7 @@ module sm83_control(
 						ctl_alu_op_a_zero    = 1; /* negedge */
 
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -2130,11 +2140,7 @@ module sm83_control(
 
 					m1 && t2: begin
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Update ALU flags */
 						ctl_alu_fl_neg_clr   = 1;
@@ -2177,11 +2183,7 @@ module sm83_control(
 						ctl_alu_op_a_zero    = 1; /* negedge */
 
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -2194,11 +2196,7 @@ module sm83_control(
 
 					m3 && t2: begin
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Update ALU flags */
 						ctl_alu_fl_neg_clr   = 1;
@@ -2230,13 +2228,10 @@ module sm83_control(
 					m1 && t4: begin
 						/* Read register F into ALU flags */
 						af_to_alu(Z|N|H|C);
+						ctl_alu_sh_oe        = 0;
 
 						/* Read bit number from data latch into ALU operands as bit mask */
-						ctl_io_data_oe       = 1;
-						ctl_alu_sh_oe        = 0;
-						ctl_alu_bs_oe        = 1;
-						ctl_alu_op_a_bus     = 1; /* negedge */
-						ctl_alu_op_b_bus     = 1; /* negedge */
+						dl_to_alu_bsel();
 					end
 
 					m1 && t1: begin
@@ -2244,8 +2239,7 @@ module sm83_control(
 						reg_to_alu_op_a(op210_gp_reg, op210_gp_hilo);
 
 						/* Configure ALU for AND operation */
-						ctl_alu_fc           = 1;
-						ctl_alu_fl_carry_set = 1;
+						alu_op_and();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -2257,8 +2251,7 @@ module sm83_control(
 
 					m1 && t2: begin
 						/* Configure ALU for AND operation */
-						ctl_alu_fc           = 1;
-						ctl_alu_fl_carry_set = 1;
+						alu_op_and();
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
@@ -2292,13 +2285,10 @@ module sm83_control(
 					m2 && t3: begin
 						/* Read register F into ALU flags */
 						af_to_alu(Z|N|H|C);
+						ctl_alu_sh_oe        = 0;
 
 						/* Read bit number from data latch into ALU operands as bit mask */
-						ctl_io_data_oe       = 1;
-						ctl_alu_sh_oe        = 0;
-						ctl_alu_bs_oe        = 1;
-						ctl_alu_op_a_bus     = 1; /* negedge */
-						ctl_alu_op_b_bus     = 1; /* negedge */
+						dl_to_alu_bsel();
 					end
 
 					m2 && t4:;
@@ -2308,8 +2298,7 @@ module sm83_control(
 						dl_to_alu_op_a();
 
 						/* Configure ALU for AND operation */
-						ctl_alu_fc           = 1;
-						ctl_alu_fl_carry_set = 1;
+						alu_op_and();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -2321,8 +2310,7 @@ module sm83_control(
 
 					m3 && t2: begin
 						/* Configure ALU for AND operation */
-						ctl_alu_fc           = 1;
-						ctl_alu_fl_carry_set = 1;
+						alu_op_and();
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
@@ -2350,6 +2338,47 @@ module sm83_control(
 			/* RES b, r -- Reset bit b of register r */
 			res_b_m && !cb_hl: begin
 				last_mcyc(m1);
+
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+						ctl_alu_sh_oe        = 0;
+
+						/* Read bit number from data latch into ALU operands as bit mask */
+						dl_to_alu_bsel();
+					end
+
+					m1 && t1: begin
+						/* Read register selected by opcode[2:0] into ALU operand A */
+						reg_to_alu_op_a(op210_gp_reg, op210_gp_hilo);
+
+						/* Configure ALU for AND operation */
+						alu_op_and();
+
+						/* Complement ALU operand B */
+						ctl_alu_neg          = 1;
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+					end
+
+					m1 && t2: begin
+						/* Configure ALU for AND operation */
+						alu_op_and();
+
+						/* Complement ALU operand B */
+						ctl_alu_neg          = 1;
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Write ALU result into register selected by opcode[2:0] */
+						reg_from_alu(op210_gp_reg, op210_gp_hilo);
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* RES b, (HL) -- Reset bit b of value at address in HL */
@@ -2357,11 +2386,102 @@ module sm83_control(
 				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
 				write_mcyc_after(m2); /* Write value to address in HL during M3 */
 				last_mcyc(m3);
+
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
+
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2:;
+
+					m2 && t3: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+						ctl_alu_sh_oe        = 0;
+
+						/* Read bit number from data latch into ALU operands as bit mask */
+						dl_to_alu_bsel();
+					end
+
+					m2 && t4:;
+
+					m3 && t1: begin
+						/* Write data latch into ALU operand A */
+						dl_to_alu_op_a();
+
+						/* Configure ALU for AND operation */
+						alu_op_and();
+
+						/* Complement ALU operand B */
+						ctl_alu_neg          = 1;
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+					end
+
+					m3 && t2: begin
+						/* Configure ALU for AND operation */
+						alu_op_and();
+
+						/* Complement ALU operand B */
+						ctl_alu_neg          = 1;
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Write ALU result into data latch */
+						dl_from_alu();
+					end
+
+					m3 && t3,
+					m3 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* SET b, r -- Set bit b of register r */
 			set_b_m && !cb_hl: begin
 				last_mcyc(m1);
+
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+						ctl_alu_sh_oe        = 0;
+
+						/* Read bit number from data latch into ALU operands as bit mask */
+						dl_to_alu_bsel();
+					end
+
+					m1 && t1: begin
+						/* Read register selected by opcode[2:0] into ALU operand A */
+						reg_to_alu_op_a(op210_gp_reg, op210_gp_hilo);
+
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+					end
+
+					m1 && t2: begin
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Write ALU result into register selected by opcode[2:0] */
+						reg_from_alu(op210_gp_reg, op210_gp_hilo);
+					end
+
+					m1 && t3:;
+				endcase
 			end
 
 			/* SET b, (HL) -- Set bit b of value at address in HL */
@@ -2369,6 +2489,56 @@ module sm83_control(
 				read_mcyc_after(m1);  /* Read value from address in HL during M2 */
 				write_mcyc_after(m2); /* Write value to address in HL during M3 */
 				last_mcyc(m3);
+
+				unique case (1)
+					/* Apply HL to address bus for read cycle */
+					m1 && t4: reg_to_adr(HL);
+
+					/* Wait for read cycle to finish */
+					m2 && t1,
+					m2 && t2:;
+
+					m2 && t3: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+						ctl_alu_sh_oe        = 0;
+
+						/* Read bit number from data latch into ALU operands as bit mask */
+						dl_to_alu_bsel();
+					end
+
+					m2 && t4:;
+
+					m3 && t1: begin
+						/* Write data latch into ALU operand A */
+						dl_to_alu_op_a();
+
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+					end
+
+					m3 && t2: begin
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+
+						/* Write ALU result into data latch */
+						dl_from_alu();
+					end
+
+					m3 && t3,
+					m3 && t4:;
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* JP nn     -- Jump to immediate address nn */
@@ -2669,8 +2839,7 @@ module sm83_control(
 
 			and_x: begin
 				/* Configure ALU for AND operation */
-				ctl_alu_fc           = 1;
-				ctl_alu_fl_carry_set = 1;
+				alu_op_and();
 
 				/* Clear subtract (N) flag */
 				ctl_alu_fl_neg_clr = 1;
@@ -2684,9 +2853,7 @@ module sm83_control(
 
 			xor_x: begin
 				/* Configure ALU for XOR operation */
-				ctl_alu_nc           = 1;
-				ctl_alu_fl_carry_set = 1;
-				ctl_alu_fl_carry_cpl = 1;
+				alu_op_xor();
 
 				/* Clear subtract (N) flag */
 				ctl_alu_fl_neg_clr = 1;
@@ -2695,11 +2862,7 @@ module sm83_control(
 
 			or_x: begin
 				/* Configure ALU for OR operation */
-				ctl_alu_nc           = 1;
-				ctl_alu_fc           = 1;
-				ctl_alu_ic           = 1;
-				ctl_alu_fl_carry_set = 1;
-				ctl_alu_fl_carry_cpl = 1;
+				alu_op_or();
 
 				/* Clear subtract (N) flag */
 				ctl_alu_fl_neg_clr = 1;
