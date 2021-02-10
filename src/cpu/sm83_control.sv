@@ -2256,6 +2256,7 @@ module sm83_control(
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
 						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
 
 						/* Update ALU flags */
 						ctl_alu_fl_neg_clr   = 1;
@@ -2315,6 +2316,7 @@ module sm83_control(
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
 						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
 
 						/* Update ALU flags */
 						ctl_alu_fl_neg_clr   = 1;
@@ -2750,11 +2752,86 @@ module sm83_control(
 			/* SCF -- Set carry flag */
 			scf: begin
 				last_mcyc(m1);
+
+				unique case (1)
+					/* Read register A into ALU operands and register F into ALU flags */
+					m1 && t4: af_to_alu(Z|N|H|C);
+
+					m1 && t1: begin
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(0|N|H|0);
+					end
+
+					m1 && t2: begin
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(0|N|0|0);
+					end
+
+					m1 && t3: begin
+						/* Write ALU flags into register F */
+						ctl_alu_fl_carry_set = 1;
+						f_from_alu();
+					end
+				endcase
 			end
 
 			/* CCF -- Complement carry flag */
-			scf: begin
+			ccf: begin
 				last_mcyc(m1);
+
+				unique case (1)
+					/* Read register A into ALU operands and register F into ALU flags */
+					m1 && t4: af_to_alu(Z|N|H|C);
+
+					m1 && t1: begin
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate low nibble in ALU */
+						ctl_alu_op_low       = 1; /* posedge */
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(0|N|H|0);
+					end
+
+					m1 && t2: begin
+						/* Configure ALU for OR operation */
+						alu_op_or();
+
+						/* Caclulate high nibble in ALU */
+						ctl_alu_op_b_high    = 1;
+						ctl_alu_res_oe       = 1;
+						ctl_alu_oe           = 1;
+
+						/* Update ALU flags */
+						ctl_alu_fl_neg_clr   = 1;
+						update_alu_flags(0|N|0|0);
+					end
+
+					m1 && t3: begin
+						/* Write ALU flags into register F */
+						ctl_alu_fl_carry_cpl = 1;
+						//ctl_alu_fl_half_cpl  = alu_fl_carry; // TODO: On Z80, H gets copy of old C. Check on GB
+						f_from_alu();
+					end
+				endcase
 			end
 
 			/* HALT -- Halt CPU and wake on interrupt */
