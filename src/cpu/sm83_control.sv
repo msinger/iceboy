@@ -28,6 +28,7 @@ module sm83_control(
 		output logic                 ctl_adr_op_oe, ctl_adr_ff_oe,
 		output logic                 ctl_db_c2l_oe, ctl_db_l2c_oe,
 		output logic                 ctl_db_l2h_oe, ctl_db_h2l_oe,
+		output logic                 ctl_db_c2l_mask543,
 		output logic                 ctl_io_data_oe, ctl_io_data_we,
 		output logic                 ctl_io_adr_we,
 		output logic                 ctl_zero_data_oe,
@@ -385,9 +386,8 @@ module sm83_control(
 		write_regsp(r, hilo, GP2SYS);
 	endtask
 
-	/* Apply SP to internal data bus (dbl and dbh) */
-	task sp_to_db(input logic [1:0] hilo);
-		ctl_reg_sp_sel     = 1;
+	/* Apply system register to internal data bus (dbl and dbh) */
+	task sys_to_db(input logic [1:0] hilo);
 		ctl_reg_sys_lo_sel = 1;
 		ctl_reg_sys_hi_sel = 1;
 		ctl_reg_sys2gp_oe  = 1;
@@ -397,16 +397,34 @@ module sm83_control(
 		ctl_db_h2l_oe      = !hilo[0] && hilo[1];
 	endtask
 
-	/* Apply SP to data latch */
-	task sp_to_dl(input logic [1:0] hilo);
-		sp_to_db(hilo);
+	/* Apply PC to data latch */
+	task pc_to_dl(input logic [1:0] hilo);
+		ctl_reg_pc_sel     = 1;
+		sys_to_db(hilo);
 		ctl_db_l2c_oe  = 1;
 		ctl_io_data_we = 1;
 	endtask
 
+	/* Apply SP to data latch */
+	task sp_to_dl(input logic [1:0] hilo);
+		ctl_reg_sp_sel     = 1;
+		sys_to_db(hilo);
+		ctl_db_l2c_oe  = 1;
+		ctl_io_data_we = 1;
+	endtask
+
+	/* Write PC to ALU operand A */
+	task pc_to_alu_op_a(input logic [1:0] hilo);
+		ctl_reg_pc_sel       = 1;
+		sys_to_db(hilo);
+		ctl_alu_sh_oe        = 1;
+		ctl_alu_op_a_bus     = 1; /* negedge */
+	endtask
+
 	/* Write SP to ALU operand A */
 	task sp_to_alu_op_a(input logic [1:0] hilo);
-		sp_to_db(hilo);
+		ctl_reg_sp_sel     = 1;
+		sys_to_db(hilo);
 		ctl_alu_sh_oe    = 1;
 		ctl_alu_op_a_bus = 1; /* negedge */
 	endtask
@@ -484,20 +502,6 @@ module sm83_control(
 	task f_from_alu();
 		ctl_alu_fl_oe = 1;
 		reg_from_dbl(AF, LOW);
-	endtask
-
-	/* Write PC to ALU operand A */
-	task pc_to_alu_op_a(input logic [1:0] hilo);
-		ctl_reg_pc_sel       = 1;
-		ctl_reg_sys_lo_sel   = 1;
-		ctl_reg_sys_hi_sel   = 1;
-		ctl_reg_sys2gp_oe    = 1;
-		ctl_reg_gp2l_oe      = hilo[0];
-		ctl_reg_gp2h_oe      = hilo[1];
-		ctl_db_l2h_oe        = hilo[0] && !hilo[1];
-		ctl_db_h2l_oe        = !hilo[0] && hilo[1];
-		ctl_alu_sh_oe        = 1;
-		ctl_alu_op_a_bus     = 1; /* negedge */
 	endtask
 
 	/* Write ALU result into data latch */
@@ -598,6 +602,7 @@ module sm83_control(
 		ctl_db_l2c_oe        = 0;
 		ctl_db_l2h_oe        = 0;
 		ctl_db_h2l_oe        = 0;
+		ctl_db_c2l_mask543   = 0;
 		ctl_io_data_oe       = 0;
 		ctl_io_data_we       = 0;
 		ctl_io_adr_we        = 0;
@@ -2724,6 +2729,72 @@ module sm83_control(
 				write_mcyc_after(m5); /* Write PC low byte to address in SP-2 during M6 */
 				last_mcyc(m3 && !alu_cond_result && call_cc_nn);
 				last_mcyc(m6);
+
+				unique case (1)
+					m1 && t4: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+
+						/* Apply PC to address bus for read cycle */
+						pc_to_adr();
+					end
+
+					/* Increment PC and wait for read cycle to finish */
+					m2 && t1:;
+					m2 && t2: pc_from_adr_inc();
+					m2 && t3:;
+
+					/* Apply PC to address bus for read cycle */
+					m2 && t4: pc_to_adr();
+
+					/* Increment PC */
+					m3 && t1:;
+					m3 && t2: pc_from_adr_inc();
+
+					/* Write immediate fetched during M2 from data latch into Z */
+					m3 && t3: wz_from_dl(LOW);
+
+					/* Apply SP to address bus for decrement */
+					m3 && t4: sp_to_adr();
+
+					/* Decrement SP */
+					m4 && t1:;
+					m4 && t2: sp_from_adr_inc(DEC);
+
+					/* Write immediate fetched during M3 from data latch into W */
+					m4 && t3: wz_from_dl(HIGH);
+
+					/* Apply SP to address bus for write cycle */
+					m4 && t4: sp_to_adr();
+
+					/* Read high byte of PC into data latch */
+					m5 && t1: pc_to_dl(HIGH); /* negedge */
+
+					/* Decrement SP and wait for write cycle to finish */
+					m5 && t2: sp_from_adr_inc(DEC);
+					m5 && t3:;
+
+					/* Apply SP to address bus for write cycle */
+					m5 && t4: sp_to_adr();
+
+					/* Read low byte of PC into data latch */
+					m6 && t1: pc_to_dl(LOW); /* negedge */
+
+					/* Wait for write cycle to finish */
+					m6 && t2,
+					m6 && t3:;
+
+					m6 && t4: begin
+						/* Apply WZ to address bus instead of PC */
+						wz_to_adr();
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* RET  -- Pop PC */
@@ -2747,6 +2818,63 @@ module sm83_control(
 				write_mcyc_after(m2); /* Write PC high byte to address in SP-1 during M3 */
 				write_mcyc_after(m3); /* Write PC low byte to address in SP-2 during M4 */
 				last_mcyc(m4);
+
+				unique case (1)
+					/* Apply SP to address bus for decrement */
+					m1 && t4: sp_to_adr();
+
+					m2 && t1: begin
+						/* Use ALU operand A to output $00 as high byte of destination address */
+						ctl_alu_op_a_zero    = 1; /* negedge */
+						ctl_alu_op_a_oe      = 1;
+						ctl_alu_oe           = 1;
+
+						/* Use opcode in data latch masked with $38 as low byte of destination address */
+						ctl_io_data_oe       = 1;
+						ctl_db_c2l_mask543   = 1;
+						ctl_db_c2l_oe        = 1;
+
+						/* Write destination address into WZ */
+						ctl_reg_l2gp_oe      = 1;
+						ctl_reg_h2gp_oe      = 1;
+						write_wz(HIGH|LOW);
+					end
+
+					/* Decrement SP */
+					m2 && t2: sp_from_adr_inc(DEC);
+					m2 && t3:;
+
+					/* Apply SP to address bus for write cycle */
+					m2 && t4: sp_to_adr();
+
+					/* Read high byte of PC into data latch */
+					m3 && t1: pc_to_dl(HIGH); /* negedge */
+
+					/* Decrement SP and wait for write cycle to finish */
+					m3 && t2: sp_from_adr_inc(DEC);
+					m3 && t3:;
+
+					/* Apply SP to address bus for write cycle */
+					m3 && t4: sp_to_adr();
+
+					/* Read low byte of PC into data latch */
+					m4 && t1: pc_to_dl(LOW); /* negedge */
+
+					/* Wait for write cycle to finish */
+					m4 && t2,
+					m4 && t3:;
+
+					m4 && t4: begin
+						/* Apply WZ to address bus instead of PC */
+						wz_to_adr();
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* SCF -- Set carry flag */

@@ -197,6 +197,7 @@ module sm83(
 	logic ctl_adr_op_oe, ctl_adr_ff_oe;
 	logic ctl_db_c2l_oe, ctl_db_l2c_oe;
 	logic ctl_db_l2h_oe, ctl_db_h2l_oe;
+	logic ctl_db_c2l_mask543;
 	logic ctl_io_data_oe, ctl_io_data_we;
 	logic ctl_io_adr_we;
 	logic ctl_zero_data_oe;
@@ -228,7 +229,7 @@ module sm83(
 	/* common data bus matrix */
 	logic [1:0] dbc_sel = { ctl_io_data_oe, ctl_db_l2c_oe };
 	word_t dbc     = db_mux(dbc_sel, db_l2c, io_din, 'bx, 'bx, 'bx, 'bx, 'bx);
-	word_t db_c2l  = db_mux(dbc_sel,    'bx, io_din, 'bx, 'bx, 'bx, 'bx, 'bx);
+	word_t db_c2l  = db_mux(dbc_sel,    'bx, io_din, 'bx, 'bx, 'bx, 'bx, 'bx) & (ctl_db_c2l_mask543 ? WORD_SIZE'h38 : {WORD_SIZE{1'b1}});
 	word_t io_din;
 	word_t io_dout = db_mux(dbc_sel, db_l2c,    'bx, 'bx, 'bx, 'bx, 'bx, 'bx);
 
