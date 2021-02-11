@@ -2803,6 +2803,45 @@ module sm83_control(
 				read_mcyc_after(m1); /* Read PC low byte from address in SP during M2 */
 				read_mcyc_after(m2); /* Read PC high byte from address in SP+1 during M3 */
 				last_mcyc(m4);
+
+				unique case (1)
+					/* Apply SP to address bus for read cycle */
+					m1 && t4: sp_to_adr();
+
+					/* Increment SP and wait for read cycle to finish */
+					m2 && t1:;
+					m2 && t2: sp_from_adr_inc(INC);
+					m2 && t3:;
+
+					/* Apply SP to address bus for read cycle */
+					m2 && t4: sp_to_adr();
+
+					/* Increment SP */
+					m3 && t1:;
+					m3 && t2: sp_from_adr_inc(INC);
+
+					/* Write value from data latch that was fetched during M2 into Z */
+					m3 && t3: wz_from_dl(LOW);
+
+					m3 && t4:;
+
+					m4 && t1,
+					m4 && t2:;
+
+					/* Write value from data latch that was fetched during M3 into W */
+					m4 && t3: wz_from_dl(HIGH);
+
+					m4 && t4: begin
+						/* Apply WZ to address bus instead of PC */
+						wz_to_adr();
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* RET cc -- Pop PC if condition cc is met */
@@ -2811,6 +2850,52 @@ module sm83_control(
 				read_mcyc_after(m3); /* Read PC high byte from address in SP+1 during M4 */
 				last_mcyc(m2 && !alu_cond_result);
 				last_mcyc(m5);
+
+				unique case (1)
+					/* Read register F into ALU flags */
+					m1 && t4: af_to_alu(Z|N|H|C);
+
+					m2 && t1,
+					m2 && t2,
+					m2 && t3:;
+
+					/* Apply SP to address bus for read cycle */
+					m2 && t4: sp_to_adr();
+
+					/* Increment SP and wait for read cycle to finish */
+					m3 && t1:;
+					m3 && t2: sp_from_adr_inc(INC);
+					m3 && t3:;
+
+					/* Apply SP to address bus for read cycle */
+					m3 && t4: sp_to_adr();
+
+					/* Increment SP */
+					m4 && t1:;
+					m4 && t2: sp_from_adr_inc(INC);
+
+					/* Write value from data latch that was fetched during M3 into Z */
+					m4 && t3: wz_from_dl(LOW);
+
+					m4 && t4:;
+
+					m5 && t1,
+					m5 && t2:;
+
+					/* Write value from data latch that was fetched during M4 into W */
+					m5 && t3: wz_from_dl(HIGH);
+
+					m5 && t4: begin
+						/* Apply WZ to address bus instead of PC */
+						wz_to_adr();
+						no_pc                = 1;
+					end
+
+					/* No overlap */
+					m1 && t1,
+					m1 && t2,
+					m1 && t3:;
+				endcase
 			end
 
 			/* RST t -- Push PC and jump to vector t */
