@@ -11,6 +11,8 @@
 #  INC/DEC         (HL)
 #  CPL
 #  DAA
+#  SCF
+#  CCF
 
 . test/sm83/functions
 
@@ -18,7 +20,7 @@ set -e
 
 TEST=sm83_sim_add8
 
-simulate 292 <<"EOF"
+simulate 320 <<"EOF"
 # @tick #0
 # Preset registers with values
 # LD BC, $ff05; LD DE, $0f50; LD HL, $8000; LD A, $80; LD (HL), $55; LD ($8001), A
@@ -49,14 +51,20 @@ a1 b3 aa e6 a5 b6 ee cc af
 # CPL; ADD A, $0e; DAA; CPL; SUB A, H; ADD A, C; DAA; ADD A, $30; DAA; CPL; CPL; SUB A, L; DAA
 2f c6 0e 27 2f 94 81 27 c6 30 27 2f 2f 95 27
 # 60 ticks
+
+# @tick #288
+# SCF; SCF; CCF; CCF; XOR A; SCF; CCF
+37 37 3f 3f af 37 3f
+# 28 ticks
 EOF
 
 compare_mem <<"EOF"
 0000000    0501    11ff    0f50    0021    3e80    3680    ea55    8001
 0000010    8f84    8788    ce86    a10a    aab3    a5e6    eeb6    afcc
 0000020    2c34    3c35    1d04    3d14    fe96    bc81    d69d    9981
-0000030    c62f    270e    942f    2781    30c6    2f27    952f    0027
-0000040    0000    0000    0000    0000    0000    0000    0000    0000
+0000030    c62f    270e    942f    2781    30c6    2f27    952f    3727
+0000040    3f37    af3f    3f37    0000    0000    0000    0000    0000
+0000050    0000    0000    0000    0000    0000    0000    0000    0000
 *
 0008000    7f56    0000    0000    0000    0000    0000    0000    0000
 0008010    0000    0000    0000    0000    0000    0000    0000    0000
@@ -109,4 +117,12 @@ grep_output <<"EOF"
 279@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0xfff0
 283@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x00f0
 291@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x9950
+
+# Check SCF and CCF
+295@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x9910
+299@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x9910
+303@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x9900
+307@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x9910
+315@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x0090
+319@posedge     M=1 T=4    .* BC=0x0005 DE=0x104f HL=0x8001 AF=0x0080
 EOF
