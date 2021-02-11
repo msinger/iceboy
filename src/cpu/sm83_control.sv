@@ -1924,7 +1924,11 @@ module sm83_control(
 						update_alu_flags(0|0|H|0);
 					end
 
-					m3 && t4: begin
+					m3 && t4:;
+
+					m4 && t1:;
+
+					m4 && t2: begin
 						/* Use half carry for high nibble calculation */
 						ctl_alu_sel_hc       = 1;
 
@@ -1937,12 +1941,10 @@ module sm83_control(
 						/* Update ALU flags */
 						ctl_alu_fl_neg_clr   = 1;
 						update_alu_flags(0|N|0|C);
+
+						/* Write ALU result into high byte of SP */
+						sp_from_alu(HIGH);
 					end
-
-					m4 && t1:;
-
-					/* Write ALU result into high byte of SP */
-					m4 && t2: sp_from_alu(HIGH);
 
 					/* Write ALU flags into register F */
 					m4 && t3: f_from_alu();
