@@ -447,8 +447,8 @@ module sm83_control(
 		ctl_alu_res_oe     = 1;
 		ctl_alu_oe         = 1;
 		ctl_db_h2l_oe      = 1;
-		ctl_reg_h2gp_oe    = 1;
-		ctl_reg_l2gp_oe    = 1;
+		ctl_reg_l2gp_oe    = hilo[0];
+		ctl_reg_h2gp_oe    = hilo[1];
 		write_wz(hilo);
 	endtask
 
