@@ -81,7 +81,14 @@ module sm83_io
 		endcase
 	end
 
-	always_ff @(posedge clk) if (al_we) aout = ain;
+	always_ff @(posedge clk) begin
+		/* Zero upper address lines after each memory cycle */
+		if (t4)
+			aout[ADR_WIDTH-1:8] = 0;
+
+		if (al_we)
+			aout = ain;
+	end
 
 	/* Emulate latch behaviour for data input.
 	 * Input data is already latched at IO port, but only for one tick (during T4). */

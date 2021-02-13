@@ -1554,8 +1554,13 @@ module sm83_control(
 					m2 && t2,
 					m2 && t3:;
 
-					/* Read register F into ALU flags */
-					m2 && t4: af_to_alu(Z|N|H|C);
+					m2 && t4: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+
+						/* Apply address latch to address bus for write cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
 
 					m3 && t1: begin
 						/* Write data latch into ALU operand A */
@@ -2050,8 +2055,13 @@ module sm83_control(
 					m2 && t2,
 					m2 && t3:;
 
-					/* Read register F into ALU flags */
-					m2 && t4: af_to_alu(Z|N|H|C);
+					m2 && t4: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+
+						/* Apply address latch to address bus for write cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
 
 					m3 && t1: begin
 						/* Write data latch into ALU operands with shift */
@@ -2163,8 +2173,13 @@ module sm83_control(
 					m2 && t2,
 					m2 && t3:;
 
-					/* Read register F into ALU flags */
-					m2 && t4: af_to_alu(Z|N|H|C);
+					m2 && t4: begin
+						/* Read register F into ALU flags */
+						af_to_alu(Z|N|H|C);
+
+						/* Apply address latch to address bus for write cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
 
 					m3 && t1: begin
 						/* Write data latch into ALU operand B */
@@ -2397,7 +2412,10 @@ module sm83_control(
 						dl_to_alu_bsel();
 					end
 
-					m2 && t4:;
+					m2 && t4: begin
+						/* Apply address latch to address bus for write cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
 
 					m3 && t1: begin
 						/* Write data latch into ALU operand A */
@@ -2500,7 +2518,10 @@ module sm83_control(
 						dl_to_alu_bsel();
 					end
 
-					m2 && t4:;
+					m2 && t4: begin
+						/* Apply address latch to address bus for write cycle */
+						ctl_io_adr_we        = 1; /* posedge */
+					end
 
 					m3 && t1: begin
 						/* Write data latch into ALU operand A */
