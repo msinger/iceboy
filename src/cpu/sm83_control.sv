@@ -2757,7 +2757,7 @@ module sm83_control(
 					m3 && t3: wz_from_dl(LOW);
 
 					/* Apply SP to address bus for decrement */
-					m3 && t4: sp_to_adr();
+					m3 && t4: if (!set_m1) sp_to_adr();
 
 					/* Decrement SP */
 					m4 && t1:;
@@ -2862,7 +2862,7 @@ module sm83_control(
 					m2 && t3:;
 
 					/* Apply SP to address bus for read cycle */
-					m2 && t4: sp_to_adr();
+					m2 && t4: if (!set_m1) sp_to_adr();
 
 					/* Increment SP and wait for read cycle to finish */
 					m3 && t1:;
