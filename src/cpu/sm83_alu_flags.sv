@@ -21,7 +21,6 @@ module sm83_alu_flags
 
 		input  logic                   zero_we,          /* Update zero flag. */
 		input  logic                   zero_clr,         /* Clear zero flag on update. */
-		input  logic                   zero_loop,        /* And in current zero flag when writing for generating zero flag for 16 bit operation. */
 		input  logic                   half_carry_we,    /* Update half carry flag. */
 		input  logic                   half_carry_set,   /* Output 1 for half carry flag. */
 		input  logic                   half_carry_cpl,   /* Invert half carry output. */
@@ -63,7 +62,7 @@ module sm83_alu_flags
 	assign dout[WORD_SIZE-5:0] = 0;
 
 	always_ff @(posedge clk) if (zero_we) begin :do_zero
-		logic new_zero;
+		logic new_zero; // TODO: find out why removal of this variable causes simulation with write_cxxrtl stop working
 
 `ifdef FORMAL
 		assume (flags_bus != flags_alu);
@@ -73,10 +72,7 @@ module sm83_alu_flags
 			flags_alu: new_zero = zero_in;
 		endcase
 
-		if (zero_loop)
-			zero &= new_zero;
-		else
-			zero = new_zero;
+		zero = new_zero;
 
 		if (zero_clr)
 			zero = 0;

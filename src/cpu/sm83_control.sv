@@ -20,12 +20,10 @@ module sm83_control(
 		output logic                 ctl_reg_sys_hi_sel, ctl_reg_sys_lo_sel,
 		output logic                 ctl_reg_sys_hi_we, ctl_reg_sys_lo_we,
 		output logic                 ctl_reg_bc_sel, ctl_reg_de_sel, ctl_reg_hl_sel, ctl_reg_af_sel, ctl_reg_sp_sel, ctl_reg_wz_sel, ctl_reg_pc_sel,
-		output logic                 ctl_reg_gph2sys_oe, ctl_reg_gpl2sys_oe, ctl_reg_sys2gp_oe,
-		output logic                 ctl_al_oe,
+		output logic                 ctl_reg_gp2sys_oe, ctl_reg_sys2gp_oe,
 		output logic                 ctl_al_we, ctl_al_hi_ff,
 		output logic                 ctl_inc_dec, ctl_inc_cy,
 		output logic                 ctl_inc_oe,
-		output logic                 ctl_adr_op_oe, ctl_adr_ff_oe,
 		output logic                 ctl_db_c2l_oe, ctl_db_l2c_oe,
 		output logic                 ctl_db_l2h_oe, ctl_db_h2l_oe,
 		output logic                 ctl_db_c2l_mask543,
@@ -36,16 +34,16 @@ module sm83_control(
 		output logic                 ctl_ir_bank_we,
 		output logic                 ctl_ir_bank_cb_set,
 		output logic                 ctl_alu_oe, ctl_alu_fl_oe, ctl_alu_daa_oe,
-		output logic                 ctl_alu_sh_oe, ctl_alu_op_a_oe, ctl_alu_op_b_oe, ctl_alu_res_oe, ctl_alu_bs_oe,
-		output logic                 ctl_alu_op_a_bus, ctl_alu_op_a_low, ctl_alu_op_a_zero,
-		output logic                 ctl_alu_op_b_bus, ctl_alu_op_b_lq, ctl_alu_op_b_zero,
+		output logic                 ctl_alu_sh_oe, ctl_alu_op_a_oe, ctl_alu_res_oe, ctl_alu_bs_oe,
+		output logic                 ctl_alu_op_a_bus, ctl_alu_op_a_zero,
+		output logic                 ctl_alu_op_b_bus, ctl_alu_op_b_zero,
 		output logic                 ctl_alu_nc, ctl_alu_fc, ctl_alu_ic,
 		output logic                 ctl_alu_neg, ctl_alu_op_low, ctl_alu_op_b_high,
 		output logic                 ctl_alu_shift,   /* Makes ALU perform shift operation on data input. */
 		output logic                 ctl_alu_sel_hc,  /* Selects which carry flag goes into ALU core. (0: carry; 1: half carry) */
 		output logic                 ctl_alu_cond_we, /* Write condition result flag for conditional operation. */
 		output logic                 ctl_alu_fl_bus, ctl_alu_fl_alu,
-		output logic                 ctl_alu_fl_zero_we, ctl_alu_fl_zero_clr, ctl_alu_fl_zero_loop,
+		output logic                 ctl_alu_fl_zero_we, ctl_alu_fl_zero_clr,
 		output logic                 ctl_alu_fl_half_we, ctl_alu_fl_half_set, ctl_alu_fl_half_cpl,
 		output logic                 ctl_alu_fl_daac_we,
 		output logic                 ctl_alu_fl_neg_we, ctl_alu_fl_neg_set, ctl_alu_fl_neg_clr,
@@ -204,8 +202,7 @@ module sm83_control(
 		read_reg(r);
 		ctl_reg_sp_sel     = use_sp;
 		ctl_reg_sys2gp_oe  = use_sp;
-		ctl_reg_gph2sys_oe = !use_sp;
-		ctl_reg_gpl2sys_oe = !use_sp;
+		ctl_reg_gp2sys_oe  = !use_sp;
 		ctl_reg_sys_lo_sel = 1;
 		ctl_reg_sys_hi_sel = 1;
 	endtask
@@ -224,8 +221,7 @@ module sm83_control(
 		write_reg(r, hilo);
 		ctl_reg_sp_sel     = use_sp;
 		ctl_reg_sys2gp_oe  = sys2gp;
-		ctl_reg_gpl2sys_oe = !sys2gp;
-		ctl_reg_gph2sys_oe = !sys2gp;
+		ctl_reg_gp2sys_oe  = !sys2gp;
 		ctl_reg_sys_lo_sel = hilo[0];
 		ctl_reg_sys_hi_sel = hilo[1];
 		ctl_reg_sys_lo_we  = hilo[0]; /* posedge */
@@ -254,8 +250,7 @@ module sm83_control(
 
 	task reg_to_sys(input logic [1:0] r);
 		read_reg(r);
-		ctl_reg_gph2sys_oe = 1;
-		ctl_reg_gpl2sys_oe = 1;
+		ctl_reg_gp2sys_oe = 1;
 	endtask
 
 	/* Increment or decrement address latch */
@@ -264,7 +259,6 @@ module sm83_control(
 		ctl_inc_dec = dec;
 		ctl_inc_oe  = 1;
 		ctl_al_we   = 1; /* negedge */
-		ctl_al_oe   = 1;
 	endtask
 
 	/* Apply system register to address bus */
@@ -289,9 +283,8 @@ module sm83_control(
 
 	/* Apply WZ to address bus */
 	task wz_to_adr();
-		ctl_reg_wz_sel     = 1;
-		ctl_reg_gph2sys_oe = 1;
-		ctl_reg_gpl2sys_oe = 1;
+		ctl_reg_wz_sel    = 1;
+		ctl_reg_gp2sys_oe = 1;
 		sys_to_adr();
 	endtask
 
@@ -399,7 +392,7 @@ module sm83_control(
 
 	/* Apply PC to data latch */
 	task pc_to_dl(input logic [1:0] hilo);
-		ctl_reg_pc_sel     = 1;
+		ctl_reg_pc_sel = 1;
 		sys_to_db(hilo);
 		ctl_db_l2c_oe  = 1;
 		ctl_io_data_we = 1;
@@ -407,7 +400,7 @@ module sm83_control(
 
 	/* Apply SP to data latch */
 	task sp_to_dl(input logic [1:0] hilo);
-		ctl_reg_sp_sel     = 1;
+		ctl_reg_sp_sel = 1;
 		sys_to_db(hilo);
 		ctl_db_l2c_oe  = 1;
 		ctl_io_data_we = 1;
@@ -415,15 +408,15 @@ module sm83_control(
 
 	/* Write PC to ALU operand A */
 	task pc_to_alu_op_a(input logic [1:0] hilo);
-		ctl_reg_pc_sel       = 1;
+		ctl_reg_pc_sel   = 1;
 		sys_to_db(hilo);
-		ctl_alu_sh_oe        = 1;
-		ctl_alu_op_a_bus     = 1; /* negedge */
+		ctl_alu_sh_oe    = 1;
+		ctl_alu_op_a_bus = 1; /* negedge */
 	endtask
 
 	/* Write SP to ALU operand A */
 	task sp_to_alu_op_a(input logic [1:0] hilo);
-		ctl_reg_sp_sel     = 1;
+		ctl_reg_sp_sel   = 1;
 		sys_to_db(hilo);
 		ctl_alu_sh_oe    = 1;
 		ctl_alu_op_a_bus = 1; /* negedge */
@@ -431,24 +424,23 @@ module sm83_control(
 
 	/* Write ALU result to SP */
 	task sp_from_alu(input logic [1:0] hilo);
-		ctl_alu_res_oe     = 1;
-		ctl_alu_oe         = 1;
-		ctl_db_h2l_oe      = 1;
-		ctl_reg_h2gp_oe    = 1;
-		ctl_reg_l2gp_oe    = 1;
-		ctl_reg_gph2sys_oe = 1;
-		ctl_reg_gpl2sys_oe = 1;
-		ctl_reg_sp_sel     = 1;
+		ctl_alu_res_oe    = 1;
+		ctl_alu_oe        = 1;
+		ctl_db_h2l_oe     = 1;
+		ctl_reg_h2gp_oe   = 1;
+		ctl_reg_l2gp_oe   = 1;
+		ctl_reg_gp2sys_oe = 1;
+		ctl_reg_sp_sel    = 1;
 		write_sys(hilo);
 	endtask
 
 	/* Write ALU result to WZ */
 	task wz_from_alu(input logic [1:0] hilo);
-		ctl_alu_res_oe     = 1;
-		ctl_alu_oe         = 1;
-		ctl_db_h2l_oe      = 1;
-		ctl_reg_l2gp_oe    = hilo[0];
-		ctl_reg_h2gp_oe    = hilo[1];
+		ctl_alu_res_oe  = 1;
+		ctl_alu_oe      = 1;
+		ctl_db_h2l_oe   = 1;
+		ctl_reg_l2gp_oe = hilo[0];
+		ctl_reg_h2gp_oe = hilo[1];
 		write_wz(hilo);
 	endtask
 
@@ -494,7 +486,7 @@ module sm83_control(
 	task af_to_alu(input logic [3:0] fmask);
 		reg_to_alu_op_a(AF, HIGH|LOW);
 		reg_to_alu_op_b(AF, HIGH|LOW);
-		ctl_alu_fl_bus   = 1;
+		ctl_alu_fl_bus = 1;
 		write_alu_flags(fmask);
 	endtask
 
@@ -587,17 +579,13 @@ module sm83_control(
 		ctl_reg_sp_sel       = 0;
 		ctl_reg_wz_sel       = 0;
 		ctl_reg_pc_sel       = 0;
-		ctl_reg_gph2sys_oe   = 0;
-		ctl_reg_gpl2sys_oe   = 0;
+		ctl_reg_gp2sys_oe    = 0;
 		ctl_reg_sys2gp_oe    = 0;
-		ctl_al_oe            = 0;
 		ctl_al_we            = 0;
 		ctl_al_hi_ff         = 0;
 		ctl_inc_dec          = 0;
 		ctl_inc_cy           = 0;
 		ctl_inc_oe           = 0;
-		ctl_adr_op_oe        = 0;
-		ctl_adr_ff_oe        = 0;
 		ctl_db_c2l_oe        = 0;
 		ctl_db_l2c_oe        = 0;
 		ctl_db_l2h_oe        = 0;
@@ -615,14 +603,11 @@ module sm83_control(
 		ctl_alu_daa_oe       = 0;
 		ctl_alu_sh_oe        = 0;
 		ctl_alu_op_a_oe      = 0;
-		ctl_alu_op_b_oe      = 0;
 		ctl_alu_res_oe       = 0;
 		ctl_alu_bs_oe        = 0;
 		ctl_alu_op_a_bus     = 0;
-		ctl_alu_op_a_low     = 0;
 		ctl_alu_op_a_zero    = 0;
 		ctl_alu_op_b_bus     = 0;
-		ctl_alu_op_b_lq      = 0;
 		ctl_alu_op_b_zero    = 0;
 		ctl_alu_nc           = 0;
 		ctl_alu_fc           = 0;
@@ -637,7 +622,6 @@ module sm83_control(
 		ctl_alu_fl_alu       = 0;
 		ctl_alu_fl_zero_we   = 0;
 		ctl_alu_fl_zero_clr  = 0;
-		ctl_alu_fl_zero_loop = 0;
 		ctl_alu_fl_half_we   = 0;
 		ctl_alu_fl_half_set  = 0;
 		ctl_alu_fl_half_cpl  = 0;

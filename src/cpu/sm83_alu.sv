@@ -17,9 +17,7 @@ module sm83_alu
 		output logic [WORD_SIZE-1:0]   dout,
 
 		input  logic                   load_a, load_b,   /* Load bus into A or B register. */
-		input  logic                   load_a_low,       /* Load bus high nibble into lower A. */
 		input  logic                   load_a_zero,      /* Load A with zero. */
-		input  logic                   load_b_lq,        /* Load core A into lower B and bus low nibble into higher B.*/
 		input  logic                   load_b_zero,      /* Load B with zero. */
 		input  logic                   shift_l, shift_r, /* Shift left or right. */
 		input  logic                   shift_in,         /* Bit that gets shifted in when shift_l or shift_r is high. */
@@ -29,7 +27,6 @@ module sm83_alu
 		input  logic                   result_oe,        /* Selects core result to be output to the ALU bus. */
 		input  logic                   shift_oe,         /* Selects shift result to be output to the ALU bus. */
 		input  logic                   op_a_oe,          /* Selects operand A to be output to the ALU bus. */
-		input  logic                   op_b_oe,          /* Selects operand B to be output to the ALU bus. */
 		input  logic                   bs_oe,            /* Selects bitmask generated from bsel to be output to the ALU bus. */
 
 		/*
@@ -116,24 +113,22 @@ module sm83_alu
 
 	/* only one of *_oe can be set at the same time */
 `ifdef FORMAL
-	assume property (result_oe + shift_oe + op_a_oe + op_b_oe + bs_oe <= 1);
+	assume property (result_oe + shift_oe + op_a_oe + bs_oe <= 1);
 `endif
-	always_comb unique casez ({ result_oe, shift_oe, op_a_oe, op_b_oe, bs_oe })
-		'b 1????: bus = result;
-		'b ?1???: bus = shifted;
-		'b ??1??: bus = op_a;
-		'b ???1?: bus = op_b;
-		'b ????1: bus = op_bs;
-		'b 00000: bus = 'bx;
+	always_comb unique casez ({ result_oe, shift_oe, op_a_oe, bs_oe })
+		'b 1???: bus = result;
+		'b ?1??: bus = shifted;
+		'b ??1?: bus = op_a;
+		'b ???1: bus = op_bs;
+		'b 0000: bus = 'bx;
 	endcase
 
 	/* only one of load_a* can be set at the same time */
 `ifdef FORMAL
-	assume property (load_a + load_a_low + load_a_zero <= 1);
+	assume property (load_a + load_a_zero <= 1);
 `endif
-	always_ff @(negedge clk) if (load_a || load_a_low || load_a_zero) unique case (1)
+	always_ff @(negedge clk) if (load_a || load_a_zero) unique case (1)
 		load_a:      op_a.l = bus.l;
-		load_a_low:  op_a.l = bus.h;
 		load_a_zero: op_a.l = 0;
 	endcase
 	always_ff @(negedge clk) if (load_a || load_a_zero) unique case (1)
@@ -143,16 +138,14 @@ module sm83_alu
 
 	/* only one of load_b* can be set at the same time */
 `ifdef FORMAL
-	assume property (load_b + load_b_lq + load_b_zero <= 1);
+	assume property (load_b + load_b_zero <= 1);
 `endif
-	always_ff @(negedge clk) if (load_b || load_b_lq || load_b_zero) unique case (1)
+	always_ff @(negedge clk) if (load_b || load_b_zero) unique case (1)
 		load_b:      op_b.l = bus.l;
-		load_b_lq:   op_b.l = core_op_a;
 		load_b_zero: op_b.l = 0;
 	endcase
-	always_ff @(negedge clk) if (load_b || load_b_lq || load_b_zero) unique case (1)
+	always_ff @(negedge clk) if (load_b || load_b_zero) unique case (1)
 		load_b:      op_b.h = bus.h;
-		load_b_lq:   op_b.h = bus.l;
 		load_b_zero: op_b.h = 0;
 	endcase
 
