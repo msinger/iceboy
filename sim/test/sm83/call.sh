@@ -12,8 +12,6 @@
 
 set -e
 
-TEST=sm83_sim_call
-
 simulate 388 <<"EOF"
 # @tick #0
 # Preset register AF and SP

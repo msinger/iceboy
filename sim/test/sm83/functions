@@ -1,3 +1,5 @@
+TEST=sm83_sim_$(basename -s.sh $0)
+
 function drop_comments () {
 	while read -r line; do
 		if [[ "$line" == "#"* ]]; then

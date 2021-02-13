@@ -12,8 +12,6 @@
 
 set -e
 
-TEST=sm83_sim_ld16
-
 simulate 288 <<"EOF"
 # @tick #0
 # Set flags

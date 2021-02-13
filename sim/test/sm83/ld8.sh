@@ -25,8 +25,6 @@
 
 set -e
 
-TEST=sm83_sim_ld8
-
 simulate 404 <<"EOF"
 # @tick #0
 # Set flags

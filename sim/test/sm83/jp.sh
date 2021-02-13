@@ -11,8 +11,6 @@
 
 set -e
 
-TEST=sm83_sim_jp
-
 simulate 204 <<"EOF"
 # @tick #0
 # Preset register HL and AF

@@ -18,8 +18,6 @@
 
 set -e
 
-TEST=sm83_sim_add8
-
 simulate 320 <<"EOF"
 # @tick #0
 # Preset registers with values

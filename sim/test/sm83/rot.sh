@@ -18,8 +18,6 @@
 
 set -e
 
-TEST=sm83_sim_rot
-
 simulate 212 <<"EOF"
 # @tick #0
 # Preset registers and memory with values
