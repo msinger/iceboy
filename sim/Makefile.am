@@ -1,4 +1,4 @@
-noinst_PROGRAMS = \
+check_PROGRAMS = \
 sm83_sim
 
 sm83_sim_SOURCES = \
@@ -6,9 +6,6 @@ sm83_sim.cc
 
 nodist_sm83_sim_SOURCES = \
 sm83_sim_design.cc
-
-BUILT_SOURCES = \
-$(nodist_sm83_sim_SOURCES)
 
 CLEANFILES = \
 $(nodist_sm83_sim_SOURCES) \
@@ -49,5 +46,9 @@ AM_CPPFLAGS = -I@YOSYS_INCLUDEDIR@
 
 YOSYS_CXXRTL_ARGS = -q -p "write_cxxrtl -header -namespace $(patsubst %.cc,%,$1) $1"
 
+sm83_sim_design.$(OBJEXT): sm83_sim_design.h
+sm83_sim.$(OBJEXT): sm83_sim_design.h
+
 sm83_sim_design.cc: Makefile $(addprefix $(top_srcdir)/src/,$(SM83_UUT))
 	$(YOSYS) $(YOSYSFLAGS) $(call YOSYS_CXXRTL_ARGS,$@) $(addprefix $(top_srcdir)/src/,$(SM83_UUT))
+sm83_sim_design.h: sm83_sim_design.cc
