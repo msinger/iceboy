@@ -4,7 +4,7 @@
 module testbench(input logic clk);
 	`include "alu.svh"
 
-	always_ff @(posedge clk) begin
+	always_comb begin
 		undef_inputs();
 
 		/*      cyc,  opA,  opB  */

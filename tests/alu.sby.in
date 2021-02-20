@@ -22,6 +22,7 @@ bit_bmc  bit  bmc set_res_bit
 bmc: mode bmc
 append 10
 expect pass
+multiclock on
 add_sub:     depth 64
 xor_and_or:  depth 36
 neg_cpl:     depth 44
