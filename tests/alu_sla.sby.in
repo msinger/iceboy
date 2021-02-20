@@ -1,0 +1,22 @@
+[tasks]
+sla_bmc sla bmc
+
+[options]
+bmc: mode bmc
+append 10
+expect pass
+multiclock on
+sla_bmc: depth 72
+
+[engines]
+smtbmc
+
+[script]
+sla: read_verilog -sv -formal alu_sla.sv sm83_alu.sv
+prep -top testbench
+assertpmux
+
+[files]
+@top_srcdir@/src/cpu/sm83_alu.sv
+@srcdir@/alu.svh
+sla: @srcdir@/alu_sla.sv

@@ -1,5 +1,22 @@
 FORMAL_TESTS = \
-alu.sby
+alu_add.sby \
+alu_sub.sby \
+alu_xor.sby \
+alu_and.sby \
+alu_or.sby \
+alu_neg.sby \
+alu_cpl.sby \
+alu_sla.sby \
+alu_rl.sby \
+alu_srl.sby \
+alu_rr.sby \
+alu_sra.sby \
+alu_rlc.sby \
+alu_rrc.sby \
+alu_swap.sby \
+alu_set.sby \
+alu_res.sby \
+alu_bit.sby
 
 ALU_TESTS = \
 alu.svh \

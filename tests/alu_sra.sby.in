@@ -1,0 +1,22 @@
+[tasks]
+sra_bmc sra bmc
+
+[options]
+bmc: mode bmc
+append 10
+expect pass
+multiclock on
+sra_bmc: depth 72
+
+[engines]
+smtbmc
+
+[script]
+sra: read_verilog -sv -formal alu_sra.sv sm83_alu.sv
+prep -top testbench
+assertpmux
+
+[files]
+@top_srcdir@/src/cpu/sm83_alu.sv
+@srcdir@/alu.svh
+sra: @srcdir@/alu_sra.sv
