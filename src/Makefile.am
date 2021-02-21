@@ -14,6 +14,7 @@ cpu/sm83_control.sv \
 cpu/sm83_sequencer.sv \
 cpu/sm83_decode.sv \
 cpu/sm83_int.sv \
+cpu/sm83_dbg_ifc.sv \
 ppu/lr35902_ppu.v \
 ppu/lr35902_vram.v \
 ppu/lr35902_oam.v \
