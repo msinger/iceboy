@@ -19,10 +19,7 @@ public:
 
 static void step(sm83_sim_design::p_sm83& sm83)
 {
-	sm83.step();
-	sm83.step();
-	sm83.step();
-	sm83.step();
+	while (sm83.step() > 1);
 }
 
 static int get_m(const sm83_sim_design::p_sm83& sm83)
@@ -37,22 +34,23 @@ static int get_t(const sm83_sim_design::p_sm83& sm83)
 
 static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83, const std::string& endl)
 {
-	stm <<
+	stm << std::noboolalpha <<
 		"   " <<
 		" M=" << std::dec << std::setw(1) << get_m(sm83) <<
 		" T=" << std::dec << std::setw(1) << get_t(sm83) <<
 		"   " <<
-		" CLK=" << std::dec << std::setw(1) << sm83.p_clk.get<uint16_t>() <<
-		" RST=" << std::dec << std::setw(1) << sm83.p_reset.get<uint16_t>() <<
+		" CLK=" << std::dec << std::setw(1) << sm83.p_clk.get<bool>() <<
+		" RST=" << std::dec << std::setw(1) << sm83.p_reset.get<bool>() <<
+		" NCYC=" << std::dec << std::setw(1) << sm83.p_ncyc.get<bool>() <<
 		"   " <<
-		" nRD=" << std::dec << std::setw(1) << sm83.p_n__rd.get<uint16_t>() <<
-		" pRD=" << std::dec << std::setw(1) << sm83.p_p__rd.get<uint16_t>() <<
-		" nWR=" << std::dec << std::setw(1) << sm83.p_n__wr.get<uint16_t>() <<
-		" pWR=" << std::dec << std::setw(1) << sm83.p_p__wr.get<uint16_t>() <<
-		" LH=" << std::dec << std::setw(1) << sm83.p_lh.get<uint16_t>() <<
+		" nRD=" << std::dec << std::setw(1) << sm83.p_n__rd.get<bool>() <<
+		" pRD=" << std::dec << std::setw(1) << sm83.p_p__rd.get<bool>() <<
+		" nWR=" << std::dec << std::setw(1) << sm83.p_n__wr.get<bool>() <<
+		" pWR=" << std::dec << std::setw(1) << sm83.p_p__wr.get<bool>() <<
+		" LH=" << std::dec << std::setw(1) << sm83.p_lh.get<bool>() <<
 		"   " <<
-		" MR=" << std::dec << std::setw(1) << sm83.p_dbg__mread.get<uint16_t>() <<
-		" MW=" << std::dec << std::setw(1) << sm83.p_dbg__mwrite.get<uint16_t>() <<
+		" MR=" << std::dec << std::setw(1) << sm83.p_dbg__mread.get<bool>() <<
+		" MW=" << std::dec << std::setw(1) << sm83.p_dbg__mwrite.get<bool>() <<
 		endl <<
 		"   " <<
 		" ADR=0x" << std::hex << std::setw(4) << std::setfill('0') << sm83.p_adr.get<uint16_t>() <<

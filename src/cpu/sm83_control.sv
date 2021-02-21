@@ -1643,11 +1643,7 @@ module sm83_control(
 						ctl_alu_neg          = 1;
 
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate low nibble in ALU */
 						ctl_alu_op_low       = 1; /* posedge */
@@ -1662,11 +1658,7 @@ module sm83_control(
 						ctl_alu_neg          = 1;
 
 						/* Configure ALU for OR operation */
-						ctl_alu_nc           = 1;
-						ctl_alu_fc           = 1;
-						ctl_alu_ic           = 1;
-						ctl_alu_fl_carry_set = 1;
-						ctl_alu_fl_carry_cpl = 1;
+						alu_op_or();
 
 						/* Caclulate high nibble in ALU */
 						ctl_alu_op_b_high    = 1;
