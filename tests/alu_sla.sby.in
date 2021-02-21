@@ -12,11 +12,11 @@ sla_bmc: depth 20
 smtbmc
 
 [script]
-sla: read_verilog -sv -formal alu_sla.sv sm83_alu.sv
+sla: read_verilog -sv -formal sla.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-sla: @srcdir@/alu_sla.sv
+@srcdir@/alu/alu.svh
+sla: @srcdir@/alu/sla.sv

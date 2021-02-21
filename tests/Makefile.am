@@ -19,32 +19,32 @@ alu_res.sby \
 alu_bit.sby
 
 ALU_TESTS = \
-alu.svh \
-alu_add.sv \
-alu_sub.sv \
-alu_xor.sv \
-alu_and.sv \
-alu_or.sv \
-alu_neg.sv \
-alu_cpl.sv \
-alu_sla.sv \
-alu_rl.sv \
-alu_srl.sv \
-alu_rr.sv \
-alu_sra.sv \
-alu_rlc.sv \
-alu_rrc.sv \
-alu_swap.sv \
-alu_set.sv \
-alu_res.sv \
-alu_bit.sv
+alu/alu.svh \
+alu/add.sv \
+alu/sub.sv \
+alu/xor.sv \
+alu/and.sv \
+alu/or.sv \
+alu/neg.sv \
+alu/cpl.sv \
+alu/sla.sv \
+alu/rl.sv \
+alu/srl.sv \
+alu/rr.sv \
+alu/sra.sv \
+alu/rlc.sv \
+alu/rrc.sv \
+alu/swap.sv \
+alu/set.sv \
+alu/res.sv \
+alu/bit.sv
 
 TESTBENCH_FILES = \
 $(ALU_TESTS)
 
 ALU_HW_TESTS = \
-alu_test1.sv \
-alu_test2.sv
+alu/hwtest1.sv \
+alu/hwtest2.sv
 
 ALU_UUT = cpu/sm83_alu.sv
 

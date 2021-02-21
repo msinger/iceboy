@@ -12,11 +12,11 @@ or_bmc: depth 20
 smtbmc
 
 [script]
-or: read_verilog -sv -formal alu_or.sv sm83_alu.sv
+or: read_verilog -sv -formal or.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-or: @srcdir@/alu_or.sv
+@srcdir@/alu/alu.svh
+or: @srcdir@/alu/or.sv

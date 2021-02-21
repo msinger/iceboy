@@ -12,11 +12,11 @@ cpl_bmc: depth 20
 smtbmc
 
 [script]
-cpl: read_verilog -sv -formal alu_cpl.sv sm83_alu.sv
+cpl: read_verilog -sv -formal cpl.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-cpl: @srcdir@/alu_cpl.sv
+@srcdir@/alu/alu.svh
+cpl: @srcdir@/alu/cpl.sv

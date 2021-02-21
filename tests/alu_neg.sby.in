@@ -12,11 +12,11 @@ neg_bmc: depth 20
 smtbmc
 
 [script]
-neg: read_verilog -sv -formal alu_neg.sv sm83_alu.sv
+neg: read_verilog -sv -formal neg.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-neg: @srcdir@/alu_neg.sv
+@srcdir@/alu/alu.svh
+neg: @srcdir@/alu/neg.sv

@@ -12,11 +12,11 @@ add_bmc: depth 20
 smtbmc
 
 [script]
-add: read_verilog -sv -formal alu_add.sv sm83_alu.sv
+add: read_verilog -sv -formal add.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-add: @srcdir@/alu_add.sv
+@srcdir@/alu/alu.svh
+add: @srcdir@/alu/add.sv

@@ -12,11 +12,11 @@ xor_bmc: depth 20
 smtbmc
 
 [script]
-xor: read_verilog -sv -formal alu_xor.sv sm83_alu.sv
+xor: read_verilog -sv -formal xor.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-xor: @srcdir@/alu_xor.sv
+@srcdir@/alu/alu.svh
+xor: @srcdir@/alu/xor.sv

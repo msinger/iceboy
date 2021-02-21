@@ -12,11 +12,11 @@ rlc_bmc: depth 20
 smtbmc
 
 [script]
-rlc: read_verilog -sv -formal alu_rlc.sv sm83_alu.sv
+rlc: read_verilog -sv -formal rlc.sv sm83_alu.sv
 prep -top testbench
 assertpmux
 
 [files]
 @top_srcdir@/src/cpu/sm83_alu.sv
-@srcdir@/alu.svh
-rlc: @srcdir@/alu_rlc.sv
+@srcdir@/alu/alu.svh
+rlc: @srcdir@/alu/rlc.sv
