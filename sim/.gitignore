@@ -4,4 +4,5 @@
 *.out
 *.trs
 /sm83_sim
-/sm83_sim_design.*
+/sm83_dbg_ifc_sim
+/*_design.*
