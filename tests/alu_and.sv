@@ -4,16 +4,62 @@
 module testbench(input logic clk);
 	`include "alu.svh"
 
+	localparam SCYC = 2;
+
+	logic [7:0] a = $anyconst;
+	logic [7:0] b = $anyconst;
+
+	logic [7:0] r;
+
+	assign r = a & b;
+
 	always_comb begin
 		undef_inputs();
 
-		/*       cyc,  opA,  opB  */
-		test_and(  4,    0,    0);
-		test_and(  8,  255,  255);
-		test_and( 12,  255,    0);
-		test_and( 16,    0,  255);
-		test_and( 20, 'haa, 'haa);
-		test_and( 24, 'haa, 'h55);
-		test_and( 28, 'h21, 'hb9);
+		line0    = $anyseq;
+		line0.op = a;
+		line0.sh = NO_SH;
+		line0.oe = SH_OE;
+		line0.la = BUS_LD;
+
+		line1    = $anyseq;
+		line1.la = NO_LD;
+		line1.op = b;
+		line1.sh = NO_SH;
+		line1.oe = SH_OE;
+		line1.lb = BUS_LD;
+		line1.r  = 0;
+		line1.s  = 1;
+		line1.v  = 0;
+		line1.ne = 0;
+		line1.ci = 1;
+		line1.l  = 1;
+		line1.h  = 0;
+
+		line2    = $anyseq;
+		line2.la = NO_LD;
+		line2.lb = NO_LD;
+		line2.r  = 0;
+		line2.s  = 1;
+		line2.v  = 0;
+		line2.ne = 0;
+		line2.ci = 1;
+		line2.l  = 0;
+		line2.h  = 1;
+		line2.oe = RES_OE;
+
+		if (cyc == SCYC)     set_inputs(line0);
+		if (cyc == SCYC + 1) set_inputs(line1);
+		if (cyc == SCYC + 2) set_inputs(line2);
+
+		if (cyc == SCYC + 1) begin
+			assert(carry);
+		end
+
+		if (cyc == SCYC + 2) begin
+			assert(result == r);
+			assert(zero   == !r);
+			assert(carry);
+		end
 	end
 endmodule

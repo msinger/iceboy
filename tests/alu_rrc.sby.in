@@ -6,7 +6,7 @@ bmc: mode bmc
 append 10
 expect pass
 multiclock on
-rrc_bmc: depth 72
+rrc_bmc: depth 20
 
 [engines]
 smtbmc
