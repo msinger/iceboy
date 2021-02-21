@@ -49,6 +49,9 @@ module sm83_control(
 		output logic                 ctl_alu_fl_neg_we, ctl_alu_fl_neg_set, ctl_alu_fl_neg_clr,
 		output logic                 ctl_alu_fl_carry_we, ctl_alu_fl_carry_set, ctl_alu_fl_carry_cpl,
 		output logic                 ctl_alu_fl_c2_we, ctl_alu_fl_c2_sh, ctl_alu_fl_c2_daa, ctl_alu_fl_sel_c2,
+
+		input  logic                 dbg_halt,
+		input  logic                 dbg_no_inc,
 	);
 
 	localparam ADR_WIDTH = 16;
@@ -298,7 +301,7 @@ module sm83_control(
 	/* Write incremented address latch to PC */
 	task pc_from_adr_inc();
 		inc_al(INC);
-		ctl_inc_cy     = !(in_int || in_halt || in_rst);
+		ctl_inc_cy     = !(in_int || in_halt || in_rst || dbg_no_inc);
 		ctl_reg_pc_sel = 1;
 		write_sys(HIGH|LOW);
 	endtask
@@ -3169,8 +3172,14 @@ module sm83_control(
 
 		/* Instruction fetch */
 		unique case (1)
-			/* Increment PC */
-			m1 && t2: pc_from_adr_inc();
+			m1 && t2: begin
+				/* Increment PC */
+				pc_from_adr_inc();
+
+				/* Don't increment PC when debugger requests halt */
+				if (dbg_halt && !bank_cb)
+					ctl_inc_cy = 0;
+			end
 
 			/* Select opcode bank for next instruction */
 			m1 && t3: ctl_ir_bank_we = 1; /* posedge */
@@ -3182,6 +3191,10 @@ module sm83_control(
 
 				/* Override data (opcode) with zero when halted or under reset; executing a no-op effectively */
 				ctl_zero_data_oe = in_halt || in_rst;
+
+				/* Also override data (opcode) with zero when debugger requests halt */
+				if (dbg_halt && !bank_cb)
+					ctl_zero_data_oe = 1;
 			end
 
 			default;

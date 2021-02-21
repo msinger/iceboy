@@ -23,6 +23,8 @@ module sm83(
 		output logic [15:0] dbg_de,
 		output logic [15:0] dbg_hl,
 		output logic [15:0] dbg_af,
+		output logic        dbg_ime,
+		output logic [7:0]  dbg_alu_op_a,
 		output logic [7:0]  dbg_opcode,
 		output logic        dbg_bank_cb,
 		output logic [1:0]  dbg_t,
@@ -31,6 +33,8 @@ module sm83(
 		output logic [7:0]  dbg_dl,
 		output logic        dbg_mread,
 		output logic        dbg_mwrite,
+		input  logic        dbg_halt,
+		input  logic        dbg_no_inc,
 	);
 
 	localparam WORD_SIZE = 8;
@@ -107,6 +111,8 @@ module sm83(
 
 		.shift_dbh(alu_shift_dbh), .shift_dbl(alu_shift_dbl),
 		.daa_l_gt_9(alu_daa_lgt9), .daa_h_gt_9(alu_daa_hgt9), .daa_h_eq_9(alu_daa_heq9),
+
+		.dbg_alu_op_a,
 	);
 
 	sm83_alu_control alu_control(
@@ -310,6 +316,7 @@ module sm83(
 	assign dbg_de = reg_de;
 	assign dbg_hl = reg_hl;
 	assign dbg_af = reg_af & 'hfff0;
+	assign dbg_ime = 0;
 	assign dbg_opcode = opcode;
 	assign dbg_bank_cb = bank_cb;
 	always_comb unique case (1) t1: dbg_t = 0; t2: dbg_t = 1; t3: dbg_t = 2; t4: dbg_t = 3; endcase

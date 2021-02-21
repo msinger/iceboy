@@ -49,6 +49,8 @@ module sm83_alu
 		output logic                   daa_l_gt_9,       /* Lower A greater than 9? */
 		output logic                   daa_h_gt_9,       /* Higher A greater than 9? */
 		output logic                   daa_h_eq_9,       /* Higher A equals 9? */
+
+		output logic [WORD_SIZE-1:0]   dbg_alu_op_a,
 	);
 
 	localparam WORD_SIZE   = ALU_WIDTH * 2;
@@ -161,4 +163,6 @@ module sm83_alu
 	assign dout = bus;
 	assign zero = !bus;
 	assign sign = bus[WORD_SIZE-1];
+
+	assign dbg_alu_op_a = op_a;
 endmodule
