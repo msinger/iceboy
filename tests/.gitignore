@@ -1,4 +1,5 @@
 /alu/*/
+/cpu/*/*/
 *.sby
 *.log
 *.trs

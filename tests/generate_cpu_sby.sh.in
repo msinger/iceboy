@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -e
+
+cycles=$(cat @srcdir@/$2)
+ticks=$(( cycles * 4 + 8 ))
+halfticks=$(( ticks * 2 ))
+
+cat >@builddir@/$4 <<EOF
+[tasks]
+${1}_bmc ${1} bmc
+
+[options]
+bmc: mode bmc
+append 8
+expect pass
+multiclock on
+${1}_bmc: depth $halfticks
+
+[engines]
+smtbmc yices
+
+[script]
+${1}: read_verilog -sv -formal $(basename $3) sm83.sv sm83_io.sv sm83_alu.sv sm83_alu_control.sv sm83_alu_flags.sv sm83_adr_inc.sv sm83_control.sv sm83_sequencer.sv sm83_decode.sv sm83_int.sv
+prep -top testbench
+assertpmux
+
+[files]
+@top_srcdir@/src/cpu/sm83.sv
+@top_srcdir@/src/cpu/sm83_io.sv
+@top_srcdir@/src/cpu/sm83_alu.sv
+@top_srcdir@/src/cpu/sm83_alu_control.sv
+@top_srcdir@/src/cpu/sm83_alu_flags.sv
+@top_srcdir@/src/cpu/sm83_adr_inc.sv
+@top_srcdir@/src/cpu/sm83_control.sv
+@top_srcdir@/src/cpu/sm83_sequencer.sv
+@top_srcdir@/src/cpu/sm83_decode.sv
+@top_srcdir@/src/cpu/sm83_int.sv
+@srcdir@/cpu/cpu.svh
+${1}: @srcdir@/$3
+EOF

@@ -1,5 +1,6 @@
 FORMAL_TESTS = \
-$(FORMAL_ALU_TESTS)
+$(FORMAL_ALU_TESTS) \
+$(FORMAL_CPU_TESTS)
 
 FORMAL_ALU_TESTS = \
 alu/add.sby \
@@ -21,9 +22,35 @@ alu/set.sby \
 alu/res.sby \
 alu/bit.sby
 
+FORMAL_CPU_TESTS = \
+cpu/ld8/ld_r_n.sby \
+cpu/ld8/ld_r_r.sby \
+cpu/ld8/ld_hl_r.sby \
+cpu/ld8/ld_r_hl.sby \
+cpu/ld8/ld_hl_n.sby \
+cpu/ld8/ld_xx_a.sby \
+cpu/ld8/ld_a_xx.sby \
+cpu/ld8/ld_hl_a.sby \
+cpu/ld8/ld_a_hl.sby \
+cpu/ld8/ldx_nn_a.sby \
+cpu/ld8/ldx_a_nn.sby \
+cpu/ld8/ld_n_a.sby \
+cpu/ld8/ld_a_n.sby \
+cpu/ld8/ld_c_a.sby \
+cpu/ld8/ld_a_c.sby \
+cpu/ld16/ld_dd_nn.sby \
+cpu/ld16/ld_sp_hl.sby \
+cpu/ld16/ld_nn_sp.sby \
+cpu/ld16/ldhl_sp_e.sby \
+cpu/ld16/push_qq.sby \
+cpu/ld16/pop_qq.sby
+
 EXTRA_DIST = \
 alu/alu.svh \
-$(patsubst %.sby,%.sv,$(FORMAL_ALU_TESTS))
+cpu/cpu.svh \
+$(patsubst %.sby,%.sv,$(FORMAL_ALU_TESTS)) \
+$(patsubst %.sby,%.sv,$(FORMAL_CPU_TESTS)) \
+$(patsubst %.sby,%.cycles,$(FORMAL_CPU_TESTS))
 
 clean-local: clean-local-check
 
@@ -40,3 +67,6 @@ AM_SBY_LOG_FLAGS = -f
 
 alu/%.sby: alu/%.sv
 	./generate_alu_sby.sh $(notdir $(basename $@)) $^ $@
+
+cpu/%.sby: cpu/%.cycles cpu/%.sv
+	./generate_cpu_sby.sh $(notdir $(basename $@)) $^ $@

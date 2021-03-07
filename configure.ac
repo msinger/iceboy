@@ -281,6 +281,7 @@ tests/Makefile
 sim/Makefile
 Makefile
 ])
+AC_CONFIG_FILES(tests/generate_cpu_sby.sh, [chmod +x tests/generate_cpu_sby.sh])
 AC_CONFIG_FILES(tests/generate_alu_sby.sh, [chmod +x tests/generate_alu_sby.sh])
 
 AC_OUTPUT
