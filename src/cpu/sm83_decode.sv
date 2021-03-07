@@ -5,7 +5,6 @@ module sm83_decode(
 		input  logic [WORD_SIZE-1:0] opcode,
 		input  logic                 bank_cb,
 
-		input  logic                 in_halt,
 		input  logic                 in_alu,
 
 		output logic                 add_r,      /* ADD/ADC/SUB/SBC/AND/XOR/OR/CP r/(HL) */
@@ -221,24 +220,20 @@ module sm83_decode(
 
 				/* 8 bit loads */
 				if (opcode[7:6] == 1) ld_r_r   = 1; /* LD r, r  ~or~  LD r, (HL)  ~or~  LD (HL), r  (~or~  HALT) */
-				if (!in_halt) begin
-					if (opcode == 'h46) ld_r_hl    = 1; /* LD B, (HL) */
-					if (opcode == 'h56) ld_r_hl    = 1; /* LD D, (HL) */
-					if (opcode == 'h66) ld_r_hl    = 1; /* LD H, (HL) */
-					if (opcode == 'h76) ld_r_hl    = 1; /* HALT (just for simplifying logic) */
-					if (opcode == 'h4e) ld_r_hl    = 1; /* LD C, (HL) */
-					if (opcode == 'h5e) ld_r_hl    = 1; /* LD E, (HL) */
-					if (opcode == 'h6e) ld_r_hl    = 1; /* LD L, (HL) */
-					if (opcode == 'h7e) ld_r_hl    = 1; /* LD A, (HL) */
-					if (opcode == 'h70) ld_hl_r    = 1; /* LD (HL), B */
-					if (opcode == 'h71) ld_hl_r    = 1; /* LD (HL), C */
-					if (opcode == 'h72) ld_hl_r    = 1; /* LD (HL), D */
-					if (opcode == 'h73) ld_hl_r    = 1; /* LD (HL), E */
-					if (opcode == 'h74) ld_hl_r    = 1; /* LD (HL), H */
-					if (opcode == 'h75) ld_hl_r    = 1; /* LD (HL), L */
-					if (opcode == 'h76) ld_hl_r    = 1; /* HALT (just for simplifying logic) */
-					if (opcode == 'h77) ld_hl_r    = 1; /* LD (HL), A */
-				end
+				if (opcode == 'h46) ld_r_hl    = 1; /* LD B, (HL) */
+				if (opcode == 'h56) ld_r_hl    = 1; /* LD D, (HL) */
+				if (opcode == 'h66) ld_r_hl    = 1; /* LD H, (HL) */
+				if (opcode == 'h4e) ld_r_hl    = 1; /* LD C, (HL) */
+				if (opcode == 'h5e) ld_r_hl    = 1; /* LD E, (HL) */
+				if (opcode == 'h6e) ld_r_hl    = 1; /* LD L, (HL) */
+				if (opcode == 'h7e) ld_r_hl    = 1; /* LD A, (HL) */
+				if (opcode == 'h70) ld_hl_r    = 1; /* LD (HL), B */
+				if (opcode == 'h71) ld_hl_r    = 1; /* LD (HL), C */
+				if (opcode == 'h72) ld_hl_r    = 1; /* LD (HL), D */
+				if (opcode == 'h73) ld_hl_r    = 1; /* LD (HL), E */
+				if (opcode == 'h74) ld_hl_r    = 1; /* LD (HL), H */
+				if (opcode == 'h75) ld_hl_r    = 1; /* LD (HL), L */
+				if (opcode == 'h77) ld_hl_r    = 1; /* LD (HL), A */
 				if (opcode == 'h06) ld_r_n     = 1; /* LD B, n */
 				if (opcode == 'h16) ld_r_n     = 1; /* LD D, n */
 				if (opcode == 'h26) ld_r_n     = 1; /* LD H, n */

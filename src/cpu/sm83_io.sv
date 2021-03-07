@@ -19,7 +19,7 @@ module sm83_io
 		output logic [WORD_SIZE-1:0]   ext_dout,
 		input  logic [WORD_SIZE-1:0]   ext_din,
 		output logic                   ext_data_lh,
-		input  logic                   al_we,
+		input  logic                   apin_we,
 		input  logic                   dl_we,
 
 		output logic                   n_rd, p_rd,
@@ -65,7 +65,7 @@ module sm83_io
 		n_wr        = 0;
 		p_wr        = 0;
 
-		unique case (1)
+		unique0 case (1)
 			rd_seq:
 				ext_data_lh = t3; /* posedge */
 
@@ -76,8 +76,6 @@ module sm83_io
 				p_wr = t2 || t3;
 				/* Data is output as long as p_wr is on. Switches at posedge only. */
 			end
-
-			!rd_seq && !wr_seq:;
 		endcase
 	end
 
@@ -86,36 +84,34 @@ module sm83_io
 		if (t4)
 			aout[ADR_WIDTH-1:8] = 0;
 
-		if (al_we)
+		if (apin_we)
 			aout = ain;
 	end
 
-	/* Emulate latch behaviour for data input.
-	 * Input data is already latched at IO port, but only for one tick (during T4). */
-	logic [WORD_SIZE-1:0] dout_r;
+	logic [WORD_SIZE-1:0] data, data_t4;
+	always_ff @(posedge clk) priority case (1)
+		ctl_zero_data_oe || dl_we: unique case (1)
+			ctl_zero_data_oe: data = 0;
+			dl_we:            data = din;
+		endcase
+		rd_seq && t4:         data = ext_din;
+		default:              data = dout;
+	endcase
 	always_comb priority case (1)
-		ctl_zero_data_oe: dout = 0;
-		rd_seq && t4:     dout = ext_din;
-		default:          dout = dout_r;
+		ctl_zero_data_oe: data_t4 = 0;
+		default:          data_t4 = ext_din;
 	endcase
-	always_ff @(posedge clk) if (rd_seq && t4) dout_r = ext_din;
+	assign dout = rd_seq && t4 ? data_t4 : data;
+	assign ext_dout = data;
 
-	always_ff @(negedge clk) priority case (1)
-		dl_we:        ext_dout = din;
-		rd_seq && t4: ext_dout = ext_din;
-	endcase
-
-	/* Emulate latch behaviour for opcode register.
-	 * Input data is already latched at IO port, but only for one tick (during T4). */
 	logic [WORD_SIZE-1:0] opcode_r;
-	assign opcode = ctl_ir_we ? dout : opcode_r;
 	always_ff @(posedge clk) begin
 `ifdef FORMAL
 		/* instruction register should only be written during a read at T4 */
 		assume ((t4 && rd_seq) || !ctl_ir_we);
 `endif
 		if (ctl_ir_we)
-			opcode_r = dout;
+			opcode_r = data_t4;
 		if (ctl_ir_bank_we)
 			bank_cb  = ctl_ir_bank_cb_set;
 		if (reset) begin
@@ -123,5 +119,21 @@ module sm83_io
 			bank_cb  = 0;
 		end
 	end
+	assign opcode = ctl_ir_we ? data_t4 : opcode_r;
+
+`ifdef FORMAL
+	/* Don't run into illegal instructions */
+	assume property (bank_cb || opcode != 'hd3);
+	assume property (bank_cb || opcode != 'hdb);
+	assume property (bank_cb || opcode != 'hdd);
+	assume property (bank_cb || opcode != 'he3);
+	assume property (bank_cb || opcode != 'he4);
+	assume property (bank_cb || opcode != 'heb);
+	assume property (bank_cb || opcode != 'hec);
+	assume property (bank_cb || opcode != 'hed);
+	assume property (bank_cb || opcode != 'hf4);
+	assume property (bank_cb || opcode != 'hfc);
+	assume property (bank_cb || opcode != 'hfd);
+`endif
 
 endmodule

@@ -19,17 +19,38 @@ public:
 
 static void step(sm83_sim_design::p_sm83& sm83)
 {
-	while (sm83.step() > 1);
+	sm83.step();
+	sm83.step();
+	sm83.step();
+	sm83.step();
+	sm83.step();
+	sm83.step();
+	sm83.step();
+	sm83.step();
 }
 
 static int get_m(const sm83_sim_design::p_sm83& sm83)
 {
-	return sm83.p_dbg__m.get<uint16_t>() + 1;
+	switch (sm83.p_dbg__m.get<uint16_t>()) {
+		case 0x01: return 1;
+		case 0x02: return 2;
+		case 0x04: return 3;
+		case 0x08: return 4;
+		case 0x10: return 5;
+		case 0x20: return 6;
+		default:   return 0;
+	}
 }
 
 static int get_t(const sm83_sim_design::p_sm83& sm83)
 {
-	return sm83.p_dbg__t.get<uint16_t>() + 1;
+	switch (sm83.p_dbg__t.get<uint16_t>()) {
+		case 0x01: return 1;
+		case 0x02: return 2;
+		case 0x04: return 3;
+		case 0x08: return 4;
+		default:   return 0;
+	}
 }
 
 static void debug(std::ostream& stm, const sm83_sim_design::p_sm83& sm83, const std::string& endl)

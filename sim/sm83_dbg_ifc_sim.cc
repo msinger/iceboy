@@ -8,17 +8,38 @@
 
 static void step(sm83_dbg_ifc_sim_design::p_top& top)
 {
-	while (top.step() > 1);
+	top.step();
+	top.step();
+	top.step();
+	top.step();
+	top.step();
+	top.step();
+	top.step();
+	top.step();
 }
 
 static int get_m(const sm83_dbg_ifc_sim_design::p_top& top)
 {
-	return top.p_dbg__m.get<uint16_t>() + 1;
+	switch (top.p_dbg__m.get<uint16_t>()) {
+		case 0x01: return 1;
+		case 0x02: return 2;
+		case 0x04: return 3;
+		case 0x08: return 4;
+		case 0x10: return 5;
+		case 0x20: return 6;
+		default:   return 0;
+	}
 }
 
 static int get_t(const sm83_dbg_ifc_sim_design::p_top& top)
 {
-	return top.p_dbg__t.get<uint16_t>() + 1;
+	switch (top.p_dbg__t.get<uint16_t>()) {
+		case 0x01: return 1;
+		case 0x02: return 2;
+		case 0x04: return 3;
+		case 0x08: return 4;
+		default:   return 0;
+	}
 }
 
 static void debug(std::ostream& stm, const sm83_dbg_ifc_sim_design::p_top& top, const std::string& endl)

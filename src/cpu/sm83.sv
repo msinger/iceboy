@@ -27,8 +27,8 @@ module sm83(
 		output logic [7:0]  dbg_alu_op_a,
 		output logic [7:0]  dbg_opcode,
 		output logic        dbg_bank_cb,
-		output logic [1:0]  dbg_t,
-		output logic [2:0]  dbg_m,
+		output logic [3:0]  dbg_t,
+		output logic [5:0]  dbg_m,
 		output logic [15:0] dbg_al,
 		output logic [7:0]  dbg_dl,
 		output logic        dbg_mread,
@@ -57,7 +57,7 @@ module sm83(
 	logic m1, m2, m3, m4, m5, m6;
 	logic t1, t2, t3, t4;
 
-	adr_t al_in, al_out;
+	adr_t al_in, al_out, apin;
 
 	word_t opcode;
 	logic  bank_cb;
@@ -67,11 +67,11 @@ module sm83(
 		.t1, .t2, .t3, .t4,
 		.mread(ctl_mread), .mwrite(ctl_mwrite),
 
-		.aout(adr), .ain(al_out),
+		.aout(adr), .ain(apin),
 		.dout(io_din), .din(io_dout),
 		.ext_dout(dout), .ext_din(din),
 		.ext_data_lh(lh),
-		.al_we(ctl_io_adr_we),
+		.apin_we(ctl_io_adr_we),
 		.dl_we(ctl_io_data_we),
 
 		.n_rd, .p_rd, .n_wr, .p_wr,
@@ -156,7 +156,7 @@ module sm83(
 
 	sm83_adr_inc #(.ADR_WIDTH(ADR_WIDTH)) adr_inc(
 		.clk, .reset,
-		.ain(al_in), .aout(al_out),
+		.ain(al_in), .aout(al_out), .apin,
 
 		.ctl_al_we, .ctl_al_hi_ff,
 		.ctl_inc_dec, .ctl_inc_cy,
@@ -319,10 +319,12 @@ module sm83(
 	assign dbg_ime = 0;
 	assign dbg_opcode = opcode;
 	assign dbg_bank_cb = bank_cb;
-	always_comb unique case (1) t1: dbg_t = 0; t2: dbg_t = 1; t3: dbg_t = 2; t4: dbg_t = 3; endcase
-	always_comb unique case (1) m1: dbg_m = 0; m2: dbg_m = 1; m3: dbg_m = 2; m4: dbg_m = 3; m5: dbg_m = 4; m6: dbg_m = 5; endcase
+	assign dbg_t = { t4, t3, t2, t1 };
+	assign dbg_m = { m6, m5, m4, m3, m2, m1 };
 	assign dbg_al = al_out;
 	assign dbg_dl = io_din;
 	assign dbg_mread = ctl_mread;
 	assign dbg_mwrite = ctl_mwrite;
+
+	assign iack = 0;
 endmodule

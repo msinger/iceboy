@@ -8,7 +8,8 @@ module sm83_adr_inc
 		input  logic                   clk, reset,
 
 		input  logic [ADR_WIDTH-1:0]   ain,
-		output logic [ADR_WIDTH-1:0]   aout, aout_inc,
+		output logic [ADR_WIDTH-1:0]   aout,
+		output logic [ADR_WIDTH-1:0]   apin,
 
 		input  logic                   ctl_al_we, ctl_al_hi_ff,
 		input  logic                   ctl_inc_dec, ctl_inc_cy,
@@ -33,25 +34,30 @@ module sm83_adr_inc
 		cy_out  = cy_in && &dec;
 	endtask
 
-	adr_t al, bus, inc;
+	adr_t adr, al, bus, inc;
 
-	assign bus      = ain;
-	assign aout     = al;
+	assign bus  = ain;
+	assign aout = al;
+	assign apin = adr;
 
-	always_ff @(negedge clk) begin
+	always_ff @(negedge clk) case (1)
+		ctl_al_we: al = adr;
+		reset:     al = 0;
+	endcase
+
+	always_comb begin
+		adr = al;
+
 		if (ctl_al_we) unique case (1)
-			ctl_inc_oe:   al.hi = inc.hi;
-			ctl_al_hi_ff: al.hi = 'hff;
-			default:      al.hi = bus.hi;
+			ctl_inc_oe:   adr.hi = inc.hi;
+			ctl_al_hi_ff: adr.hi = 'hff;
+			default:      adr.hi = bus.hi;
 		endcase
 
 		if (ctl_al_we) unique case (1)
-			ctl_inc_oe: al.lo = inc.lo;
-			default:    al.lo = bus.lo;
+			ctl_inc_oe: adr.lo = inc.lo;
+			default:    adr.lo = bus.lo;
 		endcase
-
-		if (reset)
-			al = 0;
 	end
 
 	always_comb begin :inc_dec
