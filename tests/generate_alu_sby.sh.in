@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+
+cat >@builddir@/$3 <<EOF
+[tasks]
+${1}_bmc ${1} bmc
+
+[options]
+bmc: mode bmc
+append 8
+expect pass
+multiclock on
+${1}_bmc: depth 14
+
+[engines]
+smtbmc yices
+
+[script]
+${1}: read_verilog -sv -formal $(basename $2) sm83_alu.sv
+prep -top testbench
+assertpmux
+
+[files]
+@top_srcdir@/src/cpu/sm83_alu.sv
+@srcdir@/alu/alu.svh
+${1}: @srcdir@/$2
+EOF

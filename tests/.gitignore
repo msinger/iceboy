@@ -1,4 +1,5 @@
-/alu*/
+/alu/*/
 *.sby
 *.log
 *.trs
+/generate_*_sby.sh

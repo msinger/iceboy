@@ -1,50 +1,29 @@
 FORMAL_TESTS = \
-alu_add.sby \
-alu_sub.sby \
-alu_xor.sby \
-alu_and.sby \
-alu_or.sby \
-alu_neg.sby \
-alu_cpl.sby \
-alu_sla.sby \
-alu_rl.sby \
-alu_srl.sby \
-alu_rr.sby \
-alu_sra.sby \
-alu_rlc.sby \
-alu_rrc.sby \
-alu_swap.sby \
-alu_set.sby \
-alu_res.sby \
-alu_bit.sby
+$(FORMAL_ALU_TESTS)
 
-ALU_TESTS = \
-alu/alu.svh \
-alu/add.sv \
-alu/sub.sv \
-alu/xor.sv \
-alu/and.sv \
-alu/or.sv \
-alu/neg.sv \
-alu/cpl.sv \
-alu/sla.sv \
-alu/rl.sv \
-alu/srl.sv \
-alu/rr.sv \
-alu/sra.sv \
-alu/rlc.sv \
-alu/rrc.sv \
-alu/swap.sv \
-alu/set.sv \
-alu/res.sv \
-alu/bit.sv
-
-TESTBENCH_FILES = \
-$(ALU_TESTS)
+FORMAL_ALU_TESTS = \
+alu/add.sby \
+alu/sub.sby \
+alu/xor.sby \
+alu/and.sby \
+alu/or.sby \
+alu/neg.sby \
+alu/cpl.sby \
+alu/sla.sby \
+alu/rl.sby \
+alu/srl.sby \
+alu/rr.sby \
+alu/sra.sby \
+alu/rlc.sby \
+alu/rrc.sby \
+alu/swap.sby \
+alu/set.sby \
+alu/res.sby \
+alu/bit.sby
 
 EXTRA_DIST = \
-$(FORMAL_TESTS) \
-$(TESTBENCH_FILES)
+alu/alu.svh \
+$(patsubst %.sby,%.sv,$(FORMAL_ALU_TESTS))
 
 clean-local: clean-local-check
 
@@ -58,3 +37,6 @@ TESTS = $(FORMAL_TESTS)
 TEST_EXTENSIONS = .sby
 SBY_LOG_COMPILER = $(SBY)
 AM_SBY_LOG_FLAGS = -f
+
+alu/%.sby: alu/%.sv
+	./generate_alu_sby.sh $(notdir $(basename $@)) $^ $@

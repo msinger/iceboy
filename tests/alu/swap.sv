@@ -4,8 +4,6 @@
 module testbench(input logic clk);
 	`include "alu.svh"
 
-	localparam SCYC = 2;
-
 	logic [7:0] b = $anyconst;
 
 	logic [7:0] r;

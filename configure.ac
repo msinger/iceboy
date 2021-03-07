@@ -276,29 +276,12 @@ fi
 
 AC_CONFIG_FILES([
 src/config.vh
-tests/alu_add.sby
-tests/alu_sub.sby
-tests/alu_xor.sby
-tests/alu_and.sby
-tests/alu_or.sby
-tests/alu_neg.sby
-tests/alu_cpl.sby
-tests/alu_sla.sby
-tests/alu_rl.sby
-tests/alu_srl.sby
-tests/alu_rr.sby
-tests/alu_sra.sby
-tests/alu_rlc.sby
-tests/alu_rrc.sby
-tests/alu_swap.sby
-tests/alu_set.sby
-tests/alu_res.sby
-tests/alu_bit.sby
 src/Makefile
 tests/Makefile
 sim/Makefile
 Makefile
 ])
+AC_CONFIG_FILES(tests/generate_alu_sby.sh, [chmod +x tests/generate_alu_sby.sh])
 
 AC_OUTPUT
 

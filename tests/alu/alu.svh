@@ -33,6 +33,8 @@
 
 	sm83_alu alu(.din(op), .dout(result), .*, .dbg_alu_op_a());
 
+	localparam SCYC = 2;
+
 	localparam INPUT_BITS = 28;
 
 	localparam NO_OE  = 'b0xx;
