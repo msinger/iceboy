@@ -94,6 +94,17 @@ static void debug(std::ostream& stm, const sm83_dbg_ifc_sim_design::p_top& top, 
 		endl <<
 		"   " <<
 		" HALT=" << std::dec << std::setw(1) << top.p_dbg__halt.get<bool>() <<
+		" R_HALT=" << std::dec << std::setw(1) << top.p_dbg__r__halt.get<bool>() <<
+		" NO_INC=" << std::dec << std::setw(1) << top.p_dbg__no__inc.get<bool>() <<
+		" R_NO_INC=" << std::dec << std::setw(1) << top.p_dbg__r__no__inc.get<bool>() <<
+		" ENA=" << std::dec << std::setw(1) << top.p_dbg__ena.get<bool>() <<
+		" R_ENA=" << std::dec << std::setw(1) << top.p_dbg__r__ena.get<bool>() <<
+		endl <<
+		"   " <<
+		" CYCLE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__cycle.get<uint16_t>() <<
+		" R_CYCLE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__r__cycle.get<uint16_t>() <<
+		" STATE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__state.get<uint16_t>() <<
+		" R_STATE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__r__state.get<uint16_t>() <<
 		std::endl;
 }
 
@@ -116,7 +127,7 @@ static void drop_clk(sm83_dbg_ifc_sim_design::p_top& top)
 	step(top);
 }
 
-static void tick(std::ostream& stm, sm83_dbg_ifc_sim_design::p_top& top, const std::string& endl, int t)
+static void tick(std::ostream& stm, sm83_dbg_ifc_sim_design::p_top& top, const std::string& endl, int t, std::function<void()> f = nullptr)
 {
 	bool rd(false), wr(false);
 	if (get_t(top) == 4) {
@@ -139,6 +150,10 @@ static void tick(std::ostream& stm, sm83_dbg_ifc_sim_design::p_top& top, const s
 		if (rd && wr)
 			stm << "[INVALID cycle]" << std::endl;
 	}
+	if (f) {
+		f();
+		step(top);
+	}
 	edge(stm, t, true, endl);
 	debug(stm, top, endl);
 	drop_clk(top);
@@ -146,15 +161,28 @@ static void tick(std::ostream& stm, sm83_dbg_ifc_sim_design::p_top& top, const s
 	debug(stm, top, endl);
 }
 
-static void dbg_handshake(std::ostream& stm, sm83_dbg_ifc_sim_design::p_top& top, const std::string& endl, int& t, bool& rx_ack)
+static uint8_t dbg_handshake(std::ostream& stm, sm83_dbg_ifc_sim_design::p_top& top, const std::string& endl, int& t, uint8_t dbg_in)
 {
-	while (rx_ack == top.p_data__rx__ack.get<bool>()) {
-		for (int i = 0; i < 4; i++) {
-			top.p_data__tx__ack.set<bool>(top.p_data__tx__seq.get<bool>());
+	bool rx_ack = top.p_data__rx__ack.get<bool>();
+	bool tx_seq = top.p_data__tx__seq.get<bool>();
+	bool tx_done = false;
+	uint8_t tx_value;
+	tick(stm, top, endl, t++, [&]{
+		top.p_data__rx__seq.set<bool>(!rx_ack);
+		top.p_data__rx.set<uint16_t>(dbg_in);
+	});
+	do {
+		if (!tx_done && tx_seq != top.p_data__tx__seq.get<bool>()) {
+			tx_done = true;
+			tx_value = top.p_data__tx.get<uint16_t>();
+			tick(stm, top, endl, t++, [&]{
+				top.p_data__tx__ack.set<bool>(!tx_seq);
+			});
+		} else {
 			tick(stm, top, endl, t++);
 		}
-	}
-	rx_ack = !rx_ack;
+	} while (!tx_done || rx_ack == top.p_data__rx__ack.get<bool>());
+	return tx_value;
 }
 
 int main(int argc, char** argv)
@@ -214,24 +242,15 @@ int main(int argc, char** argv)
 	log << "[RESET deasserted]" << std::endl;
 
 	t = 0;
-	bool rx_ack = top.p_data__rx__ack.get<bool>();
 
 	for (i = 0; i < 4; i++)
 		tick(log, top, endl, t++);
 
-	top.p_data__rx__seq.set<bool>(!rx_ack);
-	top.p_data__rx.set<uint16_t>(0x1a);
-	dbg_handshake(log, top, endl, t, rx_ack);
+	dbg_handshake(log, top, endl, t, 0x1a);
+	dbg_handshake(log, top, endl, t, 0x18);
+	dbg_handshake(log, top, endl, t, 0x41);
+	dbg_handshake(log, top, endl, t, 0x00);
 
-	top.p_data__rx__seq.set<bool>(!rx_ack);
-	top.p_data__rx.set<uint16_t>(0x18);
-	dbg_handshake(log, top, endl, t, rx_ack);
-
-	top.p_data__rx__seq.set<bool>(!rx_ack);
-	top.p_data__rx.set<uint16_t>(0x41);
-	dbg_handshake(log, top, endl, t, rx_ack);
-
-	top.p_data__rx__seq.set<bool>(!rx_ack);
-	top.p_data__rx.set<uint16_t>(0x00);
-	dbg_handshake(log, top, endl, t, rx_ack);
+	while (t % 4)
+		tick(log, top, endl, t++);
 }

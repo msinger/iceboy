@@ -26,7 +26,24 @@ module sm83_dbg_ifc #(
 		output logic [7:0]  data_tx,
 		output logic        data_tx_seq,
 		input  logic        data_tx_ack,
+
+		output logic        dbg_ena,
+		output logic        dbg_r_ena,
+		output logic        dbg_r_halt,
+		output logic        dbg_r_no_inc,
+		output logic [5:0]  dbg_r_cycle,
+		output logic [5:0]  dbg_cycle,
+		output logic [1:0]  dbg_r_state,
+		output logic [1:0]  dbg_state,
 	);
+
+	assign dbg_ena = ena;
+	assign dbg_r_ena = r_ena;
+	assign dbg_r_halt = r_halt;
+	assign dbg_r_no_inc = r_no_inc;
+	assign dbg_r_cycle = r_cycle;
+	assign dbg_cycle = cycle;
+	assign dbg_r_state = r_dbg_state;
 
 	localparam IDLE = 0;
 	localparam HALT = 1;

@@ -48,6 +48,15 @@ module top(
 
 		output logic [7:0]  dbg_ifc_data,
 		output logic        dbg_ifc_drv,
+
+		output logic        dbg_ena,
+		output logic        dbg_r_ena,
+		output logic        dbg_r_halt,
+		output logic        dbg_r_no_inc,
+		output logic [5:0]  dbg_r_cycle,
+		output logic [5:0]  dbg_cycle,
+		output logic [1:0]  dbg_r_state,
+		output logic [1:0]  dbg_state,
 	);
 
 	(* mem2reg *)
