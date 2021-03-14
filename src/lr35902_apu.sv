@@ -1,137 +1,137 @@
 `default_nettype none
 
-`define NR10 'h10
-`define NR11 'h11
-`define NR12 'h12
-`define NR13 'h13
-`define NR14 'h14
-`define NR21 'h16
-`define NR22 'h17
-`define NR23 'h18
-`define NR24 'h19
-`define NR30 'h1a
-`define NR31 'h1b
-`define NR32 'h1c
-`define NR33 'h1d
-`define NR34 'h1e
-`define NR41 'h20
-`define NR42 'h21
-`define NR43 'h22
-`define NR44 'h23
-`define NR50 'h24
-`define NR51 'h25
-`define NR52 'h26
-
 (* nolatches *)
 module lr35902_apu(
-		input  wire        clk,
-		input  wire        pwmclk,
-		input  wire        reset,
-		input  wire [15:0] div,
+		input  logic        clk,
+		input  logic        pwmclk,
+		input  logic        reset,
+		input  logic [15:0] div,
 
-		output reg  [7:0]  dout,
-		input  wire [7:0]  din,
-		input  wire [5:0]  adr,
-		input  wire        write,
+		output logic [7:0]  dout,
+		input  logic [7:0]  din,
+		input  logic [5:0]  adr,
+		input  logic        write,
 
-		output wire        chl,
-		output wire        chr,
-		output wire        chm,
+		output logic        chl,
+		output logic        chr,
+		output logic        chm,
 	);
 
-	reg  [5:0] pwm_count;
-	reg  [5:0] so1_compare, so2_compare;
-	wire [6:0] so12_sum;
-	wire [5:0] so12_compare;
+	localparam NR10 = 'h10;
+	localparam NR11 = 'h11;
+	localparam NR12 = 'h12;
+	localparam NR13 = 'h13;
+	localparam NR14 = 'h14;
+	localparam NR21 = 'h16;
+	localparam NR22 = 'h17;
+	localparam NR23 = 'h18;
+	localparam NR24 = 'h19;
+	localparam NR30 = 'h1a;
+	localparam NR31 = 'h1b;
+	localparam NR32 = 'h1c;
+	localparam NR33 = 'h1d;
+	localparam NR34 = 'h1e;
+	localparam NR41 = 'h20;
+	localparam NR42 = 'h21;
+	localparam NR43 = 'h22;
+	localparam NR44 = 'h23;
+	localparam NR50 = 'h24;
+	localparam NR51 = 'h25;
+	localparam NR52 = 'h26;
 
-	reg  [5:0] so1_compare_new, so2_compare_new;
-	reg        so_seq_new, so_seq, so_seq_old;
+	logic [5:0] pwm_count;
+	logic [5:0] so1_compare, so2_compare;
+	logic [6:0] so12_sum;
+	logic [5:0] so12_compare;
 
-	wire [5:0] so1_mux, so2_mux;
+	logic [5:0] so1_compare_new, so2_compare_new;
+	logic       so_seq_new, so_seq, so_seq_old;
 
-	reg [7:0] waveram[0:15];
-	reg [7:0] wave_read;
+	logic [5:0] so1_mux, so2_mux;
 
-	reg pwrite;
+	logic [7:0] waveram[0:15];
+	logic [7:0] wave_read;
+
+	logic pwrite;
 
 	/* NR10 - Voice 1 sweep */
-	reg [2:0] voc1_swp_time;
-	reg       voc1_swp_dec;
-	reg [2:0] voc1_swp_shift;
+	logic [2:0] voc1_swp_time;
+	logic       voc1_swp_dec;
+	logic [2:0] voc1_swp_shift;
 
 	/* NR11 - Voice 1 length */
-	reg [1:0] voc1_wave_duty;
-	reg [5:0] voc1_len;
+	logic [1:0] voc1_wave_duty;
+	logic [5:0] voc1_len;
 
 	/* NR12 - Voice 1 volume */
-	reg [3:0] voc1_vol_init;
-	reg       voc1_vol_inc;
-	reg [2:0] voc1_vol_time;
+	logic [3:0] voc1_vol_init;
+	logic       voc1_vol_inc;
+	logic [2:0] voc1_vol_time;
 
 	/* NR13/NR14 - Voice 1 frequency/control */
-	reg [10:0] voc1_freq;
-	reg        voc1_ena;
-	reg        voc1_cntlen;
+	logic [10:0] voc1_freq;
+	logic        voc1_ena;
+	logic        voc1_cntlen;
 
 	/* NR21 - Voice 2 length */
-	reg [1:0] voc2_wave_duty;
-	reg [5:0] voc2_len;
+	logic [1:0] voc2_wave_duty;
+	logic [5:0] voc2_len;
 
 	/* NR22 - Voice 2 volume */
-	reg [3:0] voc2_vol_init;
-	reg       voc2_vol_inc;
-	reg [2:0] voc2_vol_time;
+	logic [3:0] voc2_vol_init;
+	logic       voc2_vol_inc;
+	logic [2:0] voc2_vol_time;
 
 	/* NR23/NR24 - Voice 2 frequency/control */
-	reg [10:0] voc2_freq;
-	reg        voc2_ena;
-	reg        voc2_cntlen;
+	logic [10:0] voc2_freq;
+	logic        voc2_ena;
+	logic        voc2_cntlen;
 
 	/* NR30 - Voice 3 enable */
-	reg       voc3_dacena;
+	logic voc3_dacena;
 
 	/* NR31 - Voice 3 length */
-	reg [7:0] voc3_len;
+	logic [7:0] voc3_len;
 
 	/* NR32 - Voice 3 volume */
-	reg [1:0] voc3_vol;
+	logic [1:0] voc3_vol;
 
 	/* NR33/NR34 - Voice 3 frequency/control */
-	reg [10:0] voc3_freq;
-	reg        voc3_ena;
-	reg        voc3_cntlen;
+	logic [10:0] voc3_freq;
+	logic        voc3_ena;
+	logic        voc3_cntlen;
 
 	/* NR41 - Voice 4 length */
-	reg [5:0] voc4_len;
+	logic [5:0] voc4_len;
 
 	/* NR42 - Voice 4 volume */
-	reg [3:0] voc4_vol_init;
-	reg       voc4_vol_inc;
-	reg [2:0] voc4_vol_time;
+	logic [3:0] voc4_vol_init;
+	logic       voc4_vol_inc;
+	logic [2:0] voc4_vol_time;
 
 	/* NR43 - Voice 4 frequency */
-	reg [3:0] voc4_clkshift;
-	reg       voc4_width;
-	reg [2:0] voc4_div;
+	logic [3:0] voc4_clkshift;
+	logic       voc4_width;
+	logic [2:0] voc4_div;
 
 	/* NR44 - Voice 4 control */
-	reg voc4_ena;
-	reg voc4_cntlen;
+	logic voc4_ena;
+	logic voc4_cntlen;
 
 	/* NR50 - Volume */
-	reg       so1_vin, so2_vin;
-	reg [2:0] so1_vol, so2_vol;
+	logic       so1_vin, so2_vin;
+	logic [2:0] so1_vol, so2_vol;
 
 	/* NR51 - Output select */
-	reg voc1_so1, voc2_so1, voc3_so1, voc4_so1;
-	reg voc1_so2, voc2_so2, voc3_so2, voc4_so2;
+	logic voc1_so1, voc2_so1, voc3_so1, voc4_so1;
+	logic voc1_so2, voc2_so2, voc3_so2, voc4_so2;
 
 	/* NR52 - Sound on/off */
-	reg master_ena;
+	logic master_ena;
 
-	reg        pdiv12;
-	wire [2:0] frame;
-	wire       update;
+	logic       pdiv12;
+	logic [2:0] frame;
+	logic       update;
 
 	/*
 	Frame Sequencer:
@@ -149,56 +149,55 @@ module lr35902_apu(
 	Rate   256 Hz      64 Hz       128 Hz
 	*/
 
-	reg        voc1_trigger;
-	reg [10:0] voc1_freq_shadow;
-	reg [11:0] voc1_freq_new_shadow;
-	reg [10:0] voc1_freq_delta;
-	reg [10:0] voc1_freq_counter;
-	reg [2:0]  voc1_duty_counter;
-	reg [2:0]  voc1_vol_counter;
-	reg [6:0]  voc1_len_counter;
-	reg [2:0]  voc1_swp_counter;
-	reg        voc1_pout;
-	reg [3:0]  voc1_out;
-	reg [3:0]  voc1_vol;
+	logic        voc1_trigger;
+	logic [10:0] voc1_freq_shadow;
+	logic [11:0] voc1_freq_new_shadow;
+	logic [10:0] voc1_freq_delta;
+	logic [10:0] voc1_freq_counter;
+	logic [2:0]  voc1_duty_counter;
+	logic [2:0]  voc1_vol_counter;
+	logic [6:0]  voc1_len_counter;
+	logic [2:0]  voc1_swp_counter;
+	logic        voc1_pout;
+	logic [3:0]  voc1_out;
+	logic [3:0]  voc1_vol;
 
-	reg        voc2_trigger;
-	reg [10:0] voc2_freq_counter;
-	reg [2:0]  voc2_duty_counter;
-	reg [2:0]  voc2_vol_counter;
-	reg [6:0]  voc2_len_counter;
-	reg        voc2_pout;
-	reg [3:0]  voc2_out;
-	reg [3:0]  voc2_vol;
+	logic        voc2_trigger;
+	logic [10:0] voc2_freq_counter;
+	logic [2:0]  voc2_duty_counter;
+	logic [2:0]  voc2_vol_counter;
+	logic [6:0]  voc2_len_counter;
+	logic        voc2_pout;
+	logic [3:0]  voc2_out;
+	logic [3:0]  voc2_vol;
 
-	reg         voc3_trigger;
-	reg  [10:0] voc3_freq_counter;
-	reg  [8:0]  voc3_len_counter;
-	reg  [3:0]  voc3_sample;
-	reg  [4:0]  voc3_pos;
-	wire [4:0]  voc3_next_pos;
-	reg  [3:0]  voc3_out;
+	logic        voc3_trigger;
+	logic [10:0] voc3_freq_counter;
+	logic [8:0]  voc3_len_counter;
+	logic [3:0]  voc3_sample;
+	logic [4:0]  voc3_pos;
+	logic [4:0]  voc3_next_pos;
+	logic [3:0]  voc3_out;
 
-	reg         voc4_trigger;
-	reg  [14:0] voc4_lfsr;
-	reg  [17:0] voc4_freq_counter;
-	wire [17:0] voc4_freq_unshift;
-	reg  [17:0] voc4_freq;
-	reg  [2:0]  voc4_vol_counter;
-	reg  [6:0]  voc4_len_counter;
-	reg         voc4_pout;
-	reg  [3:0]  voc4_out;
-	reg  [3:0]  voc4_vol;
+	logic        voc4_trigger;
+	logic [14:0] voc4_lfsr;
+	logic [17:0] voc4_freq_counter;
+	logic [17:0] voc4_freq_unshift;
+	logic [17:0] voc4_freq;
+	logic [2:0]  voc4_vol_counter;
+	logic [6:0]  voc4_len_counter;
+	logic        voc4_pout;
+	logic [3:0]  voc4_out;
+	logic [3:0]  voc4_vol;
 
-	always @(posedge pwmclk)
-		if (&pwm_count)
-			pwm_count <= 1; /* skip 0 */
-		else
-			pwm_count <= pwm_count + 1;
+	always_ff @(posedge pwmclk) if (&pwm_count)
+		pwm_count = 1; /* skip 0 */
+	else
+		pwm_count++;
 
 	assign frame  = div[15:13];
 	assign update = pdiv12 && !div[12];
-	always @(posedge clk) pdiv12 <= div[12];
+	always_ff @(posedge clk) pdiv12 = div[12];
 
 	assign so12_sum = so1_compare + so2_compare;
 	assign so12_compare = so12_sum[6:1];
@@ -207,8 +206,7 @@ module lr35902_apu(
 	assign chr = pwm_count <= so2_compare;
 	assign chm = pwm_count <= so12_compare;
 
-	always @* begin
-		case (voc1_swp_shift)
+	always_comb unique case (voc1_swp_shift)
 		0: voc1_freq_delta = voc1_freq_shadow;
 		1: voc1_freq_delta = voc1_freq_shadow[10:1];
 		2: voc1_freq_delta = voc1_freq_shadow[10:2];
@@ -217,22 +215,18 @@ module lr35902_apu(
 		5: voc1_freq_delta = voc1_freq_shadow[10:5];
 		6: voc1_freq_delta = voc1_freq_shadow[10:6];
 		7: voc1_freq_delta = voc1_freq_shadow[10:7];
-		endcase
-	end
+	endcase
 
-	always @* begin
-		if (voc1_swp_dec)
-			voc1_freq_new_shadow = voc1_freq_shadow - voc1_freq_delta;
-		else
-			voc1_freq_new_shadow = voc1_freq_shadow + voc1_freq_delta;
-	end
+	always_comb if (voc1_swp_dec)
+		voc1_freq_new_shadow = voc1_freq_shadow - voc1_freq_delta;
+	else
+		voc1_freq_new_shadow = voc1_freq_shadow + voc1_freq_delta;
 
 	assign voc3_next_pos = voc3_pos + 1;
 
 	assign voc4_freq_unshift = 18'h3ffff - voc4_div;
 
-	always @* begin
-		case (voc4_clkshift)
+	always_comb unique case (voc4_clkshift)
 		0:  voc4_freq = voc4_freq_unshift;
 		1:  voc4_freq = { voc4_freq_unshift, 1'b0 };
 		2:  voc4_freq = { voc4_freq_unshift, 2'b0 };
@@ -249,98 +243,97 @@ module lr35902_apu(
 		13: voc4_freq = { voc4_freq_unshift, 13'b0 };
 		14: voc4_freq = { voc4_freq_unshift, 14'b0 };
 		15: voc4_freq = { voc4_freq_unshift, 15'b0 };
-		endcase
-	end
+	endcase
 
-	always @(posedge clk) begin
-		dout <= 'hff;
+	always_ff @(posedge clk) begin
+		dout = 'hff;
 
 		if (&adr[5:4])
-			dout <= wave_read;
-		else case (adr)
-		/* Voice 1 sweep */
-		`NR10: dout <= { 1'b1, voc1_swp_time, voc1_swp_dec, voc1_swp_shift };
-		/* Voice 1 length */
-		`NR11: dout <= { voc1_wave_duty, 6'h3f };
-		/* Voice 1 volume */
-		`NR12: dout <= { voc1_vol_init, voc1_vol_inc, voc1_vol_time };
-		/* Voice 1 control */
-		`NR14: dout <= { 1'b1, voc1_cntlen, 6'h3f };
-		/* Voice 2 length */
-		`NR21: dout <= { voc2_wave_duty, 6'h3f };
-		/* Voice 2 volume */
-		`NR22: dout <= { voc2_vol_init, voc2_vol_inc, voc2_vol_time };
-		/* Voice 2 control */
-		`NR24: dout <= { 1'b1, voc2_cntlen, 6'h3f };
-		/* Voice 3 enable */
-		`NR30: dout <= { voc3_dacena, 7'h7f };
-		/* Voice 3 volume */
-		`NR32: dout <= { 1'b1, voc3_vol, 5'h1f };
-		/* Voice 3 control */
-		`NR34: dout <= { 1'b1, voc3_cntlen, 6'h3f };
-		/* Voice 4 volume */
-		`NR42: dout <= { voc4_vol_init, voc4_vol_inc, voc4_vol_time };
-		/* Voice 4 frequency */
-		`NR43: dout <= { voc4_clkshift, voc4_width, voc4_div };
-		/* Voice 4 control */
-		`NR44: dout <= { 1'b1, voc4_cntlen, 6'h3f };
-		/* Volume */
-		`NR50: dout <= { so2_vin, so2_vol, so1_vin, so1_vol };
-		/* Output select */
-		`NR51: dout <= { voc4_so2, voc3_so2, voc2_so2, voc1_so2, voc4_so1, voc3_so1, voc2_so1, voc1_so1 };
-		/* Sound on/off */
-		`NR52: dout <= { master_ena, 3'h7, voc4_ena, voc3_ena, voc2_ena, voc1_ena };
+			dout = wave_read;
+		else unique0 case (adr)
+			/* Voice 1 sweep */
+			NR10: dout = { 1'b1, voc1_swp_time, voc1_swp_dec, voc1_swp_shift };
+			/* Voice 1 length */
+			NR11: dout = { voc1_wave_duty, 6'h3f };
+			/* Voice 1 volume */
+			NR12: dout = { voc1_vol_init, voc1_vol_inc, voc1_vol_time };
+			/* Voice 1 control */
+			NR14: dout = { 1'b1, voc1_cntlen, 6'h3f };
+			/* Voice 2 length */
+			NR21: dout = { voc2_wave_duty, 6'h3f };
+			/* Voice 2 volume */
+			NR22: dout = { voc2_vol_init, voc2_vol_inc, voc2_vol_time };
+			/* Voice 2 control */
+			NR24: dout = { 1'b1, voc2_cntlen, 6'h3f };
+			/* Voice 3 enable */
+			NR30: dout = { voc3_dacena, 7'h7f };
+			/* Voice 3 volume */
+			NR32: dout = { 1'b1, voc3_vol, 5'h1f };
+			/* Voice 3 control */
+			NR34: dout = { 1'b1, voc3_cntlen, 6'h3f };
+			/* Voice 4 volume */
+			NR42: dout = { voc4_vol_init, voc4_vol_inc, voc4_vol_time };
+			/* Voice 4 frequency */
+			NR43: dout = { voc4_clkshift, voc4_width, voc4_div };
+			/* Voice 4 control */
+			NR44: dout = { 1'b1, voc4_cntlen, 6'h3f };
+			/* Volume */
+			NR50: dout = { so2_vin, so2_vol, so1_vin, so1_vol };
+			/* Output select */
+			NR51: dout = { voc4_so2, voc3_so2, voc2_so2, voc1_so2, voc4_so1, voc3_so1, voc2_so1, voc1_so1 };
+			/* Sound on/off */
+			NR52: dout = { master_ena, 3'h7, voc4_ena, voc3_ena, voc2_ena, voc1_ena };
 		endcase
 	end
 
-	always @(posedge clk) begin
+	always_ff @(posedge clk) begin
 		wave_read <= waveram[voc3_ena ? voc3_pos[4:1] : adr[3:0]];
 
 		if (pwrite && !write) begin
-			if (master_ena) case (adr)
-			/* Voice 1 sweep */
-			`NR10: { voc1_swp_time, voc1_swp_dec, voc1_swp_shift } <= din[6:0];
-			/* Voice 1 length */
-			`NR11: { voc1_len_counter, voc1_wave_duty, voc1_len } <= { 1'b0, din[5:0], din };
-			/* Voice 1 volume */
-			`NR12: { voc1_vol_init, voc1_vol_inc, voc1_vol_time } <= din;
-			/* Voice 1 frequency */
-			`NR13: voc1_freq[7:0] <= din;
-			/* Voice 1 control */
-			`NR14: { voc1_ena, voc1_trigger, voc1_cntlen, voc1_freq[10:8] } <= { din[7] && voc1_ena, din[7:6], din[2:0] };
-			/* Voice 2 length */
-			`NR21: { voc2_len_counter, voc2_wave_duty, voc2_len } <= { 1'b0, din[5:0], din };
-			/* Voice 2 volume */
-			`NR22: { voc2_vol_init, voc2_vol_inc, voc2_vol_time } <= din;
-			/* Voice 2 frequency */
-			`NR23: voc2_freq[7:0] <= din;
-			/* Voice 2 control */
-			`NR24: { voc2_ena, voc2_trigger, voc2_cntlen, voc2_freq[10:8] } <= { din[7] && voc2_ena, din[7:6], din[2:0] };
-			/* Voice 3 enable */
-			`NR30: { voc3_dacena, voc3_ena } <= { din[7], voc3_ena && din[7] };
-			/* Voice 3 length */
-			`NR31: voc3_len <= din;
-			/* Voice 3 volume */
-			`NR32: voc3_vol <= din[6:5];
-			/* Voice 3 frequency */
-			`NR33: voc3_freq[7:0] <= din;
-			/* Voice 3 control */
-			`NR34: { voc3_ena, voc3_trigger, voc3_cntlen, voc3_freq[10:8] } <= { din[7] && voc3_ena, din[7:6], din[2:0] };
-			/* Voice 4 length */
-			`NR41: voc4_len <= din[5:0];
-			/* Voice 4 volume */
-			`NR42: { voc4_vol_init, voc4_vol_inc, voc4_vol_time } <= din;
-			/* Voice 4 frequency */
-			`NR43: { voc4_clkshift, voc4_width, voc4_div } <= din;
-			/* Voice 4 control */
-			`NR44: { voc4_ena, voc4_trigger, voc4_cntlen } <= { din[7] && voc4_ena, din[7:6] };
-			/* Volume */
-			`NR50: { so2_vin, so2_vol, so1_vin, so1_vol } <= din;
-			/* Output select */
-			`NR51: { voc4_so2, voc3_so2, voc2_so2, voc1_so2, voc4_so1, voc3_so1, voc2_so1, voc1_so1 } <= din;
-			/* Sound on/off */
-			`NR52: master_ena <= din[7];
-			endcase else if (adr == `NR52 && din[7]) begin
+			if (master_ena) unique0 case (adr)
+				/* Voice 1 sweep */
+				NR10: { voc1_swp_time, voc1_swp_dec, voc1_swp_shift } <= din[6:0];
+				/* Voice 1 length */
+				NR11: { voc1_len_counter, voc1_wave_duty, voc1_len } <= { 1'b0, din[5:0], din };
+				/* Voice 1 volume */
+				NR12: { voc1_vol_init, voc1_vol_inc, voc1_vol_time } <= din;
+				/* Voice 1 frequency */
+				NR13: voc1_freq[7:0] <= din;
+				/* Voice 1 control */
+				NR14: { voc1_ena, voc1_trigger, voc1_cntlen, voc1_freq[10:8] } <= { din[7] && voc1_ena, din[7:6], din[2:0] };
+				/* Voice 2 length */
+				NR21: { voc2_len_counter, voc2_wave_duty, voc2_len } <= { 1'b0, din[5:0], din };
+				/* Voice 2 volume */
+				NR22: { voc2_vol_init, voc2_vol_inc, voc2_vol_time } <= din;
+				/* Voice 2 frequency */
+				NR23: voc2_freq[7:0] <= din;
+				/* Voice 2 control */
+				NR24: { voc2_ena, voc2_trigger, voc2_cntlen, voc2_freq[10:8] } <= { din[7] && voc2_ena, din[7:6], din[2:0] };
+				/* Voice 3 enable */
+				NR30: { voc3_dacena, voc3_ena } <= { din[7], voc3_ena && din[7] };
+				/* Voice 3 length */
+				NR31: voc3_len <= din;
+				/* Voice 3 volume */
+				NR32: voc3_vol <= din[6:5];
+				/* Voice 3 frequency */
+				NR33: voc3_freq[7:0] <= din;
+				/* Voice 3 control */
+				NR34: { voc3_ena, voc3_trigger, voc3_cntlen, voc3_freq[10:8] } <= { din[7] && voc3_ena, din[7:6], din[2:0] };
+				/* Voice 4 length */
+				NR41: voc4_len <= din[5:0];
+				/* Voice 4 volume */
+				NR42: { voc4_vol_init, voc4_vol_inc, voc4_vol_time } <= din;
+				/* Voice 4 frequency */
+				NR43: { voc4_clkshift, voc4_width, voc4_div } <= din;
+				/* Voice 4 control */
+				NR44: { voc4_ena, voc4_trigger, voc4_cntlen } <= { din[7] && voc4_ena, din[7:6] };
+				/* Volume */
+				NR50: { so2_vin, so2_vol, so1_vin, so1_vol } <= din;
+				/* Output select */
+				NR51: { voc4_so2, voc3_so2, voc2_so2, voc1_so2, voc4_so1, voc3_so1, voc2_so1, voc1_so1 } <= din;
+				/* Sound on/off */
+				NR52: master_ena <= din[7];
+			endcase else if (adr == NR52 && din[7]) begin
 				master_ena <= 1;
 			end
 
@@ -629,110 +622,108 @@ module lr35902_apu(
 		end
 	end
 
-	always @* begin
-		voc1_pout = 'bx;
+	always_comb begin
+		voc1_pout = 'x;
 		voc1_out = 8;
 		if (voc1_ena) begin
-			case (voc1_wave_duty)
-			0: voc1_pout = voc1_duty_counter >= 1;
-			1: voc1_pout = voc1_duty_counter >= 2;
-			2: voc1_pout = voc1_duty_counter >= 4;
-			3: voc1_pout = voc1_duty_counter >= 6;
+			unique case (voc1_wave_duty)
+				0: voc1_pout = voc1_duty_counter >= 1;
+				1: voc1_pout = voc1_duty_counter >= 2;
+				2: voc1_pout = voc1_duty_counter >= 4;
+				3: voc1_pout = voc1_duty_counter >= 6;
 			endcase
 
-			case (voc1_vol)
-			0:  voc1_out = voc1_pout ?  8 : 8;
-			1:  voc1_out = voc1_pout ?  8 : 7;
-			2:  voc1_out = voc1_pout ?  9 : 7;
-			3:  voc1_out = voc1_pout ?  9 : 6;
-			4:  voc1_out = voc1_pout ? 10 : 6;
-			5:  voc1_out = voc1_pout ? 10 : 5;
-			6:  voc1_out = voc1_pout ? 11 : 5;
-			7:  voc1_out = voc1_pout ? 11 : 4;
-			8:  voc1_out = voc1_pout ? 12 : 4;
-			9:  voc1_out = voc1_pout ? 12 : 3;
-			10: voc1_out = voc1_pout ? 13 : 3;
-			11: voc1_out = voc1_pout ? 13 : 2;
-			12: voc1_out = voc1_pout ? 14 : 2;
-			13: voc1_out = voc1_pout ? 14 : 1;
-			14: voc1_out = voc1_pout ? 15 : 1;
-			15: voc1_out = voc1_pout ? 15 : 0;
+			unique case (voc1_vol)
+				0:  voc1_out = voc1_pout ?  8 : 8;
+				1:  voc1_out = voc1_pout ?  8 : 7;
+				2:  voc1_out = voc1_pout ?  9 : 7;
+				3:  voc1_out = voc1_pout ?  9 : 6;
+				4:  voc1_out = voc1_pout ? 10 : 6;
+				5:  voc1_out = voc1_pout ? 10 : 5;
+				6:  voc1_out = voc1_pout ? 11 : 5;
+				7:  voc1_out = voc1_pout ? 11 : 4;
+				8:  voc1_out = voc1_pout ? 12 : 4;
+				9:  voc1_out = voc1_pout ? 12 : 3;
+				10: voc1_out = voc1_pout ? 13 : 3;
+				11: voc1_out = voc1_pout ? 13 : 2;
+				12: voc1_out = voc1_pout ? 14 : 2;
+				13: voc1_out = voc1_pout ? 14 : 1;
+				14: voc1_out = voc1_pout ? 15 : 1;
+				15: voc1_out = voc1_pout ? 15 : 0;
 			endcase
 		end
 	end
 
-	always @* begin
-		voc2_pout = 'bx;
+	always_comb begin
+		voc2_pout = 'x;
 		voc2_out = 8;
 		if (voc2_ena) begin
-			case (voc2_wave_duty)
-			0: voc2_pout = voc2_duty_counter >= 1;
-			1: voc2_pout = voc2_duty_counter >= 2;
-			2: voc2_pout = voc2_duty_counter >= 4;
-			3: voc2_pout = voc2_duty_counter >= 6;
+			unique case (voc2_wave_duty)
+				0: voc2_pout = voc2_duty_counter >= 1;
+				1: voc2_pout = voc2_duty_counter >= 2;
+				2: voc2_pout = voc2_duty_counter >= 4;
+				3: voc2_pout = voc2_duty_counter >= 6;
 			endcase
 
-			case (voc2_vol)
-			0:  voc2_out = voc2_pout ?  8 : 8;
-			1:  voc2_out = voc2_pout ?  8 : 7;
-			2:  voc2_out = voc2_pout ?  9 : 7;
-			3:  voc2_out = voc2_pout ?  9 : 6;
-			4:  voc2_out = voc2_pout ? 10 : 6;
-			5:  voc2_out = voc2_pout ? 10 : 5;
-			6:  voc2_out = voc2_pout ? 11 : 5;
-			7:  voc2_out = voc2_pout ? 11 : 4;
-			8:  voc2_out = voc2_pout ? 12 : 4;
-			9:  voc2_out = voc2_pout ? 12 : 3;
-			10: voc2_out = voc2_pout ? 13 : 3;
-			11: voc2_out = voc2_pout ? 13 : 2;
-			12: voc2_out = voc2_pout ? 14 : 2;
-			13: voc2_out = voc2_pout ? 14 : 1;
-			14: voc2_out = voc2_pout ? 15 : 1;
-			15: voc2_out = voc2_pout ? 15 : 0;
+			unique case (voc2_vol)
+				0:  voc2_out = voc2_pout ?  8 : 8;
+				1:  voc2_out = voc2_pout ?  8 : 7;
+				2:  voc2_out = voc2_pout ?  9 : 7;
+				3:  voc2_out = voc2_pout ?  9 : 6;
+				4:  voc2_out = voc2_pout ? 10 : 6;
+				5:  voc2_out = voc2_pout ? 10 : 5;
+				6:  voc2_out = voc2_pout ? 11 : 5;
+				7:  voc2_out = voc2_pout ? 11 : 4;
+				8:  voc2_out = voc2_pout ? 12 : 4;
+				9:  voc2_out = voc2_pout ? 12 : 3;
+				10: voc2_out = voc2_pout ? 13 : 3;
+				11: voc2_out = voc2_pout ? 13 : 2;
+				12: voc2_out = voc2_pout ? 14 : 2;
+				13: voc2_out = voc2_pout ? 14 : 1;
+				14: voc2_out = voc2_pout ? 15 : 1;
+				15: voc2_out = voc2_pout ? 15 : 0;
 			endcase
 		end
 	end
 
-	always @* begin
+	always_comb begin
 		voc3_out = 8;
-		if (voc3_ena) begin
-			case (voc3_vol)
+		if (voc3_ena) unique case (voc3_vol)
 			0: voc3_out = 8;
 			1: voc3_out = voc3_sample;
 			2: voc3_out = voc3_sample[3:1] + 4;
 			3: voc3_out = voc3_sample[3:2] + 6;
-			endcase
-		end
+		endcase
 	end
 
-	always @* begin
-		voc4_pout = 'bx;
+	always_comb begin
+		voc4_pout = 'x;
 		voc4_out = 8;
 		if (voc4_ena) begin
 			voc4_pout = !voc4_lfsr[0];
 
-			case (voc4_vol)
-			0:  voc4_out = voc4_pout ?  8 : 8;
-			1:  voc4_out = voc4_pout ?  8 : 7;
-			2:  voc4_out = voc4_pout ?  9 : 7;
-			3:  voc4_out = voc4_pout ?  9 : 6;
-			4:  voc4_out = voc4_pout ? 10 : 6;
-			5:  voc4_out = voc4_pout ? 10 : 5;
-			6:  voc4_out = voc4_pout ? 11 : 5;
-			7:  voc4_out = voc4_pout ? 11 : 4;
-			8:  voc4_out = voc4_pout ? 12 : 4;
-			9:  voc4_out = voc4_pout ? 12 : 3;
-			10: voc4_out = voc4_pout ? 13 : 3;
-			11: voc4_out = voc4_pout ? 13 : 2;
-			12: voc4_out = voc4_pout ? 14 : 2;
-			13: voc4_out = voc4_pout ? 14 : 1;
-			14: voc4_out = voc4_pout ? 15 : 1;
-			15: voc4_out = voc4_pout ? 15 : 0;
+			unique case (voc4_vol)
+				0:  voc4_out = voc4_pout ?  8 : 8;
+				1:  voc4_out = voc4_pout ?  8 : 7;
+				2:  voc4_out = voc4_pout ?  9 : 7;
+				3:  voc4_out = voc4_pout ?  9 : 6;
+				4:  voc4_out = voc4_pout ? 10 : 6;
+				5:  voc4_out = voc4_pout ? 10 : 5;
+				6:  voc4_out = voc4_pout ? 11 : 5;
+				7:  voc4_out = voc4_pout ? 11 : 4;
+				8:  voc4_out = voc4_pout ? 12 : 4;
+				9:  voc4_out = voc4_pout ? 12 : 3;
+				10: voc4_out = voc4_pout ? 13 : 3;
+				11: voc4_out = voc4_pout ? 13 : 2;
+				12: voc4_out = voc4_pout ? 14 : 2;
+				13: voc4_out = voc4_pout ? 14 : 1;
+				14: voc4_out = voc4_pout ? 15 : 1;
+				15: voc4_out = voc4_pout ? 15 : 0;
 			endcase
 		end
 	end
 
-	always @(posedge clk) begin
+	always_ff @(posedge clk) begin
 		if (!div[0]) begin /* update every second tick to give pwmclk domain enough time to read stable value */
 			so1_compare_new <= 32;
 			so2_compare_new <= 32;
@@ -758,10 +749,9 @@ module lr35902_apu(
 
 	cdc so_cdc(pwmclk, so_seq_new, so_seq);
 
-	always @(posedge pwmclk) if (so_seq != so_seq_old) begin
+	always_ff @(posedge pwmclk) if (so_seq != so_seq_old) begin
 		so1_compare <= so1_compare_new;
 		so2_compare <= so2_compare_new;
 		so_seq_old  <= so_seq;
 	end
-
 endmodule

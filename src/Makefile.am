@@ -1,8 +1,7 @@
 SRC = \
-lr35902_map.v \
-lr35902_iomap.v \
+lr35902_map.sv \
+lr35902_iomap.sv \
 cpu/lr35902_cpu.v \
-cpu/lr35902_hram.v \
 cpu/lr35902_dbg_ifc.v \
 cpu/sm83.sv \
 cpu/sm83_io.sv \
@@ -15,29 +14,30 @@ cpu/sm83_sequencer.sv \
 cpu/sm83_decode.sv \
 cpu/sm83_int.sv \
 cpu/sm83_dbg_ifc.sv \
-ppu/lr35902_ppu.v \
-ppu/lr35902_vram.v \
-ppu/lr35902_oam.v \
-ppu/lr35902_oam_dma.v \
-lr35902_brom.v \
-lr35902_tim.v \
-lr35902_apu.v \
-lr35902_p1.v \
-prog_loader.v \
-cdc.v \
-uart_recv.v \
-uart_send.v \
-ft245_ifc.v
+ppu/lr35902_ppu.sv \
+ppu/lr35902_vram.sv \
+ppu/lr35902_oam.sv \
+ppu/lr35902_oam_dma.sv \
+lr35902_brom.sv \
+lr35902_hram.sv \
+lr35902_tim.sv \
+lr35902_apu.sv \
+lr35902_p1.sv \
+prog_loader.sv \
+cdc.sv \
+uart_recv.sv \
+uart_send.sv \
+ft245_ifc.sv
 
 NODIST_SRC =
 
 COND_SRC = \
-boards/gbreveng-top.v \
-boards/hx8k_brk-top.v \
-elp/lr35902_elp_dummy.v \
-lcds/lcd_lh507x.v \
-lcds/lcd_uc1611.v \
-mbc/mbc1.v
+boards/gbreveng-top.sv \
+boards/hx8k_brk-top.sv \
+elp/lr35902_elp_dummy.sv \
+lcds/lcd_lh507x.sv \
+lcds/lcd_uc1611.sv \
+mbc/mbc1.sv
 
 COND_NODIST_SRC = \
 pll.v
@@ -90,10 +90,10 @@ DISTCLEANFILES = \
 $(NODIST_HDR)
 
 USED_COND_SRC = \
-boards/@BOARD@-top.v \
-elp/lr35902_elp_@ELP_TYPE@.v \
-$(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.v) \
-$(if @HAS_MBC@,mbc/@MBC_TYPE@.v)
+boards/@BOARD@-top.sv \
+elp/lr35902_elp_@ELP_TYPE@.sv \
+$(if @HAS_LCD@,lcds/lcd_@LCD_TYPE@.sv) \
+$(if @HAS_MBC@,mbc/@MBC_TYPE@.sv)
 
 USED_COND_NODIST_SRC = \
 $(if @NEED_PLL@,pll.v)

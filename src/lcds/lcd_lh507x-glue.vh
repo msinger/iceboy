@@ -1,7 +1,7 @@
-wire       lcd_n_hsync_out, lcd_n_vsync_out, lcd_n_latch_out, lcd_n_altsig_out, lcd_n_ctrl_out, lcd_n_clk_out;
-wire       lcd_p_hsync_out, lcd_p_vsync_out, lcd_p_latch_out, lcd_p_altsig_out, lcd_p_ctrl_out, lcd_p_clk_out;
-wire [1:0] lcd_n_data_out;
-wire [1:0] lcd_p_data_out;
+logic       lcd_n_hsync_out, lcd_n_vsync_out, lcd_n_latch_out, lcd_n_altsig_out, lcd_n_ctrl_out, lcd_n_clk_out;
+logic       lcd_p_hsync_out, lcd_p_vsync_out, lcd_p_latch_out, lcd_p_altsig_out, lcd_p_ctrl_out, lcd_p_clk_out;
+logic [1:0] lcd_n_data_out;
+logic [1:0] lcd_p_data_out;
 
 SB_IO #(
 		.PIN_TYPE('b 0100_01),

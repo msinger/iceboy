@@ -2,22 +2,22 @@
 
 (* nolatches *)
 module lr35902_iomap(
-		input  wire       reset,
+		input  logic       reset,
 
-		input  wire [7:0] adr,
+		input  logic [7:0] adr,
 
-		output reg        cs_p1,
-		output reg        cs_elp,
-		output reg        cs_tim,
-		output reg        cs_if,
-		output reg        cs_apu,
-		output reg        cs_ppu,
-		output reg        cs_brom,
-		output reg        cs_hram,
-		output reg        cs_ie,
+		output logic       cs_p1,
+		output logic       cs_elp,
+		output logic       cs_tim,
+		output logic       cs_if,
+		output logic       cs_apu,
+		output logic       cs_ppu,
+		output logic       cs_brom,
+		output logic       cs_hram,
+		output logic       cs_ie,
 	);
 
-	always @* begin
+	always_comb begin
 		cs_p1   = 0;
 		cs_elp  = 0;
 		cs_tim  = 0;
@@ -52,5 +52,4 @@ module lr35902_iomap(
 			cs_elp = 1;
 		endcase
 	end
-
 endmodule

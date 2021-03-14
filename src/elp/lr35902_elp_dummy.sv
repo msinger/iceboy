@@ -2,32 +2,30 @@
 
 (* nolatches *)
 module lr35902_elp_dummy(
-		input  wire       clk,
-		input  wire       reset,
+		input  logic       clk,
+		input  logic       reset,
 
-		output reg  [7:0] dout,
-		input  wire [7:0] din,
-		input  wire       adr,
-		input  wire       write,
-		output reg        irq,
+		output logic [7:0] dout,
+		input  logic [7:0] din,
+		input  logic       adr,
+		input  logic       write,
+		output logic       irq,
 	);
 
-	reg [7:0] sb;
-	reg       tstart, sclk;
+	logic [7:0] sb;
+	logic       tstart, sclk;
 
-	reg [8:0] clk_count;
-	reg [2:0] bit_count;
+	logic [8:0] clk_count;
+	logic [2:0] bit_count;
 
-	reg pwrite;
+	logic pwrite;
 
-	always @(posedge clk) begin
-		case (adr)
-		1: dout <= sb;
-		0: dout <= { tstart, 6'h3f, sclk };
-		endcase
-	end
+	always_ff @(posedge clk) unique case (adr)
+		1: dout = sb;
+		0: dout = { tstart, 6'h3f, sclk };
+	endcase
 
-	always @(posedge clk) begin
+	always_ff @(posedge clk) begin
 		irq <= 0;
 
 		clk_count <= clk_count + 1;
@@ -44,7 +42,7 @@ module lr35902_elp_dummy(
 			end
 		end
 
-		if (pwrite && !write) case (adr)
+		if (pwrite && !write) unique case (adr)
 		1: sb <= din;
 		0:
 			begin
@@ -69,5 +67,4 @@ module lr35902_elp_dummy(
 			irq       <= 0;
 		end
 	end
-
 endmodule

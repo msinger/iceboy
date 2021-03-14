@@ -4,63 +4,63 @@
 (* nolatches *)
 (* top *)
 module top(
-		input  wire        clk12m,        /* 12 MHz clock input */
-		input  wire        clk16m,        /* 16 MiHz clock input */
-		output wire        clk16m_en = 1, /* 16 MiHz clock enable */
-		input  wire        reset,         /* Reset input */
+		input  logic        clk12m,        /* 12 MHz clock input */
+		input  logic        clk16m,        /* 16 MiHz clock input */
+		output logic        clk16m_en = 1, /* 16 MiHz clock enable */
+		input  logic        reset,         /* Reset input */
 
-		output wire        chl,           /* left audio PWM channel */
-		output wire        chr,           /* right audio PWM channel */
-		output wire        chm,           /* mono audio PWM channel */
+		output logic        chl,           /* left audio PWM channel */
+		output logic        chr,           /* right audio PWM channel */
+		output logic        chm,           /* mono audio PWM channel */
 
-		input  wire        p10,
-		input  wire        p11,
-		input  wire        p12,
-		input  wire        p13,
-		output wire        p14,
-		output wire        p15,
+		input  logic        p10,
+		input  logic        p11,
+		input  logic        p12,
+		input  logic        p13,
+		output logic        p14,
+		output logic        p15,
 
 `ifdef HAS_EXTBUS
-		output wire [`NUM_ADR-1:0] adr,
-		inout  wire [7:0]  data,
-		output wire        n_read,
-		output wire        n_write,
-		input  wire        n_emu_mbc, /* emulate MBC chip of cartridge for continuous 21 bit address bus */
-		output wire        clk1m_out, /* 1 MiHz clock output */
-		inout  wire        n_crst,    /* bi-directional !reset on cartridge slot */
-		output wire        n_coe,     /* output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13] */
-		output wire        n_coed,    /* output enable for data[7:0] */
-		output wire        cdir,      /* direction for data[7:0] */
-		output wire        n_cs_rom,  /* chip select for cartridge mask ROM */
-		output wire        n_cs_xram, /* chip select for cartridge external expansion RAM */
-		output wire        n_cs_wram, /* chip select for work RAM */
-		output wire        n_cs_crom, /* chip select for onboard cartridge ROM (only when emulating MBC chip) */
-		output wire        n_cs_cram, /* chip select for onboard cartridge RAM (only when emulating MBC chip) */
-		output wire        n_prog,    /* !wr signal for onboard cartridge ROM (only when emulating MBC chip) */
+		output logic [`NUM_ADR-1:0] adr,
+		inout  logic [7:0]  data,
+		output logic        n_read,
+		output logic        n_write,
+		input  logic        n_emu_mbc, /* emulate MBC chip of cartridge for continuous 21 bit address bus */
+		output logic        clk1m_out, /* 1 MiHz clock output */
+		inout  logic        n_crst,    /* bi-directional !reset on cartridge slot */
+		output logic        n_coe,     /* output enable for n_read, n_write, n_cs_xram, n_cs_rom and adr[14:13] */
+		output logic        n_coed,    /* output enable for data[7:0] */
+		output logic        cdir,      /* direction for data[7:0] */
+		output logic        n_cs_rom,  /* chip select for cartridge mask ROM */
+		output logic        n_cs_xram, /* chip select for cartridge external expansion RAM */
+		output logic        n_cs_wram, /* chip select for work RAM */
+		output logic        n_cs_crom, /* chip select for onboard cartridge ROM (only when emulating MBC chip) */
+		output logic        n_cs_cram, /* chip select for onboard cartridge RAM (only when emulating MBC chip) */
+		output logic        n_prog,    /* !wr signal for onboard cartridge ROM (only when emulating MBC chip) */
 `endif
 
 `ifdef HAS_UART
-		input  wire        rx,        /* UART RX for prog loader and debugger */
-		output wire        tx,        /* UART TX for debugger */
-		input  wire        rts,       /* UART RTS */
-		output wire        cts,       /* UART CTS for debugger */
-		input  wire        dtr,       /* UART DTR for additional reset input */
-		output wire        dsr = 0,   /* UART DSR */
-		output wire        dcd = 0,   /* UART DCD */
-		input  wire        n_rxled,
-		input  wire        n_txled,
+		input  logic        rx,        /* UART RX for prog loader and debugger */
+		output logic        tx,        /* UART TX for debugger */
+		input  logic        rts,       /* UART RTS */
+		output logic        cts,       /* UART CTS for debugger */
+		input  logic        dtr,       /* UART DTR for additional reset input */
+		output logic        dsr = 0,   /* UART DSR */
+		output logic        dcd = 0,   /* UART DCD */
+		input  logic        n_rxled,
+		input  logic        n_txled,
 `endif
 `ifdef HAS_FT245
-		inout  wire [7:0]  ft245_d,
-		input  wire        ft245_n_rxf,
-		input  wire        ft245_n_txe,
-		output wire        ft245_n_rd,
-		output wire        ft245_n_wr,
-		output wire        ft245_siwu,
+		inout  logic [7:0]  ft245_d,
+		input  logic        ft245_n_rxf,
+		input  logic        ft245_n_txe,
+		output logic        ft245_n_rd,
+		output logic        ft245_n_wr,
+		output logic        ft245_siwu,
 `endif
 
 `ifdef HAS_LEDS
-		output wire [`NUM_LEDS-1:0] led,
+		output logic [`NUM_LEDS-1:0] led,
 `endif
 
 `ifdef HAS_ELP
@@ -72,129 +72,132 @@ module top(
 `endif
 	);
 
-`define rst_assert  0
-`define rst_release 1
-`define rst_done    2
-	(* onehot *)
-	reg  [1:0] r_reset_state         = 0, reset_state;
-	reg  [3:0] r_reset_ticks         = 0, reset_ticks;
-	reg  [3:0] r_initial_reset_ticks = 0, initial_reset_ticks;
-	reg        r_initial_reset_done  = 0, initial_reset_done;
-	reg        r_gb_on               = 0, gb_on;
-	reg        reset_done;
-	reg        reset_gb;
-	reg        reset_ld;
-	reg        n_crst_out;
-	wire       n_crst_in;
+	enum {
+		rst_assert,
+		rst_release,
+		rst_done
+	} r_reset_state, reset_state;
 
-	wire       clk1m;        /* 1 MiHz clock on cartridge slot */
-	wire       gbclk;        /* 4 MiHz    238 ns */
-	reg  [1:0] r_gbclk_div;
+	initial r_reset_state = rst_assert;
 
-	wire [15:0] adr_cpu;
-	reg  [15:0] adr_ext;
-	wire [15:0] adr_ppu;
-	wire [15:0] adr_dma_rd;
-	wire [7:0]  adr_dma_wr;
-	reg  [12:0] adr_vram;
-	reg  [7:0]  adr_oam;
-	wire [`NUM_ADR-1:0] adr_out;
-	wire [`NUM_ADR-1:0] adr_prog;
+	logic [3:0] r_reset_ticks         = 0, reset_ticks;
+	logic [3:0] r_initial_reset_ticks = 0, initial_reset_ticks;
+	logic       r_initial_reset_done  = 0, initial_reset_done;
+	logic       r_gb_on               = 0, gb_on;
+	logic       reset_done;
+	logic       reset_gb;
+	logic       reset_ld;
+	logic       n_crst_out;
+	logic       n_crst_in;
+
+	logic       clk1m;        /* 1 MiHz clock on cartridge slot */
+	logic       gbclk;        /* 4 MiHz    238 ns */
+	logic [1:0] r_gbclk_div;
+
+	logic [15:0] adr_cpu;
+	logic [15:0] adr_ext;
+	logic [15:0] adr_ppu;
+	logic [15:0] adr_dma_rd;
+	logic [7:0]  adr_dma_wr;
+	logic [12:0] adr_vram;
+	logic [7:0]  adr_oam;
+	logic [`NUM_ADR-1:0] adr_out;
+	logic [`NUM_ADR-1:0] adr_prog;
 
 `ifdef HAS_UART
-	wire rx_in,      rx_ext;
-	wire dtr_in,     dtr_ext;
-	wire n_rxled_in, n_txled_in;
+	logic rx_in,      rx_ext;
+	logic dtr_in,     dtr_ext;
+	logic n_rxled_in, n_txled_in;
 	cdc #(1) rx_cdc (clk12m, rx_ext,  rx_in);
 	cdc #(1) dtr_cdc(gbclk,  dtr_ext, dtr_in);
 `endif
 `ifdef HAS_FT245
-	wire [7:0] ft245_d_out, ft245_d_in;
-	wire       ft245_dir_out;
-	wire       ft245_n_rxf_in, ft245_n_rxf_ext;
-	wire       ft245_n_txe_in, ft245_n_txe_ext;
-	wire       ft245_rd_dbg_out, ft245_rd_ld_out, ft245_wr_out;
-	wire       ft245_siwu_out;
+	logic [7:0] ft245_d_out, ft245_d_in;
+	logic       ft245_dir_out;
+	logic       ft245_n_rxf_in, ft245_n_rxf_ext;
+	logic       ft245_n_txe_in, ft245_n_txe_ext;
+	logic       ft245_rd_dbg_out, ft245_rd_ld_out, ft245_wr_out;
+	logic       ft245_siwu_out;
 	cdc #(1) ft245_n_rxf_cdc(gbclk, ft245_n_rxf_ext, ft245_n_rxf_in);
 	cdc #(1) ft245_n_txe_cdc(gbclk, ft245_n_txe_ext, ft245_n_txe_in);
 `endif
 
-	reg emu_mbc;
+	logic emu_mbc;
 
-	wire reset_in, reset_ext;
+	logic reset_in, reset_ext;
 	cdc #(1) reset_cdc(gbclk, reset_ext, reset_in);
 
-	wire chl_out, chr_out, chm_out;
+	logic chl_out, chr_out, chm_out;
 
-	wire p10_in,  p11_in,  p12_in,  p13_in;
-	wire p10_ext, p11_ext, p12_ext, p13_ext;
-	wire p14_out, p15_out;
+	logic p10_in,  p11_in,  p12_in,  p13_in;
+	logic p10_ext, p11_ext, p12_ext, p13_ext;
+	logic p14_out, p15_out;
 	cdc #(1) p10_cdc(gbclk, p10_ext, p10_in);
 	cdc #(1) p11_cdc(gbclk, p11_ext, p11_in);
 	cdc #(1) p12_cdc(gbclk, p12_ext, p12_in);
 	cdc #(1) p13_cdc(gbclk, p13_ext, p13_in);
 
-	reg r_wr_ext;
+	logic r_wr_ext;
 
-	wire rd_cpu, wr_cpu;
-	wire rd_dma, wr_dma;
-	reg  rd_ext, wr_ext;
-	reg  rd_vram, wr_vram;
-	reg  rd_oam, wr_oam;
-	wire rd_ppu;
-	wire wr_prog;
+	logic rd_cpu, wr_cpu;
+	logic rd_dma, wr_dma;
+	logic rd_ext, wr_ext;
+	logic rd_vram, wr_vram;
+	logic rd_oam, wr_oam;
+	logic rd_ppu;
+	logic wr_prog;
 
-	wire cs_rom, cs_xram, cs_wram, cs_crom, cs_cram;
-	wire cscpu_ext, cscpu_wram, cscpu_rom, cscpu_xram, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
-	wire csdma_ext, csdma_wram, csdma_rom, csdma_xram, csdma_vram;
-	wire csppu_vram, csppu_oam;
-	wire cs_io_p1, cs_io_elp, cs_io_tim, cs_io_if;
-	wire cs_io_apu, cs_io_ppu, cs_io_brom, cs_io_hram, cs_io_ie;
+	logic cs_rom, cs_xram, cs_wram, cs_crom, cs_cram;
+	logic cscpu_ext, cscpu_wram, cscpu_rom, cscpu_xram, cscpu_vram, cscpu_oam, cscpu_brom, cscpu_io;
+	logic csdma_ext, csdma_wram, csdma_rom, csdma_xram, csdma_vram;
+	logic csppu_vram, csppu_oam;
+	logic cs_io_p1, cs_io_elp, cs_io_tim, cs_io_if;
+	logic cs_io_apu, cs_io_ppu, cs_io_brom, cs_io_hram, cs_io_ie;
 
-	wire [7:0]  data_cpu_out;
-	reg  [7:0]  data_cpu_in;
-	wire [7:0]  data_dma_out;
-	reg  [7:0]  data_dma_in;
-	wire [7:0]  data_oam_out;
-	reg  [7:0]  data_oam_in;
-	wire [15:0] data_oam_out16;
-	wire [7:0]  data_ext_in;
-	wire [7:0]  data_ppu_out;
-	wire [7:0]  data_vram_out;
-	wire [7:0]  data_p1_out;
-	wire [7:0]  data_elp_out;
-	wire [7:0]  data_tim_out;
-	wire [7:0]  data_apu_out;
-	wire [7:0]  data_brom_out;
-	wire [7:0]  data_hram_out;
-	wire [7:0]  data_cpureg_out;
-	wire [7:0]  data_dbg_out;
-	wire [7:0]  data_prog_out;
+	logic [7:0]  data_cpu_out;
+	logic [7:0]  data_cpu_in;
+	logic [7:0]  data_dma_out;
+	logic [7:0]  data_dma_in;
+	logic [7:0]  data_oam_out;
+	logic [7:0]  data_oam_in;
+	logic [15:0] data_oam_out16;
+	logic [7:0]  data_ext_in;
+	logic [7:0]  data_ppu_out;
+	logic [7:0]  data_vram_out;
+	logic [7:0]  data_p1_out;
+	logic [7:0]  data_elp_out;
+	logic [7:0]  data_tim_out;
+	logic [7:0]  data_apu_out;
+	logic [7:0]  data_brom_out;
+	logic [7:0]  data_hram_out;
+	logic [7:0]  data_cpureg_out;
+	logic [7:0]  data_dbg_out;
+	logic [7:0]  data_prog_out;
 
-	wire irq_ppu_vblank, irq_ppu_stat, irq_tim, irq_elp, irq_p1;
+	logic irq_ppu_vblank, irq_ppu_stat, irq_tim, irq_elp, irq_p1;
 
 `ifdef USE_DEBUGGER
-	wire [15:0] pc, sp;
-	wire [7:4]  flags;
-	wire [7:0]  dbg_probe;
-	wire        halt, no_inc, ime;
+	logic [15:0] pc, sp;
+	logic [7:4]  flags;
+	logic [7:0]  dbg_probe;
+	logic        halt, no_inc, ime;
 `endif
-	wire        ddrv_dbg;
+	logic        ddrv_dbg;
 
-	wire dma_active;
+	logic dma_active;
 
-	wire ppu_needs_oam,   ppu_needs_vram;
-	wire ppu_n_needs_oam, ppu_n_needs_vram;
-	wire ppu_p_needs_oam, ppu_p_needs_vram;
+	logic ppu_needs_oam,   ppu_needs_vram;
+	logic ppu_n_needs_oam, ppu_n_needs_vram;
+	logic ppu_p_needs_oam, ppu_p_needs_vram;
 
-	wire       ppu_n_hsync, ppu_n_vsync, ppu_n_latch, ppu_n_altsig, ppu_n_ctrl, ppu_n_pclk;
-	wire       ppu_p_hsync, ppu_p_vsync, ppu_p_latch, ppu_p_altsig, ppu_p_ctrl, ppu_p_pclk;
-	wire [1:0] ppu_n_px;
-	wire [1:0] ppu_p_px;
+	logic       ppu_n_hsync, ppu_n_vsync, ppu_n_latch, ppu_n_altsig, ppu_n_ctrl, ppu_n_pclk;
+	logic       ppu_p_hsync, ppu_p_vsync, ppu_p_latch, ppu_p_altsig, ppu_p_ctrl, ppu_p_pclk;
+	logic [1:0] ppu_n_px;
+	logic [1:0] ppu_p_px;
 
-	wire hide_bootrom;
+	logic hide_bootrom;
 
-	wire [15:0] div;
+	logic [15:0] div;
 
 `ifdef HAS_EXTBUS
 	SB_IO #(
@@ -233,7 +236,7 @@ module top(
 		);
 
 `ifdef HAS_CARTRIDGE_AND_MBC
-	wire n_emu_mbc_ext;
+	logic n_emu_mbc_ext;
 `endif
 	SB_IO #(
 			.PIN_TYPE('b 0000_00),
@@ -246,14 +249,14 @@ module top(
 `endif
 		);
 `ifdef HAS_CARTRIDGE_AND_MBC
-	wire n_emu_mbc_in;
+	logic n_emu_mbc_in;
 	cdc #(1) n_emu_mbc_cdc(gbclk, n_emu_mbc_ext, n_emu_mbc_in);
-	always @(posedge gbclk) if (reset_state == `rst_assert) emu_mbc <= !n_emu_mbc_in;
+	always_ff @(posedge gbclk) if (reset_state == rst_assert) emu_mbc = !n_emu_mbc_in;
 `else
 `ifdef HAS_CARTRIDGE_ONLY
-	always @* emu_mbc = 0;
+	assign emu_mbc = 0;
 `else
-	always @* emu_mbc = 1;
+	assign emu_mbc = 1;
 `endif
 `endif
 
@@ -352,7 +355,7 @@ module top(
 			.D_OUT_0(clk1m || !reset_done || emu_mbc),
 		);
 
-	wire n_crst_ext;
+	logic n_crst_ext;
 	cdc #(1) n_crst_cdc(gbclk, n_crst_ext, n_crst_in);
 
 	SB_IO #(
@@ -379,7 +382,7 @@ module top(
 `else /* if !HAS_EXTBUS */
 	assign data_ext_in = 'hff;
 	assign n_crst_in = 1;
-	always @* emu_mbc = 0;
+	assign emu_mbc = 0;
 `endif
 
 	SB_IO #(
@@ -569,14 +572,13 @@ module top(
 		);
 `endif
 
-	always @(posedge gbclk)
-		r_wr_ext <= wr_ext;  /* used for delaying the output disable of data wires */
+	always_ff @(posedge gbclk)
+		r_wr_ext = wr_ext;  /* used for delaying the output disable of data wires */
 
-	always @* begin
+	always_comb begin
 		data_cpu_in = 'hff;
 
-		(* parallelcase *)
-		case (1)
+		unique0 case (1)
 		cs_io_hram:
 			data_cpu_in = data_hram_out;
 		cs_io_p1:
@@ -611,7 +613,7 @@ module top(
 			data_cpu_in = data_dbg_out;
 	end
 
-	always @* begin
+	always_comb begin
 		if (dma_active && csdma_ext) begin
 			adr_ext = adr_dma_rd;
 			rd_ext = rd_dma;
@@ -623,11 +625,10 @@ module top(
 		end
 	end
 
-	always @* begin
+	always_comb begin
 		data_dma_in = 'hff;
 
-		(* parallelcase *)
-		case (1)
+		unique0 case (1)
 		csdma_vram && !ppu_needs_vram:
 			data_dma_in = data_vram_out;
 `ifdef HAS_CARTRIDGE_OR_MBC
@@ -641,29 +642,29 @@ module top(
 		endcase
 	end
 
-	always @* begin
-		adr_vram     = 'bx;
-		rd_vram      = 0;
-		wr_vram      = 0;
+	always_comb begin
+		adr_vram = 'x;
+		rd_vram  = 0;
+		wr_vram  = 0;
 
 		if (ppu_needs_vram) begin
-			adr_vram     = adr_ppu;
-			rd_vram      = rd_ppu;
+			adr_vram = adr_ppu;
+			rd_vram  = rd_ppu;
 		end else if (dma_active && csdma_vram) begin
-			adr_vram     = adr_dma_rd;
-			rd_vram      = rd_dma;
+			adr_vram = adr_dma_rd;
+			rd_vram  = rd_dma;
 		end else if (cscpu_vram) begin
-			adr_vram     = adr_cpu;
-			rd_vram      = rd_cpu;
-			wr_vram      = wr_cpu;
+			adr_vram = adr_cpu;
+			rd_vram  = rd_cpu;
+			wr_vram  = wr_cpu;
 		end
 	end
 
-	always @* begin
-		adr_oam     = 'bx;
+	always_comb begin
+		adr_oam     = 'x;
 		rd_oam      = 0;
 		wr_oam      = 0;
-		data_oam_in = 'bx;
+		data_oam_in = 'x;
 
 		if (ppu_needs_oam) begin
 			adr_oam     = adr_ppu;
@@ -702,15 +703,15 @@ module top(
 	assign ppu_needs_oam  = ppu_n_needs_oam  || ppu_p_needs_oam;
 	assign ppu_needs_vram = ppu_n_needs_vram || ppu_p_needs_vram;
 
-	always @(posedge clk16m)
-		r_gbclk_div <= r_gbclk_div + 1;
+	always_ff @(posedge clk16m)
+		r_gbclk_div++;
 
 	assign gbclk = r_gbclk_div[1];
 
-	always @* begin
+	always_comb begin
 		initial_reset_ticks = r_initial_reset_ticks;
 		initial_reset_done  = r_initial_reset_done;
-		reset_ticks         = 'bx;
+		reset_ticks         = 'x;
 		reset_state         = r_reset_state;
 `ifdef HAS_UART
 		gb_on               = !reset_in && dtr_in;
@@ -723,34 +724,34 @@ module top(
 		if (&r_initial_reset_ticks)
 			initial_reset_done = 1;
 
-		if (r_gb_on != gb_on || (r_reset_state == `rst_done && !emu_mbc && !n_crst_in)) begin
-			reset_state = `rst_assert;
+		if (r_gb_on != gb_on || (r_reset_state == rst_done && !emu_mbc && !n_crst_in)) begin
+			reset_state = rst_assert;
 			reset_ticks = 0;
 		end
 
-		if (r_initial_reset_done) case (reset_state)
-		`rst_assert:
+		if (r_initial_reset_done) unique0 case (reset_state)
+		rst_assert:
 			if (&r_reset_ticks) begin
-				reset_state = `rst_release;
+				reset_state = rst_release;
 				reset_ticks = 0;
 			end else
 				reset_ticks = r_reset_ticks + 1;
-		`rst_release:
+		rst_release:
 			if (gb_on && !emu_mbc && !n_crst_in)
 				reset_ticks = 0;
 			else if (&r_reset_ticks)
-				reset_state = `rst_done;
+				reset_state = rst_done;
 			else
 				reset_ticks = r_reset_ticks + 1;
 		endcase
 
-		reset_done = reset_state == `rst_done;
+		reset_done = reset_state == rst_done;
 		reset_gb   = !reset_done || !gb_on;
 		reset_ld   = !reset_done || gb_on;
-		n_crst_out = r_initial_reset_done && gb_on && reset_state != `rst_assert && !emu_mbc;
+		n_crst_out = r_initial_reset_done && gb_on && reset_state != rst_assert && !emu_mbc;
 	end
 
-	always @(posedge gbclk) begin
+	always_ff @(posedge gbclk) begin
 		r_initial_reset_ticks <= initial_reset_ticks;
 		r_initial_reset_done  <= initial_reset_done;
 		r_reset_ticks         <= reset_ticks;
@@ -794,23 +795,23 @@ module top(
 	);
 
 `ifdef USE_DEBUGGER
-	wire       dbg_data_rx_valid;
-	wire [7:0] dbg_data_rx;
-	wire       dbg_data_rx_seq;
-	wire       dbg_data_rx_ack;
-	wire [7:0] dbg_data_tx;
-	wire       dbg_data_tx_seq;
-	wire       dbg_data_tx_ack;
+	logic       dbg_data_rx_valid;
+	logic [7:0] dbg_data_rx;
+	logic       dbg_data_rx_seq;
+	logic       dbg_data_rx_ack;
+	logic [7:0] dbg_data_tx;
+	logic       dbg_data_tx_seq;
+	logic       dbg_data_tx_ack;
 
 `ifdef HAS_UART
-	reg        reset_dbg_domC;
-	wire       reset_dbg_domU;
-	wire       dbg_data_rx_seq_domU;
-	wire       dbg_data_rx_ack_domU;
-	wire       dbg_data_tx_seq_domU;
-	wire       dbg_data_tx_ack_domU;
+	logic       reset_dbg_domC;
+	logic       reset_dbg_domU;
+	logic       dbg_data_rx_seq_domU;
+	logic       dbg_data_rx_ack_domU;
+	logic       dbg_data_tx_seq_domU;
+	logic       dbg_data_tx_ack_domU;
 
-	always @(posedge gbclk) reset_dbg_domC <= reset_gb;
+	always_ff @(posedge gbclk) reset_dbg_domC = reset_gb;
 	cdc reset_dbg_cdc(clk12m, reset_dbg_domC, reset_dbg_domU);
 
 	cdc dbg_data_rx_seq_cdc(gbclk,  dbg_data_rx_seq_domU, dbg_data_rx_seq);
@@ -840,7 +841,7 @@ module top(
 		.seq(dbg_data_tx_seq_domU),
 		.ack(dbg_data_tx_ack_domU),
 
-		.tx(tx),
+		.tx,
 	);
 `endif
 
@@ -873,15 +874,15 @@ module top(
 		.clk(gbclk),
 		.reset(!initial_reset_done),
 
-		.pc(pc),
-		.sp(sp),
+		.pc,
+		.sp,
 		.f(flags[7:4]),
-		.ime(ime),
+		.ime,
 		.probe(dbg_probe),
 		.data(data_dbg_out),
 		.drv(ddrv_dbg),
-		.halt(halt),
-		.no_inc(no_inc),
+		.halt,
+		.no_inc,
 
 		.data_rx(dbg_data_rx),
 		.data_rx_valid(dbg_data_rx_valid),
@@ -893,7 +894,7 @@ module top(
 	);
 `else
 	assign ddrv_dbg = 0;
-	assign data_dbg_out = 'bx;
+	assign data_dbg_out = 'x;
 `ifdef HAS_UART
 	assign tx = 1;
 	assign cts = 0;
@@ -1181,15 +1182,15 @@ module top(
 `endif
 
 `ifdef USE_LOADER
-	wire [7:0] ld_data;
-	wire       ld_data_seq;
+	logic [7:0] ld_data;
+	logic       ld_data_seq;
 
 `ifdef HAS_UART
-	reg        reset_ld_domC;
-	wire       reset_ld_domU;
-	wire       ld_data_seq_domU;
+	logic       reset_ld_domC;
+	logic       reset_ld_domU;
+	logic       ld_data_seq_domU;
 
-	always @(posedge gbclk) reset_ld_domC <= reset_ld;
+	always_ff @(posedge gbclk) reset_ld_domC = reset_ld;
 	cdc reset_ld_cdc(clk12m, reset_ld_domC, reset_ld_domU);
 	cdc ld_data_seq_cdc(gbclk, ld_data_seq_domU, ld_data_seq);
 
@@ -1237,11 +1238,10 @@ module top(
 	);
 `else
 	assign adr_prog        = 0;
-	assign data_prog_out   = 'bx;
+	assign data_prog_out   = 'x;
 	assign wr_prog         = 0;
 `ifdef HAS_FT245
 	assign ft245_rd_ld_out = 0;
 `endif
 `endif
-
 endmodule

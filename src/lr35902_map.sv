@@ -2,21 +2,21 @@
 
 (* nolatches *)
 module lr35902_map(
-		input  wire        reset,
+		input  logic        reset,
 
-		input  wire [15:0] adr,
-		input  wire        enable_bootrom,
+		input  logic [15:0] adr,
+		input  logic        enable_bootrom,
 
-		output reg         cs_brom,
-		output reg         cs_rom,
-		output reg         cs_xram,
-		output reg         cs_vram,
-		output reg         cs_wram,
-		output reg         cs_oam,
-		output reg         cs_io,
+		output logic        cs_brom,
+		output logic        cs_rom,
+		output logic        cs_xram,
+		output logic        cs_vram,
+		output logic        cs_wram,
+		output logic        cs_oam,
+		output logic        cs_io,
 	);
 
-	always @* begin
+	always_comb begin
 		cs_brom = 0;
 		cs_rom  = 0;
 		cs_xram = 0;
@@ -45,5 +45,4 @@ module lr35902_map(
 			cs_wram = 1;
 		endcase
 	end
-
 endmodule

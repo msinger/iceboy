@@ -2,26 +2,26 @@
 
 (* nolatches *)
 module lr35902_p1(
-		input  wire       clk,
-		input  wire       reset,
+		input  logic       clk,
+		input  logic       reset,
 
-		output reg  [7:0] dout,
-		input  wire [7:0] din,
-		input  wire       write,
-		output reg        irq,
+		output logic [7:0] dout,
+		input  logic [7:0] din,
+		input  logic       write,
+		output logic       irq,
 
-		input  wire       p10,
-		input  wire       p11,
-		input  wire       p12,
-		input  wire       p13,
-		output reg        p14,
-		output reg        p15,
+		input  logic       p10,
+		input  logic       p11,
+		input  logic       p12,
+		input  logic       p13,
+		output logic       p14,
+		output logic       p15,
 	);
 
-	reg [3:0] prev;
-	reg       pwrite;
+	logic [3:0] prev;
+	logic       pwrite;
 
-	always @(posedge clk) begin
+	always_ff @(posedge clk) begin
 		irq <= 0;
 		if (prev & { !p13, !p12, !p11, !p10 }) /* interrupt if any of p10..p13 flip high-to-low */
 			irq <= 1;
@@ -42,5 +42,4 @@ module lr35902_p1(
 			irq    <= 0;
 		end
 	end
-
 endmodule

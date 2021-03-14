@@ -1,5 +1,5 @@
-wire [7:0] lcd_data_out;
-wire       lcd_rd_out, lcd_wr_out, lcd_cs_out, lcd_cd_out, lcd_vled_out;
+logic [7:0] lcd_data_out;
+logic       lcd_rd_out, lcd_wr_out, lcd_cs_out, lcd_cd_out, lcd_vled_out;
 
 SB_IO #(
 		.PIN_TYPE('b 0101_01),

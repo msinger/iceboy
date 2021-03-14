@@ -1,21 +1,5 @@
 `default_nettype none
 
-`define MODE_HBLANK  0
-`define MODE_VBLANK  1
-`define MODE_OAMSRC  2
-`define MODE_PXTRANS 3
-
-`define FETCH_STATE_IDLE   0
-`define FETCH_STATE_TILE   1
-`define FETCH_STATE_PXL0_0 2
-`define FETCH_STATE_PXL0_1 3
-`define FETCH_STATE_PXL1_0 4
-`define FETCH_STATE_PXL1_1 5
-`define FETCH_STATE_BLOCK  6
-
-`define POS_EDGE 1
-`define NEG_EDGE 0
-
 /* From higan:
 auto PPU::coincidence() -> bool {
   uint ly = status.ly;
@@ -28,116 +12,130 @@ auto PPU::coincidence() -> bool {
 
 (* nolatches *)
 module lr35902_ppu(
-		input  wire        clk,
-		input  wire        reset,
-		input  wire [15:0] div,
+		input  logic        clk,
+		input  logic        reset,
+		input  logic [15:0] div,
 
-		input  wire [3:0]  reg_adr,
-		output reg  [7:0]  reg_dout,
-		input  wire [7:0]  reg_din,
-		input  wire        reg_read,
-		input  wire        reg_write,
-		output wire        irq_vblank,
-		output wire        irq_stat,
+		input  logic [3:0]  reg_adr,
+		output logic [7:0]  reg_dout,
+		input  logic [7:0]  reg_din,
+		input  logic        reg_read,
+		input  logic        reg_write,
+		output logic        irq_vblank,
+		output logic        irq_stat,
 
-		output reg  [15:0] adr,
-		input  wire [7:0]  data,
-		input  wire [15:0] data16,
-		output reg         read,
+		output logic [15:0] adr,
+		input  logic [7:0]  data,
+		input  logic [15:0] data16,
+		output logic        read,
 
-		output reg         n_need_oam,  p_need_oam,
-		output reg         n_need_vram, p_need_vram,
+		output logic        n_need_oam,  p_need_oam,
+		output logic        n_need_vram, p_need_vram,
 
-		output reg         n_hsync,  p_hsync,
-		output reg         n_vsync,  p_vsync,
-		output reg         n_latch,  p_latch,
-		output reg         n_altsig, p_altsig, /* Signal for alternating polarity of electrical current flow through LCD segments. Called FR (Frame inversion signal) in Sharp datasheets. */
-		output reg         n_ctrl,   p_ctrl,   /* Timing signal for switching on/off columns depending on pixels brightness. */
-		output reg         n_pclk,   p_pclk,
-		output reg  [1:0]  n_px,     p_px,     /* The color (brightness) of the pixel being shifted out. */
+		output logic        n_hsync,  p_hsync,
+		output logic        n_vsync,  p_vsync,
+		output logic        n_latch,  p_latch,
+		output logic        n_altsig, p_altsig, /* Signal for alternating polarity of electrical current flow through LCD segments. Called FR (Frame inversion signal) in Sharp datasheets. */
+		output logic        n_ctrl,   p_ctrl,   /* Timing signal for switching on/off columns depending on pixels brightness. */
+		output logic        n_pclk,   p_pclk,
+		output logic [1:0]  n_px,     p_px,     /* The color (brightness) of the pixel being shifted out. */
 	);
 
-	reg r_preg_read,  preg_read;
-	reg r_preg_write, preg_write;
+	localparam logic [1:0] MODE_HBLANK  = 0;
+	localparam logic [1:0] MODE_VBLANK  = 1;
+	localparam logic [1:0] MODE_OAMSRC  = 2;
+	localparam logic [1:0] MODE_PXTRANS = 3;
 
-	reg [15:0] r_adr;
+	localparam logic POS_EDGE = 1;
+	localparam logic NEG_EDGE = 0;
 
-	reg       r_n_need_oam,  r_p_need_oam,  r_cp_need_oam,  cp_need_oam;
-	reg       r_n_need_vram, r_p_need_vram, r_cp_need_vram, cp_need_vram;
+	logic r_preg_write, preg_write;
 
-	reg       r_n_hsync,  r_p_hsync,  r_cp_hsync,  cp_hsync;
-	reg       r_n_vsync,  r_p_vsync,  r_cp_vsync,  cp_vsync;
-	reg       r_n_latch,  r_p_latch,  r_cp_latch,  cp_latch;
-	reg       r_n_altsig, r_p_altsig, r_cp_altsig, cp_altsig;
-	reg       r_n_ctrl,   r_p_ctrl,   r_cp_ctrl,   cp_ctrl;
-	reg       r_n_pclk,   r_p_pclk,   r_cp_pclk,   cp_pclk;
-	reg [1:0] r_n_px,     r_p_px;
-	reg       r_cp_px,    cp_px;
+	logic [15:0] r_adr;
 
-	reg [7:0] r_px_cnt, px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
-	reg [8:0] r_lx,     lx;     /* counts 0 .. 455 */
-	reg [7:0] r_ly,     ly;     /* counts 0 .. 153 (each time lx resets to 0); resets to 0 early in line 153 */
-	reg [7:0] r_ily,    ily;    /* counts 0 .. 153 (each time lx resets to 0); completes line 153 normally */
-	reg       r_scxed,  scxed;  /* set to 1 when r_scx[2:0] pixels got thrown away at beginning of line */
+	logic       r_n_need_oam,  r_p_need_oam,  r_cp_need_oam,  cp_need_oam;
+	logic       r_n_need_vram, r_p_need_vram, r_cp_need_vram, cp_need_vram;
 
-	reg r_draw_win, draw_win;
+	logic       r_n_hsync,  r_p_hsync,  r_cp_hsync,  cp_hsync;
+	logic       r_n_vsync,  r_p_vsync,  r_cp_vsync,  cp_vsync;
+	logic       r_n_latch,  r_p_latch,  r_cp_latch,  cp_latch;
+	logic       r_n_altsig, r_p_altsig, r_cp_altsig, cp_altsig;
+	logic       r_n_ctrl,   r_p_ctrl,   r_cp_ctrl,   cp_ctrl;
+	logic       r_n_pclk,   r_p_pclk,   r_cp_pclk,   cp_pclk;
+	logic [1:0] r_n_px,     r_p_px;
+	logic       r_cp_px,    cp_px;
 
-	reg  r_stat_sig;
-	wire stat_sig;
+	logic [7:0] r_px_cnt, px_cnt; /* number of pixels shifted out already for current line (0 .. 168) */
+	logic [8:0] r_lx,     lx;     /* counts 0 .. 455 */
+	logic [7:0] r_ly,     ly;     /* counts 0 .. 153 (each time lx resets to 0); resets to 0 early in line 153 */
+	logic [7:0] r_ily,    ily;    /* counts 0 .. 153 (each time lx resets to 0); completes line 153 normally */
+	logic       r_scxed,  scxed;  /* set to 1 when r_scx[2:0] pixels got thrown away at beginning of line */
+
+	logic r_draw_win, draw_win;
+
+	logic r_stat_sig;
+	logic stat_sig;
 
 	/* FF40 (LCDC) */
-	reg r_ppu_ena,  ppu_ena;  /* bit 7 */
-	reg r_win_map,  win_map;  /* bit 6   0: 9800-9bff  1: 9c00-9fff */
-	reg r_win_ena,  win_ena;  /* bit 5 */
-	reg r_bg_tiles, bg_tiles; /* bit 4   0: 8800-97ff  1: 8000-8fff */
-	reg r_bg_map,   bg_map;   /* bit 3   0: 9800-9bff  1: 9c00-9fff */
-	reg r_obj_size, obj_size; /* bit 2   0: 8*8  1: 8*16 */
-	reg r_obj_ena,  obj_ena;  /* bit 1 */
-	reg r_bg_ena,   bg_ena;   /* bit 0 */
+	logic r_ppu_ena,  ppu_ena;  /* bit 7 */
+	logic r_win_map,  win_map;  /* bit 6   0: 9800-9bff  1: 9c00-9fff */
+	logic r_win_ena,  win_ena;  /* bit 5 */
+	logic r_bg_tiles, bg_tiles; /* bit 4   0: 8800-97ff  1: 8000-8fff */
+	logic r_bg_map,   bg_map;   /* bit 3   0: 9800-9bff  1: 9c00-9fff */
+	logic r_obj_size, obj_size; /* bit 2   0: 8*8  1: 8*16 */
+	logic r_obj_ena,  obj_ena;  /* bit 1 */
+	logic r_bg_ena,   bg_ena;   /* bit 0 */
 
 	/* FF41 (STAT) */
-	reg       r_sel_lyc,   sel_lyc;   /* bit 6 */
-	reg       r_sel_mode2, sel_mode2; /* bit 5 */
-	reg       r_sel_mode1, sel_mode1; /* bit 4 */
-	reg       r_sel_mode0, sel_mode0; /* bit 3 */
-	reg       r_lyc_eq,    lyc_eq;    /* bit 2 */
-	reg [1:0] r_mode,      mode;      /* bit 1:0 */
+	logic       r_sel_lyc,   sel_lyc;   /* bit 6 */
+	logic       r_sel_mode2, sel_mode2; /* bit 5 */
+	logic       r_sel_mode1, sel_mode1; /* bit 4 */
+	logic       r_sel_mode0, sel_mode0; /* bit 3 */
+	logic       r_lyc_eq,    lyc_eq;    /* bit 2 */
+	logic [1:0] r_mode,      mode;      /* bit 1:0 */
 
-	reg [7:0] r_scx,  scx;
-	reg [7:0] r_scy,  scy;
-	reg [7:0] r_lyc,  lyc;
-	reg [7:0] r_bgp,  bgp;
-	reg [7:0] r_obp0, obp0;
-	reg [7:0] r_obp1, obp1;
-	reg [7:0] r_wx,   wx;
-	reg [7:0] r_wy,   wy;
+	logic [7:0] r_scx,  scx;
+	logic [7:0] r_scy,  scy;
+	logic [7:0] r_lyc,  lyc;
+	logic [7:0] r_bgp,  bgp;
+	logic [7:0] r_obp0, obp0;
+	logic [7:0] r_obp1, obp1;
+	logic [7:0] r_wx,   wx;
+	logic [7:0] r_wy,   wy;
 
-	reg [15:0] r_fifo1,     r_fifo0;      /* Stores the color of each pixel in the FIFO. (fifo0=LSB, fifo1=MSB) */
-	reg [15:0] fifo1,       fifo0;
-	reg [15:0] r_fifo1_src, r_fifo0_src;  /* Stores the source of each pixel in the FIFO. (fifo0_src=LSB, fifo1_src=MSB) */
-	reg [15:0] fifo1_src,   fifo0_src;
-	reg [4:0]  r_fifo_len,  fifo_len;     /* Number of pixels in the FIFO. */
+	logic [15:0] r_fifo1,     r_fifo0;      /* Stores the color of each pixel in the FIFO. (fifo0=LSB, fifo1=MSB) */
+	logic [15:0] fifo1,       fifo0;
+	logic [15:0] r_fifo1_src, r_fifo0_src;  /* Stores the source of each pixel in the FIFO. (fifo0_src=LSB, fifo1_src=MSB) */
+	logic [15:0] fifo1_src,   fifo0_src;
+	logic [4:0]  r_fifo_len,  fifo_len;     /* Number of pixels in the FIFO. */
 
-	reg [2:0]  r_fetch_state,  fetch_state;
-	reg [1:0]  r_fetch_src,    fetch_src;   /* Stores the source of the pixels currently held in the fetch buffer. */
-	reg [7:0]  r_fetch_tile,   fetch_tile;  /* Stores the fetched tile number. */
-	reg [7:0]  r_fetch1,       r_fetch0;    /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
-	reg [7:0]  fetch1,         fetch0;
-	reg [15:0] r_fetch_bg_adr, fetch_bg_adr;
-	reg        r_fetch_flip,   fetch_flip;
-	reg        r_fetch_prio,   fetch_prio;
+	enum {
+		FETCH_STATE_IDLE,
+		FETCH_STATE_TILE,
+		FETCH_STATE_PXL0_0,
+		FETCH_STATE_PXL0_1,
+		FETCH_STATE_PXL1_0,
+		FETCH_STATE_PXL1_1,
+		FETCH_STATE_BLOCK
+	} r_fetch_state, fetch_state;
 
-	reg [7:0] px_pal;
+	logic [1:0]  r_fetch_src,    fetch_src;   /* Stores the source of the pixels currently held in the fetch buffer. */
+	logic [7:0]  r_fetch_tile,   fetch_tile;  /* Stores the fetched tile number. */
+	logic [7:0]  r_fetch1,       r_fetch0;    /* Stores the color of each pixel in the fetch buffer. (fetch0=LSB, fetch1=MSB) */
+	logic [7:0]  fetch1,         fetch0;
+	logic [15:0] r_fetch_bg_adr, fetch_bg_adr;
+	logic        r_fetch_flip,   fetch_flip;
+	logic        r_fetch_prio,   fetch_prio;
 
-	wire [7:0] line, wline;
+	logic [7:0] px_pal;
+
+	logic [7:0] line, wline;
 
 	(* mem2reg *)
-	reg [28:0] r_obj[0:9], obj[0:9];
-	reg [3:0]  r_nobj,     nobj;
-	reg        r_lobj,     lobj;
-	reg [28:0]             mobj;
-
-	integer i;
+	logic [28:0] r_obj[0:9], obj[0:9];
+	logic [3:0]  r_nobj,     nobj;
+	logic        r_lobj,     lobj;
+	logic [28:0]             mobj;
 
 	assign stat_sig = ((r_lyc_eq    && r_sel_lyc)                    ||
 	                   (r_mode == 0 && r_sel_mode0)                  ||
@@ -151,22 +149,20 @@ module lr35902_ppu(
 	assign line  = r_scy + r_ly;
 	assign wline = r_ly - r_wy;
 
-	always @(posedge clk) begin
-		if (!r_preg_read && reg_read) case (reg_adr)
-		'h0: reg_dout <= { r_ppu_ena, r_win_map, r_win_ena, r_bg_tiles, r_bg_map, r_obj_size, r_obj_ena, r_bg_ena };
-		'h1: reg_dout <= { 1'b1, r_sel_lyc, r_sel_mode2, r_sel_mode1, r_sel_mode0, r_lyc_eq, r_mode };
-		'h2: reg_dout <= r_scy;
-		'h3: reg_dout <= r_scx;
-		'h4: reg_dout <= r_ly;
-		'h5: reg_dout <= r_lyc;
-		'h7: reg_dout <= r_bgp;
-		'h8: reg_dout <= r_obp0;
-		'h9: reg_dout <= r_obp1;
-		'ha: reg_dout <= r_wy;
-		'hb: reg_dout <= r_wx;
-		default: reg_dout <= 'hff;
-		endcase
-	end
+	always_ff @(posedge clk) if ($rose(reg_read)) unique case (reg_adr)
+		'h0: reg_dout = { r_ppu_ena, r_win_map, r_win_ena, r_bg_tiles, r_bg_map, r_obj_size, r_obj_ena, r_bg_ena };
+		'h1: reg_dout = { 1'b1, r_sel_lyc, r_sel_mode2, r_sel_mode1, r_sel_mode0, r_lyc_eq, r_mode };
+		'h2: reg_dout = r_scy;
+		'h3: reg_dout = r_scx;
+		'h4: reg_dout = r_ly;
+		'h5: reg_dout = r_lyc;
+		'h7: reg_dout = r_bgp;
+		'h8: reg_dout = r_obp0;
+		'h9: reg_dout = r_obp1;
+		'ha: reg_dout = r_wy;
+		'hb: reg_dout = r_wx;
+		default: reg_dout = 'hff;
+	endcase
 
 	task keep_dual_edge_signals();
 		{ n_need_oam,  p_need_oam,  cp_need_oam  } = { r_cp_need_oam  ? r_p_need_oam  : r_n_need_oam,  r_p_need_oam,  1'b0 };
@@ -181,92 +177,93 @@ module lr35902_ppu(
 		{ n_px,     p_px,     cp_px     } = { r_cp_px     ? r_p_px     : r_n_px,     r_p_px,     1'b0 };
 	endtask
 
-	task acquire_oam(input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  11;
-		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 110;
+	task acquire_oam(input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  11;
+			NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 110;
 		endcase
 	endtask
 
-	task release_oam(input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  01;
-		`NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 000;
+	task release_oam(input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {             p_need_oam, cp_need_oam } = 'b  01;
+			NEG_EDGE: { n_need_oam, p_need_oam, cp_need_oam } = 'b 000;
 		endcase
 	endtask
 
-	task acquire_vram(input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  11;
-		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 110;
+	task acquire_vram(input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  11;
+			NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 110;
 		endcase
 	endtask
 
-	task release_vram(input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  01;
-		`NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 000;
+	task release_vram(input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {              p_need_vram, cp_need_vram } = 'b  01;
+			NEG_EDGE: { n_need_vram, p_need_vram, cp_need_vram } = 'b 000;
 		endcase
 	endtask
 
-	task hsync(input state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {          p_hsync, cp_hsync } = {      state, 1'b1 };
-		`NEG_EDGE: { n_hsync, p_hsync, cp_hsync } = { {2{state}}, 1'b0 };
+	task hsync(input logic state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {          p_hsync, cp_hsync } = {      state, 1'b1 };
+			NEG_EDGE: { n_hsync, p_hsync, cp_hsync } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task vsync(input state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {          p_vsync, cp_vsync } = {      state, 1'b1 };
-		`NEG_EDGE: { n_vsync, p_vsync, cp_vsync } = { {2{state}}, 1'b0 };
+	task vsync(input logic state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {          p_vsync, cp_vsync } = {      state, 1'b1 };
+			NEG_EDGE: { n_vsync, p_vsync, cp_vsync } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task latch(input state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {          p_latch, cp_latch } = {      state, 1'b1 };
-		`NEG_EDGE: { n_latch, p_latch, cp_latch } = { {2{state}}, 1'b0 };
+	task latch(input logic state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {          p_latch, cp_latch } = {      state, 1'b1 };
+			NEG_EDGE: { n_latch, p_latch, cp_latch } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task altsig(input state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {           p_altsig, cp_altsig } = {      state, 1'b1 };
-		`NEG_EDGE: { n_altsig, p_altsig, cp_altsig } = { {2{state}}, 1'b0 };
+	task altsig(input logic state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {           p_altsig, cp_altsig } = {      state, 1'b1 };
+			NEG_EDGE: { n_altsig, p_altsig, cp_altsig } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task toggle_altsig(input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: altsig(!n_altsig,   `POS_EDGE);
-		`NEG_EDGE: altsig(!r_p_altsig, `NEG_EDGE);
+	task toggle_altsig(input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: altsig(!n_altsig,   POS_EDGE);
+			NEG_EDGE: altsig(!r_p_altsig, NEG_EDGE);
 		endcase
 	endtask
 
-	task ctrl(input state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {         p_ctrl, cp_ctrl } = {      state, 1'b1 };
-		`NEG_EDGE: { n_ctrl, p_ctrl, cp_ctrl } = { {2{state}}, 1'b0 };
+	task ctrl(input logic state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {         p_ctrl, cp_ctrl } = {      state, 1'b1 };
+			NEG_EDGE: { n_ctrl, p_ctrl, cp_ctrl } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task pclk(input state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {         p_pclk, cp_pclk } = {      state, 1'b1 };
-		`NEG_EDGE: { n_pclk, p_pclk, cp_pclk } = { {2{state}}, 1'b0 };
+	task pclk(input logic state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {         p_pclk, cp_pclk } = {      state, 1'b1 };
+			NEG_EDGE: { n_pclk, p_pclk, cp_pclk } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	task px(input [1:0] state, input integer clk_edge);
-		case (clk_edge)
-		`POS_EDGE: {       p_px, cp_px } = {      state, 1'b1 };
-		`NEG_EDGE: { n_px, p_px, cp_px } = { {2{state}}, 1'b0 };
+	task px(input logic [1:0] state, input logic clk_edge);
+		unique case (clk_edge)
+			POS_EDGE: {       p_px, cp_px } = {      state, 1'b1 };
+			NEG_EDGE: { n_px, p_px, cp_px } = { {2{state}}, 1'b0 };
 		endcase
 	endtask
 
-	always @* begin
-		preg_read  = reg_read;
+	always_comb begin
+		int i;
+
 		preg_write = reg_write;
 
 		keep_dual_edge_signals();
@@ -322,12 +319,12 @@ module lr35902_ppu(
 		fetch_flip   = r_fetch_flip;
 		fetch_prio   = r_fetch_prio;
 
-		for (i = 0; i < 10; i = i + 1)
+		for (i = 0; i < 10; i++)
 			obj[i] = r_obj[i];
 
 		nobj = r_nobj;
 		lobj = 0;
-		mobj = 'bx;
+		mobj = 'x;
 
 		if (r_lx == 455) begin
 			px_cnt = 0;
@@ -337,83 +334,83 @@ module lr35902_ppu(
 		end
 
 		if (r_ly == 153 && r_lx == 8)
-			ly   = 0;
+			ly = 0;
 
-		if (r_preg_write && !reg_write) case (reg_adr)
-		'h0: { ppu_ena, win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena } = reg_din;
-		'h1: { sel_lyc, sel_mode2, sel_mode1, sel_mode0 } = reg_din[6:3];
-		'h2: scy  = reg_din;
-		'h3: scx  = reg_din;
-		'h5: lyc  = reg_din;
-		'h7: bgp  = reg_din;
-		'h8: obp0 = reg_din;
-		'h9: obp1 = reg_din;
-		'ha: wy   = reg_din;
-		'hb: wx   = reg_din;
+		if (r_preg_write && !reg_write) unique0 case (reg_adr)
+			'h0: { ppu_ena, win_map, win_ena, bg_tiles, bg_map, obj_size, obj_ena, bg_ena } = reg_din;
+			'h1: { sel_lyc, sel_mode2, sel_mode1, sel_mode0 } = reg_din[6:3];
+			'h2: scy  = reg_din;
+			'h3: scx  = reg_din;
+			'h5: lyc  = reg_din;
+			'h7: bgp  = reg_din;
+			'h8: obp0 = reg_din;
+			'h9: obp1 = reg_din;
+			'ha: wy   = reg_din;
+			'hb: wx   = reg_din;
 		endcase
 
 		if (!r_ppu_ena && ppu_ena) begin
-			latch (0, `POS_EDGE);
-			altsig(1, `POS_EDGE);
+			latch (0, POS_EDGE);
+			altsig(1, POS_EDGE);
 		end
 
 		if (lx == 0) begin
-			latch(1, `NEG_EDGE);
-			ctrl (1, `NEG_EDGE);
+			latch(1, NEG_EDGE);
+			ctrl (1, NEG_EDGE);
 		end
 		if (lx == 4)
-			latch(0, `NEG_EDGE);
+			latch(0, NEG_EDGE);
 		if (lx == 2 && ily == 144)
-			toggle_altsig(`NEG_EDGE);
+			toggle_altsig(NEG_EDGE);
 		if (lx == 4)
-			toggle_altsig(`NEG_EDGE);
+			toggle_altsig(NEG_EDGE);
 		if (lx == 8)
-			ctrl(0, `NEG_EDGE);
+			ctrl(0, NEG_EDGE);
 		if (lx == 32)
-			ctrl(1, `NEG_EDGE);
+			ctrl(1, NEG_EDGE);
 		if (lx == 36)
-			ctrl(0, `NEG_EDGE);
+			ctrl(0, NEG_EDGE);
 		if (n_hsync && lx == 86)
-			pclk(1, `POS_EDGE);
+			pclk(1, POS_EDGE);
 		if (n_hsync && lx == 87)
-			pclk(0, `NEG_EDGE);
+			pclk(0, NEG_EDGE);
 		if (lx == 184)
-			ctrl(1, `NEG_EDGE);
+			ctrl(1, NEG_EDGE);
 		if (lx == 188)
-			ctrl(0, `NEG_EDGE);
+			ctrl(0, NEG_EDGE);
 		if (lx == 336)
-			ctrl(1, `NEG_EDGE);
+			ctrl(1, NEG_EDGE);
 		if (lx == 340)
-			ctrl(0, `NEG_EDGE);
+			ctrl(0, NEG_EDGE);
 
 		lyc_eq = ly == lyc;
 
 		if (ily >= 144)
-			mode = `MODE_VBLANK;
+			mode = MODE_VBLANK;
 		else begin
 			if (lx == 0) begin
-				mode = `MODE_OAMSRC;
-				acquire_oam (`NEG_EDGE);
+				mode = MODE_OAMSRC;
+				acquire_oam (NEG_EDGE);
 			end else if (lx == 80) begin
-				mode = `MODE_PXTRANS;
-				acquire_oam (`NEG_EDGE);
-				acquire_vram(`NEG_EDGE);
+				mode = MODE_PXTRANS;
+				acquire_oam (NEG_EDGE);
+				acquire_vram(NEG_EDGE);
 			end else if (px_cnt == 168) begin
-				mode = `MODE_HBLANK;
-				release_oam (`NEG_EDGE);
-				release_vram(`NEG_EDGE);
+				mode = MODE_HBLANK;
+				release_oam (NEG_EDGE);
+				release_vram(NEG_EDGE);
 			end
 		end
 
-		if (mode == `MODE_OAMSRC) begin
+		if (mode == MODE_OAMSRC) begin
 			read = 1;
 			adr  = { 8'hfe, lx[6:0], 1'b0 };
 
 			if (lx == 6)
-				vsync(ily == 0, `NEG_EDGE);
+				vsync(ily == 0, NEG_EDGE);
 		end
 
-		if (r_mode == `MODE_OAMSRC && r_nobj < 10) begin
+		if (r_mode == MODE_OAMSRC && r_nobj < 10) begin
 			if (!r_lx[0] && r_obj_ena) begin
 				if (r_ly + 16 >= data16[7:0] && r_ly + 16 < data16[7:0] + (r_obj_size ? 16 : 8)) begin
 					obj[r_nobj][15:0] = data16;
@@ -425,30 +422,30 @@ module lr35902_ppu(
 			end
 		end
 
-		if (r_mode != `MODE_PXTRANS && mode == `MODE_PXTRANS) begin
+		if (r_mode != MODE_PXTRANS && mode == MODE_PXTRANS) begin
 			fetch_bg_adr[15:10] = { 5'b10011, r_bg_map };
 			fetch_bg_adr[9:5]   = line[7:3];
 			fetch_bg_adr[4:0]   = r_scx[7:3];
 			fetch_src           = 'b0x;
 
-			hsync(1, `NEG_EDGE);
+			hsync(1, NEG_EDGE);
 		end
 
-		case (r_fetch_state)
-		`FETCH_STATE_IDLE:
-			if (mode == `MODE_PXTRANS) begin
-				fetch_state = `FETCH_STATE_TILE;
+		unique case (r_fetch_state)
+		FETCH_STATE_IDLE:
+			if (mode == MODE_PXTRANS) begin
+				fetch_state = FETCH_STATE_TILE;
 				read        = 1;
 				adr         = fetch_bg_adr;
 			end
-		`FETCH_STATE_TILE:
+		FETCH_STATE_TILE:
 			begin
-				fetch_state = `FETCH_STATE_PXL0_0;
+				fetch_state = FETCH_STATE_PXL0_0;
 				fetch_tile  = data;
 			end
-		`FETCH_STATE_PXL0_0:
+		FETCH_STATE_PXL0_0:
 			begin
-				fetch_state = `FETCH_STATE_PXL0_1;
+				fetch_state = FETCH_STATE_PXL0_1;
 				read        = 1;
 				adr[0]      = 0;
 				if (!r_fetch_src[1]) begin
@@ -457,37 +454,38 @@ module lr35902_ppu(
 					adr[3:1]   = r_draw_win ? wline[2:0] : line[2:0];
 				end
 			end
-		`FETCH_STATE_PXL0_1:
+		FETCH_STATE_PXL0_1:
 			begin
-				fetch_state = `FETCH_STATE_PXL1_0;
+				fetch_state = FETCH_STATE_PXL1_0;
 				fetch0      = data;
 			end
-		`FETCH_STATE_PXL1_0:
+		FETCH_STATE_PXL1_0:
 			begin
-				fetch_state = `FETCH_STATE_PXL1_1;
+				fetch_state = FETCH_STATE_PXL1_1;
 				read        = 1;
 				adr[0]      = 1;
 			end
-		`FETCH_STATE_PXL1_1:
+		FETCH_STATE_PXL1_1:
 			begin
-				fetch_state = `FETCH_STATE_BLOCK;
+				fetch_state = FETCH_STATE_BLOCK;
 				fetch1      = data;
 			end
+		FETCH_STATE_BLOCK:;
 		endcase
 
-		if (mode == `MODE_PXTRANS && r_win_ena && !r_draw_win && r_ly >= r_wy && px_cnt == r_wx + 1) begin
+		if (mode == MODE_PXTRANS && r_win_ena && !r_draw_win && r_ly >= r_wy && px_cnt == r_wx + 1) begin
 			draw_win            = 1;
 			fetch_bg_adr[15:10] = { 5'b10011, r_win_map };
 			fetch_bg_adr[9:5]   = wline[7:3];
 			fetch_bg_adr[4:0]   = 0;
 			fetch_src           = 'b0x;
-			fetch_state         = `FETCH_STATE_IDLE;
+			fetch_state         = FETCH_STATE_IDLE;
 			fifo_len            = 0;
 			read                = 0;
 		end
 
-		if (r_fetch_src[1] && fetch_state == `FETCH_STATE_BLOCK) begin
-			fetch_state     = `FETCH_STATE_IDLE;
+		if (r_fetch_src[1] && fetch_state == FETCH_STATE_BLOCK) begin
+			fetch_state = FETCH_STATE_IDLE;
 			if (r_fetch_flip) begin
 				if (!fifo1_src[8]  && (!r_fetch_prio || !fifo0[8]  && !fifo1[8])  && (fetch0[7] || fetch1[7]))
 					{ fifo1_src[8],  fifo0_src[8],  fifo1[8],  fifo0[8]  } = { fetch_src, fetch1[7], fetch0[7] };
@@ -523,12 +521,12 @@ module lr35902_ppu(
 				if (!fifo1_src[15] && (!r_fetch_prio || !fifo0[15] && !fifo1[15]) && (fetch0[7] || fetch1[7]))
 					{ fifo1_src[15], fifo0_src[15], fifo1[15], fifo0[15] } = { fetch_src, fetch1[7], fetch0[7] };
 			end
-			fetch_src       = 'b0x;
+			fetch_src = 'b0x;
 		end
 
 		if ((fifo_len == 8 || fifo_len == 0) &&
-		    (fetch_state == `FETCH_STATE_BLOCK)) begin
-			fetch_state       = `FETCH_STATE_IDLE;
+		    (fetch_state == FETCH_STATE_BLOCK)) begin
+			fetch_state       = FETCH_STATE_IDLE;
 			fetch_bg_adr[4:0] = r_fetch_bg_adr[4:0] + 1;
 			if (!fifo_len) begin
 				fifo0[15:8]     = fetch0;
@@ -545,20 +543,20 @@ module lr35902_ppu(
 			end
 		end
 
-		case ({ fifo1_src[15], fifo0_src[15] })
-		'b10:    px_pal = obp0;
-		'b11:    px_pal = obp1;
-		default: px_pal = bgp;
+		unique case ({ fifo1_src[15], fifo0_src[15] })
+			'b10:    px_pal = obp0;
+			'b11:    px_pal = obp1;
+			default: px_pal = bgp;
 		endcase
 
-		case ({ fifo1[15], fifo0[15] })
-		0: px(px_pal[1:0], `NEG_EDGE);
-		1: px(px_pal[3:2], `NEG_EDGE);
-		2: px(px_pal[5:4], `NEG_EDGE);
-		3: px(px_pal[7:6], `NEG_EDGE);
+		unique case ({ fifo1[15], fifo0[15] })
+			0: px(px_pal[1:0], NEG_EDGE);
+			1: px(px_pal[3:2], NEG_EDGE);
+			2: px(px_pal[5:4], NEG_EDGE);
+			3: px(px_pal[7:6], NEG_EDGE);
 		endcase
 
-		if (mode == `MODE_PXTRANS && fifo_len > 8 && !fetch_src[1]) begin
+		if (mode == MODE_PXTRANS && fifo_len > 8 && !fetch_src[1]) begin
 			/* Don't send r_scx[2:0] (0..7) pixels to the LCD. This is for sub tile X scrolling. */
 			if (!r_scxed && px_cnt == r_scx[2:0]) begin
 				scxed = 1;
@@ -566,21 +564,21 @@ module lr35902_ppu(
 			end
 
 			case (1)
-			r_obj[0][28] && r_obj[0][15:8] == px_cnt: mobj = r_obj[0];
-			r_obj[1][28] && r_obj[1][15:8] == px_cnt: mobj = r_obj[1];
-			r_obj[2][28] && r_obj[2][15:8] == px_cnt: mobj = r_obj[2];
-			r_obj[3][28] && r_obj[3][15:8] == px_cnt: mobj = r_obj[3];
-			r_obj[4][28] && r_obj[4][15:8] == px_cnt: mobj = r_obj[4];
-			r_obj[5][28] && r_obj[5][15:8] == px_cnt: mobj = r_obj[5];
-			r_obj[6][28] && r_obj[6][15:8] == px_cnt: mobj = r_obj[6];
-			r_obj[7][28] && r_obj[7][15:8] == px_cnt: mobj = r_obj[7];
-			r_obj[8][28] && r_obj[8][15:8] == px_cnt: mobj = r_obj[8];
-			r_obj[9][28] && r_obj[9][15:8] == px_cnt: mobj = r_obj[9];
-			default: mobj[28] = 0;
+				r_obj[0][28] && r_obj[0][15:8] == px_cnt: mobj = r_obj[0];
+				r_obj[1][28] && r_obj[1][15:8] == px_cnt: mobj = r_obj[1];
+				r_obj[2][28] && r_obj[2][15:8] == px_cnt: mobj = r_obj[2];
+				r_obj[3][28] && r_obj[3][15:8] == px_cnt: mobj = r_obj[3];
+				r_obj[4][28] && r_obj[4][15:8] == px_cnt: mobj = r_obj[4];
+				r_obj[5][28] && r_obj[5][15:8] == px_cnt: mobj = r_obj[5];
+				r_obj[6][28] && r_obj[6][15:8] == px_cnt: mobj = r_obj[6];
+				r_obj[7][28] && r_obj[7][15:8] == px_cnt: mobj = r_obj[7];
+				r_obj[8][28] && r_obj[8][15:8] == px_cnt: mobj = r_obj[8];
+				r_obj[9][28] && r_obj[9][15:8] == px_cnt: mobj = r_obj[9];
+				default: mobj[28] = 0;
 			endcase
 
 			if (scxed && mobj[28]) begin
-				fetch_state = `FETCH_STATE_PXL0_0;
+				fetch_state = FETCH_STATE_PXL0_0;
 				fetch_src   = mobj[24] ? 'b11 : 'b10;
 				fetch_flip  = mobj[25];
 				fetch_prio  = mobj[27];
@@ -591,24 +589,24 @@ module lr35902_ppu(
 				else
 					adr[3:1] = mobj[26] ? (7 - (r_ly[2:0] - mobj[2:0])) : (r_ly[2:0] - mobj[2:0]);
 				case (1)
-				r_obj[0][28] && r_obj[0][15:8] == px_cnt: obj[0][28] = 0;
-				r_obj[1][28] && r_obj[1][15:8] == px_cnt: obj[1][28] = 0;
-				r_obj[2][28] && r_obj[2][15:8] == px_cnt: obj[2][28] = 0;
-				r_obj[3][28] && r_obj[3][15:8] == px_cnt: obj[3][28] = 0;
-				r_obj[4][28] && r_obj[4][15:8] == px_cnt: obj[4][28] = 0;
-				r_obj[5][28] && r_obj[5][15:8] == px_cnt: obj[5][28] = 0;
-				r_obj[6][28] && r_obj[6][15:8] == px_cnt: obj[6][28] = 0;
-				r_obj[7][28] && r_obj[7][15:8] == px_cnt: obj[7][28] = 0;
-				r_obj[8][28] && r_obj[8][15:8] == px_cnt: obj[8][28] = 0;
-				r_obj[9][28] && r_obj[9][15:8] == px_cnt: obj[9][28] = 0;
+					r_obj[0][28] && r_obj[0][15:8] == px_cnt: obj[0][28] = 0;
+					r_obj[1][28] && r_obj[1][15:8] == px_cnt: obj[1][28] = 0;
+					r_obj[2][28] && r_obj[2][15:8] == px_cnt: obj[2][28] = 0;
+					r_obj[3][28] && r_obj[3][15:8] == px_cnt: obj[3][28] = 0;
+					r_obj[4][28] && r_obj[4][15:8] == px_cnt: obj[4][28] = 0;
+					r_obj[5][28] && r_obj[5][15:8] == px_cnt: obj[5][28] = 0;
+					r_obj[6][28] && r_obj[6][15:8] == px_cnt: obj[6][28] = 0;
+					r_obj[7][28] && r_obj[7][15:8] == px_cnt: obj[7][28] = 0;
+					r_obj[8][28] && r_obj[8][15:8] == px_cnt: obj[8][28] = 0;
+					r_obj[9][28] && r_obj[9][15:8] == px_cnt: obj[9][28] = 0;
 				endcase
 			end else begin
 				/* Don't send eight pixels following the scroll (which are all garbage when r_scx==0) to the LCD. */
 				if (px_cnt == 8)
-					hsync(0, `POS_EDGE);
+					hsync(0, POS_EDGE);
 				else if (px_cnt > 8) begin
-					pclk(1, `NEG_EDGE);
-					pclk(0, `POS_EDGE);
+					pclk(1, NEG_EDGE);
+					pclk(0, POS_EDGE);
 				end
 				px_cnt    = px_cnt + 1;
 				fifo_len  = fifo_len - 1;
@@ -628,18 +626,17 @@ module lr35902_ppu(
 			scxed    = 0;
 			draw_win = 0;
 
-			fetch_state = `FETCH_STATE_IDLE;
+			fetch_state = FETCH_STATE_IDLE;
 			fetch_src   = 'b0x;
 			read        = 0;
 
-			for (i = 0; i < 10; i = i + 1)
+			for (i = 0; i < 10; i++)
 				obj[i] = 'h0xxxxxxx;
 
 			nobj = 0;
 		end
 
 		if (reset) begin
-			preg_read  = 0;
 			preg_write = 0;
 
 			ppu_ena  = 0;
@@ -667,19 +664,19 @@ module lr35902_ppu(
 		end
 
 		if (!ppu_ena) begin
-			release_oam (`POS_EDGE);
-			release_vram(`POS_EDGE);
+			release_oam (POS_EDGE);
+			release_vram(POS_EDGE);
 
-			adr  = 'bx;
+			adr  = 'x;
 			read = 0;
 
-			hsync (     0, `POS_EDGE);
-			vsync (     0, `POS_EDGE);
-			latch (div[8], `POS_EDGE);
-			altsig(div[9], `POS_EDGE);
-			ctrl  (     0, `POS_EDGE);
-			pclk  (     0, `POS_EDGE);
-			px    (     0, `POS_EDGE);
+			hsync (     0, POS_EDGE);
+			vsync (     0, POS_EDGE);
+			latch (div[8], POS_EDGE);
+			altsig(div[9], POS_EDGE);
+			ctrl  (     0, POS_EDGE);
+			pclk  (     0, POS_EDGE);
+			px    (     0, POS_EDGE);
 
 			px_cnt = 0;
 			lx     = 0;
@@ -692,30 +689,31 @@ module lr35902_ppu(
 			lyc_eq = 0;
 			mode   = 0;
 
-			fifo0     = 'bx;
-			fifo1     = 'bx;
-			fifo0_src = 'bx;
-			fifo1_src = 'bx;
+			fifo0     = 'x;
+			fifo1     = 'x;
+			fifo0_src = 'x;
+			fifo1_src = 'x;
 			fifo_len  = 8;
 
-			fetch_state  = `FETCH_STATE_IDLE;
+			fetch_state  = FETCH_STATE_IDLE;
 			fetch_src    = 'b0x;
-			fetch_tile   = 'bx;
-			fetch0       = 'bx;
-			fetch1       = 'bx;
-			fetch_bg_adr = 'bx;
-			fetch_flip   = 'bx;
-			fetch_prio   = 'bx;
+			fetch_tile   = 'x;
+			fetch0       = 'x;
+			fetch1       = 'x;
+			fetch_bg_adr = 'x;
+			fetch_flip   = 'x;
+			fetch_prio   = 'x;
 
-			for (i = 0; i < 10; i = i + 1)
+			for (i = 0; i < 10; i++)
 				obj[i] = 'h0xxxxxxx;
 
 			nobj = 0;
 		end
 	end
 
-	always @(posedge clk) begin
-		r_preg_read  <= preg_read;
+	always_ff @(posedge clk) begin
+		int i;
+
 		r_preg_write <= preg_write;
 
 		r_adr <= adr;
@@ -781,11 +779,10 @@ module lr35902_ppu(
 		r_fetch_flip   <= fetch_flip;
 		r_fetch_prio   <= fetch_prio;
 
-		for (i = 0; i < 10; i = i + 1)
+		for (i = 0; i < 10; i++)
 			r_obj[i] <= obj[i];
 
 		r_nobj <= nobj;
 		r_lobj <= lobj;
 	end
-
 endmodule
