@@ -35,6 +35,7 @@ module top(
 		output logic [7:0]  dbg_dl,
 		output logic        dbg_mread,
 		output logic        dbg_mwrite,
+		output logic        dbg_ifetch,
 		output logic        dbg_halt,
 		output logic        dbg_no_inc,
 
@@ -50,12 +51,7 @@ module top(
 		output logic        dbg_ifc_drv,
 
 		output logic        dbg_ena,
-		output logic        dbg_r_ena,
-		output logic        dbg_r_halt,
-		output logic        dbg_r_no_inc,
-		output logic [5:0]  dbg_r_cycle,
-		output logic [5:0]  dbg_cycle,
-		output logic [1:0]  dbg_r_state,
+		output logic [4:0]  dbg_cycle,
 		output logic [1:0]  dbg_state,
 	);
 
@@ -67,21 +63,23 @@ module top(
 	initial begin
 		for (i = 0; i < 16; i++)
 			mem[i] = 0;
-		mem[0] = 'h3c;
-		mem[1] = 'hcb;
-		mem[2] = 'h37;
-		mem[3] = 'hb8;
-		mem[4] = 'h23;
-		mem[5] = 'h18;
-		mem[6] = 'hf9;
+		mem[0] = 'h3c; /* INC  A    */
+		mem[1] = 'hcb; /* PREFIX CB */
+		mem[2] = 'h37; /* SWAP A    */
+		mem[3] = 'hb8; /* CP   B    */
+		mem[4] = 'h23; /* INC  HL   */
+		mem[5] = 'h18; /* JR   e    */
+		mem[6] = 'hf9; /*      e=-7 */
 	end
 
 	sm83 cpu(
 		.*,
 	);
 
-	sm83_dbg_ifc dbg_ifc(
+	sm83_dbg_ifc #(.ONLY_RET0(1)) dbg_ifc(
 		.*,
+		.ifetch(dbg_ifetch),
+		.adr,
 		.pc(dbg_pc),
 		.wz(dbg_wz),
 		.sp(dbg_sp),

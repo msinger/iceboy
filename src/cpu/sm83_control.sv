@@ -50,6 +50,7 @@ module sm83_control(
 		output logic                 ctl_alu_fl_carry_we, ctl_alu_fl_carry_set, ctl_alu_fl_carry_cpl,
 		output logic                 ctl_alu_fl_c2_we, ctl_alu_fl_c2_sh, ctl_alu_fl_c2_daa, ctl_alu_fl_sel_c2,
 
+		output logic                 dbg_ifetch,
 		input  logic                 dbg_halt,
 		input  logic                 dbg_no_inc,
 	);
@@ -2809,7 +2810,7 @@ module sm83_control(
 				pc_from_adr_inc();
 
 				/* Don't increment PC when debugger requests halt */
-				if (dbg_halt && !bank_cb)
+				if (dbg_halt && !prefix_cb)
 					ctl_inc_cy = 0;
 			end
 
@@ -2839,5 +2840,8 @@ module sm83_control(
 		if (reset)
 			in_rst = 1; /* prevent PC increment and read zero opcode (no-op) during first M cycle */
 	end
+
+	/* Tell debug interface when instruction fetch starts; needed for triggering breakpoints */
+	assign dbg_ifetch = m1 && t1 && !prefix_cb;
 
 endmodule

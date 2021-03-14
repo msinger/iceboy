@@ -94,17 +94,13 @@ static void debug(std::ostream& stm, const sm83_dbg_ifc_sim_design::p_top& top, 
 		endl <<
 		"   " <<
 		" HALT=" << std::dec << std::setw(1) << top.p_dbg__halt.get<bool>() <<
-		" R_HALT=" << std::dec << std::setw(1) << top.p_dbg__r__halt.get<bool>() <<
 		" NO_INC=" << std::dec << std::setw(1) << top.p_dbg__no__inc.get<bool>() <<
-		" R_NO_INC=" << std::dec << std::setw(1) << top.p_dbg__r__no__inc.get<bool>() <<
 		" ENA=" << std::dec << std::setw(1) << top.p_dbg__ena.get<bool>() <<
-		" R_ENA=" << std::dec << std::setw(1) << top.p_dbg__r__ena.get<bool>() <<
+		" IFETCH=" << std::dec << std::setw(1) << top.p_dbg__ifetch.get<bool>() <<
 		endl <<
 		"   " <<
 		" CYCLE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__cycle.get<uint16_t>() <<
-		" R_CYCLE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__r__cycle.get<uint16_t>() <<
 		" STATE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__state.get<uint16_t>() <<
-		" R_STATE=" << std::dec << std::setw(1) << std::setfill('0') << top.p_dbg__r__state.get<uint16_t>() <<
 		std::endl;
 }
 
@@ -246,11 +242,40 @@ int main(int argc, char** argv)
 	for (i = 0; i < 4; i++)
 		tick(log, top, endl, t++);
 
+	/* Debugger enable sequence */
 	dbg_handshake(log, top, endl, t, 0x1a);
 	dbg_handshake(log, top, endl, t, 0x18);
 	dbg_handshake(log, top, endl, t, 0x41);
+
+	/* Halt */
 	dbg_handshake(log, top, endl, t, 0x00);
 
+	for (i = 0; i < 4; i++)
+		tick(log, top, endl, t++);
+
+	/* Continue */
+//	dbg_handshake(log, top, endl, t, 0x03);
+
+	/* Step */
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+	log << "[** STEP **]" << std::endl;
+	dbg_handshake(log, top, endl, t, 0x02);
+
 	while (t % 4)
+		tick(log, top, endl, t++);
+	for (i = 0; i < 8; i++)
 		tick(log, top, endl, t++);
 }

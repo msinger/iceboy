@@ -33,6 +33,7 @@ module sm83(
 		output logic [7:0]  dbg_dl,
 		output logic        dbg_mread,
 		output logic        dbg_mwrite,
+		output logic        dbg_ifetch,
 		input  logic        dbg_halt,
 		input  logic        dbg_no_inc,
 	);
