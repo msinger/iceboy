@@ -1,9 +1,15 @@
 iceboy
 ------
 
+http://iceboy.a-singer.de/
+https://github.com/msinger/iceboy/
 https://sourceforge.net/projects/iceboy/
+
+Licensed under CERN-OHL-W v2
+https://cern-ohl.web.cern.ch/
 
 The goal of this project is to implement a GameBoy in Verilog using the open
 source IceStorm tools for Lattice iCE40HX-8K FPGAs. You can get the tools from
 here:
   http://www.clifford.at/icestorm/
+
