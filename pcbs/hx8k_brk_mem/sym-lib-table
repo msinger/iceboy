@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "Memory_RAM_AS6C62256")(type "KiCad")(uri "/home/michael/projects/gameboy/pcbs/lib/Memory_RAM_AS6C62256.kicad_sym")(options "")(descr ""))
+)
