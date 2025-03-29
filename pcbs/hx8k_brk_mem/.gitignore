@@ -10,4 +10,5 @@
 *.rules
 *.bin
 ~*.lck
+*.kicad_prl
 \#auto_saved_files\#
